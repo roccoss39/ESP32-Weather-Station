@@ -138,7 +138,7 @@ void drawWeatherIcon(int x, int y, String condition) {
   else {
     // Domyślna ikona - znak zapytania
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.setTextSize(2);
+    tft.setTextSize(3);
     tft.drawString("?", x + 20, y + 15);
   }
 }
@@ -147,18 +147,18 @@ void drawWeatherIcon(int x, int y, String condition) {
 void displayWeather() {
   if (!weather.isValid) return;
   
-  // Pozycja pogody - prawa strona, lepsze rozmieszczenie
-  int x = 180;
+  // Pozycja pogody - GÓRA na całej szerokości
+  int x = 5;
   int y = 5;
   
-  // Wyczyść cały obszar pogody
-  tft.fillRect(x, y, 140, 110, TFT_BLACK);
+  // Wyczyść obszar pogody - cała szerokość ekranu
+  tft.fillRect(x, y, 310, 140, TFT_BLACK);
   
   // Ikona pogody (góra)
   drawWeatherIcon(x + 5, y, weather.description);
   
-  // Ustawienia tekstu - jednolity rozmiar
-  tft.setTextSize(2);
+  // Ustawienia tekstu - większy rozmiar
+  tft.setTextSize(3);
   tft.setTextDatum(TL_DATUM);
   
   // Temperatura (obok ikony)
@@ -166,18 +166,60 @@ void displayWeather() {
   String tempStr = String(weather.temperature, 1) + "'C";
   tft.drawString(tempStr, x + 60, y + 5);
   
-  // Opis pogody (pod ikoną)
+  // Opis pogody (pod ikoną) - debug i skrócenie
   tft.setTextColor(TFT_CYAN, TFT_BLACK);
-  tft.drawString(weather.description, x + 5, y + 55);
+  String shortDescription = weather.description;
+  
+  // DEBUG - wypisz oryginalny opis w Serial
+  Serial.println("Opis pogody ORYGINALNY: '" + weather.description + "'");
+  
+  // Skracanie POLSKICH opisów z API (&lang=pl)
+  if (shortDescription.indexOf("zachmurzenie duże") >= 0) {
+    shortDescription = "Duze zachmurzenie";
+  } else if (shortDescription.indexOf("zachmurzenie małe") >= 0) {
+    shortDescription = "Male zachmurzenie.";
+  } else if (shortDescription.indexOf("zachmurzenie umiarkowane") >= 0) {
+    shortDescription = "Umiark. zachmurzenie";
+  } else if (shortDescription.indexOf("zachmurzenie") >= 0) {
+    shortDescription = "Zachmurzurzenie";
+  } else if (shortDescription.indexOf("pochmurnie") >= 0) {
+    shortDescription = "Pochmurnie";
+  } else if (shortDescription.indexOf("bezchmurnie") >= 0) {
+    shortDescription = "Bezchmurnie";
+  } else if (shortDescription.indexOf("słonecznie") >= 0) {
+    shortDescription = "Slonecznie";
+  } else if (shortDescription.indexOf("deszcz lekki") >= 0) {
+    shortDescription = "Lekki deszcz";
+  } else if (shortDescription.indexOf("deszcz silny") >= 0) {
+    shortDescription = "Silny deszcz";
+  } else if (shortDescription.indexOf("deszcz") >= 0) {
+    shortDescription = "Deszcz";
+  } else if (shortDescription.indexOf("snieg") >= 0) {
+    shortDescription = "Snieg";
+  } else if (shortDescription.indexOf("mgla") >= 0) {
+    shortDescription = "Mgla";
+  } else if (shortDescription.indexOf("burza") >= 0) {
+    shortDescription = "Burza";
+  } else {
+    // Jeśli nic nie pasuje, skróć do 11 znaków
+    if (shortDescription.length() > 11) {
+      shortDescription = shortDescription.substring(0, 11) + ".";
+    }
+  }
+  
+  Serial.println("Wyswietlany opis: '" + shortDescription + "'");
+  
+  tft.drawString(shortDescription, x + 5, y + 55);
   
   // Wilgotność
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   String humStr = "Wilg: " + String(weather.humidity, 0) + "%";
-  tft.drawString(humStr, x + 5, y + 80);
+  tft.drawString(humStr, x + 5, y + 85);
   
-  // Wiatr
-  String windStr = "Wiatr: " + String(weather.windSpeed, 1) + "m/s";
-  tft.drawString(windStr, x + 5, y + 105);
+  // Wiatr (przelicz z m/s na km/h)
+  float windKmh = weather.windSpeed * 3.6;
+  String windStr = "Wiatr: " + String(windKmh, 1) + "km/h";
+  tft.drawString(windStr, x + 5, y + 115);
 }
 
 void setup() {
@@ -257,34 +299,46 @@ void loop() {
 
   // Rysuj tylko jeśli czas się zmienił
   if (strcmp(timeStr, timeStrPrev) != 0) {
-    // Wyczyść obszar czasu (lewa strona ekranu)
-    tft.fillRect(5, 5, 170, 120, TFT_BLACK);
+    // Wyczyść obszar czasu (POD POGODĄ na całej szerokości)
+    tft.fillRect(5, 150, 310, 85, TFT_BLACK);
 
-    // ===== SEKCJA CZASU =====
+    // ===== SEKCJA CZASU - POD POGODĄ =====
     tft.setTextDatum(TL_DATUM); // Top Left alignment
-    tft.setTextSize(2); // Jednolity rozmiar dla wszystkiego
+    tft.setTextSize(2); // Mniejsza czcionka
     
-    // Zegar na górze
+    // Czas, data i dzień w jednym wierszu
     tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-    tft.drawString(timeStr, 10, 15);
+    tft.drawString(timeStr, 10, 155); // Czas po lewej
     
-    // Data pod zegarem
+    // Data po prawej od czasu
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.drawString(dateStr, 10, 40);
+    tft.drawString(dateStr, 130, 155); // Data obok czasu
     
-    // Dzień tygodnia
+    // Dzień tygodnia po polsku - w drugim wierszu
     char dayStr[20];
-    strftime(dayStr, sizeof(dayStr), "%A", &timeinfo);
+    strftime(dayStr, sizeof(dayStr), "%w", &timeinfo); // Pobierz numer dnia (0=niedziela)
+    String polishDay;
+    int dayNum = atoi(dayStr);
+    switch(dayNum) {
+      case 0: polishDay = "Niedziela"; break;
+      case 1: polishDay = "Poniedzialek"; break;
+      case 2: polishDay = "Wtorek"; break;
+      case 3: polishDay = "Sroda"; break;
+      case 4: polishDay = "Czwartek"; break;
+      case 5: polishDay = "Piatek"; break;
+      case 6: polishDay = "Sobota"; break;
+      default: polishDay = "Nieznany"; break;
+    }
     tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-    tft.drawString(String(dayStr), 10, 65);
+    tft.drawString(polishDay, 10, 180); // Dzień po lewej
     
-    // Status WiFi
+    // Status WiFi w tej samej linii po prawej
     if (WiFi.status() == WL_CONNECTED) {
       tft.setTextColor(TFT_GREEN, TFT_BLACK);
-      tft.drawString("WiFi: OK", 10, 90);
+      tft.drawString("WiFi: OK", 180, 180); // WiFi po prawej stronie
     } else {
       tft.setTextColor(TFT_RED, TFT_BLACK);
-      tft.drawString("WiFi: ERROR", 10, 90);
+      tft.drawString("WiFi: BLAD", 180, 180);
     }
 
     strcpy(timeStrPrev, timeStr);
@@ -310,6 +364,8 @@ void loop() {
   if (weather.isValid) {
     displayWeather();
   }
+
+  // Prawa kolumna usunięta - więcej miejsca na lewą stronę
 
   delay(1000); // Aktualizuj co sekundę
 }
