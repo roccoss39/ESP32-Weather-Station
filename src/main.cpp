@@ -76,37 +76,108 @@ bool getWeather() {
   return false;
 }
 
+// ===== FUNKCJE IKON POGODOWYCH =====
+void drawWeatherIcon(int x, int y, String condition) {
+  tft.fillRect(x, y, 50, 50, TFT_BLACK); // Wyczyść obszar ikony
+  
+  condition.toLowerCase();
+  
+  if (condition.indexOf("słon") >= 0 || condition.indexOf("jas") >= 0) {
+    // Słońce - żółte koło z promieniami
+    tft.fillCircle(x + 25, y + 25, 15, TFT_YELLOW);
+    for (int i = 0; i < 8; i++) {
+      float angle = i * 45 * PI / 180;
+      int x1 = x + 25 + cos(angle) * 20;
+      int y1 = y + 25 + sin(angle) * 20;
+      int x2 = x + 25 + cos(angle) * 25;
+      int y2 = y + 25 + sin(angle) * 25;
+      tft.drawLine(x1, y1, x2, y2, TFT_YELLOW);
+    }
+  }
+  else if (condition.indexOf("chmur") >= 0 || condition.indexOf("pochmur") >= 0) {
+    // Chmura - białe/szare kółka
+    tft.fillCircle(x + 15, y + 30, 12, TFT_LIGHTGREY);
+    tft.fillCircle(x + 25, y + 25, 15, TFT_WHITE);
+    tft.fillCircle(x + 35, y + 30, 12, TFT_LIGHTGREY);
+    tft.fillRect(x + 10, y + 35, 30, 8, TFT_WHITE);
+  }
+  else if (condition.indexOf("deszcz") >= 0 || condition.indexOf("opad") >= 0) {
+    // Chmura z deszczem
+    tft.fillCircle(x + 15, y + 20, 10, TFT_LIGHTGREY);
+    tft.fillCircle(x + 25, y + 15, 12, TFT_WHITE);
+    tft.fillCircle(x + 35, y + 20, 10, TFT_LIGHTGREY);
+    tft.fillRect(x + 12, y + 25, 26, 6, TFT_WHITE);
+    // Krople deszczu
+    for (int i = 0; i < 4; i++) {
+      tft.drawLine(x + 15 + i * 5, y + 32, x + 15 + i * 5, y + 40, TFT_CYAN);
+    }
+  }
+  else if (condition.indexOf("śnieg") >= 0) {
+    // Chmura ze śniegiem
+    tft.fillCircle(x + 15, y + 20, 10, TFT_LIGHTGREY);
+    tft.fillCircle(x + 25, y + 15, 12, TFT_WHITE);
+    tft.fillCircle(x + 35, y + 20, 10, TFT_LIGHTGREY);
+    tft.fillRect(x + 12, y + 25, 26, 6, TFT_WHITE);
+    // Płatki śniegu
+    for (int i = 0; i < 3; i++) {
+      int sx = x + 18 + i * 8;
+      int sy = y + 35;
+      tft.drawPixel(sx, sy, TFT_WHITE);
+      tft.drawPixel(sx-1, sy, TFT_WHITE);
+      tft.drawPixel(sx+1, sy, TFT_WHITE);
+      tft.drawPixel(sx, sy-1, TFT_WHITE);
+      tft.drawPixel(sx, sy+1, TFT_WHITE);
+    }
+  }
+  else if (condition.indexOf("mgła") >= 0 || condition.indexOf("zamgl") >= 0) {
+    // Mgła - poziome linie
+    for (int i = 0; i < 4; i++) {
+      tft.drawLine(x + 5, y + 20 + i * 5, x + 45, y + 20 + i * 5, TFT_LIGHTGREY);
+    }
+  }
+  else {
+    // Domyślna ikona - znak zapytania
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.setTextSize(2);
+    tft.drawString("?", x + 20, y + 15);
+  }
+}
+
 // ===== FUNKCJE WYŚWIETLANIA =====
 void displayWeather() {
   if (!weather.isValid) return;
   
-  // Pozycja pogody - prawa strona
-  int x = 200;
-  int y = 10;
+  // Pozycja pogody - prawa strona, lepsze rozmieszczenie
+  int x = 180;
+  int y = 5;
   
-  // Temperatura
+  // Wyczyść cały obszar pogody
+  tft.fillRect(x, y, 140, 110, TFT_BLACK);
+  
+  // Ikona pogody (góra)
+  drawWeatherIcon(x + 5, y, weather.description);
+  
+  // Ustawienia tekstu - jednolity rozmiar
   tft.setTextSize(2);
+  tft.setTextDatum(TL_DATUM);
+  
+  // Temperatura (obok ikony)
   tft.setTextColor(TFT_ORANGE, TFT_BLACK);
   String tempStr = String(weather.temperature, 1) + "'C";
-  tft.fillRect(x, y, 120, 20, TFT_BLACK); // Wyczyść obszar
-  tft.drawString(tempStr, x, y);
+  tft.drawString(tempStr, x + 60, y + 5);
   
-  // Opis
-  tft.setTextSize(1);
+  // Opis pogody (pod ikoną)
   tft.setTextColor(TFT_CYAN, TFT_BLACK);
-  tft.fillRect(x, y + 25, 120, 10, TFT_BLACK);
-  tft.drawString(weather.description, x, y + 25);
+  tft.drawString(weather.description, x + 5, y + 55);
   
   // Wilgotność
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   String humStr = "Wilg: " + String(weather.humidity, 0) + "%";
-  tft.fillRect(x, y + 40, 120, 10, TFT_BLACK);
-  tft.drawString(humStr, x, y + 40);
+  tft.drawString(humStr, x + 5, y + 80);
   
   // Wiatr
   String windStr = "Wiatr: " + String(weather.windSpeed, 1) + "m/s";
-  tft.fillRect(x, y + 55, 120, 10, TFT_BLACK);
-  tft.drawString(windStr, x, y + 55);
+  tft.drawString(windStr, x + 5, y + 105);
 }
 
 void setup() {
@@ -186,18 +257,35 @@ void loop() {
 
   // Rysuj tylko jeśli czas się zmienił
   if (strcmp(timeStr, timeStrPrev) != 0) {
-    // Wyczyść obszar czasu
-    tft.fillRect(0, tft.height()/2 - 20, 180, 40, TFT_BLACK);
+    // Wyczyść obszar czasu (lewa strona ekranu)
+    tft.fillRect(5, 5, 170, 120, TFT_BLACK);
 
-    // Narysuj czas
-    tft.setTextSize(3);
+    // ===== SEKCJA CZASU =====
+    tft.setTextDatum(TL_DATUM); // Top Left alignment
+    tft.setTextSize(2); // Jednolity rozmiar dla wszystkiego
+    
+    // Zegar na górze
     tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-    tft.setTextDatum(MC_DATUM);
-    tft.drawString(timeStr, 90, tft.height() / 2);
-
-    // Narysuj datę
-    tft.setTextSize(2);
-    tft.drawString(dateStr, 90, tft.height() / 2 + 30);
+    tft.drawString(timeStr, 10, 15);
+    
+    // Data pod zegarem
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawString(dateStr, 10, 40);
+    
+    // Dzień tygodnia
+    char dayStr[20];
+    strftime(dayStr, sizeof(dayStr), "%A", &timeinfo);
+    tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+    tft.drawString(String(dayStr), 10, 65);
+    
+    // Status WiFi
+    if (WiFi.status() == WL_CONNECTED) {
+      tft.setTextColor(TFT_GREEN, TFT_BLACK);
+      tft.drawString("WiFi: OK", 10, 90);
+    } else {
+      tft.setTextColor(TFT_RED, TFT_BLACK);
+      tft.drawString("WiFi: ERROR", 10, 90);
+    }
 
     strcpy(timeStrPrev, timeStr);
     strcpy(dateStrPrev, dateStr);
