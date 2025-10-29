@@ -1,0 +1,2 @@
+Lista plików do wyczyszczenia na końcu:
+- tmp_rovodev_cleanup_files.txt
