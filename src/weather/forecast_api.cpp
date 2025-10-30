@@ -60,7 +60,9 @@ bool getForecast() {
         forecast.items[i].temperature = item["main"]["temp"];
         forecast.items[i].windSpeed = item["wind"]["speed"];
         forecast.items[i].icon = item["weather"][0]["icon"].as<String>();
-        forecast.items[i].description = item["weather"][0]["description"].as<String>();
+        
+        // Używaj angielskiego description (szczegółowy opis)
+        forecast.items[i].description = item["weather"][0]["description"].as<String>();  // "light rain", "clear sky", etc.
         
         Serial.println("Forecast " + String(i+1) + ": " + forecast.items[i].time + 
                       " - " + String(forecast.items[i].temperature, 1) + "°C - " + 

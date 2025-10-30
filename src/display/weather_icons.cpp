@@ -4,10 +4,11 @@
 void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconCode) {
   tft.fillRect(x, y, ICON_SIZE, ICON_SIZE, COLOR_BACKGROUND); // Wyczyść obszar ikony
   
-  Serial.println("Rysowanie ikony dla: opis='" + condition + "', kod='" + iconCode + "'");
+  Serial.println("Rysowanie ikony dla: main='" + condition + "', icon='" + iconCode + "'");
   
-  // Ikony na podstawie kodu API (bardziej precyzyjne)
-  if (iconCode.indexOf("01") >= 0) { // 01d, 01n = clear sky
+  // Ikony na podstawie oficjalnej listy OpenWeatherMap
+  // Group 800: Clear
+  if (iconCode.indexOf("01") >= 0 || condition == "clear sky") { // 01d, 01n = clear sky
     // Słońce - czyste niebo
     tft.fillCircle(x + 25, y + 25, 15, TFT_YELLOW);
     for (int i = 0; i < 8; i++) {
@@ -19,16 +20,18 @@ void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconC
       tft.drawLine(x1, y1, x2, y2, TFT_YELLOW);
     }
   }
-  else if (iconCode.indexOf("02") >= 0 || iconCode.indexOf("03") >= 0 || iconCode.indexOf("04") >= 0 || 
-           condition.indexOf("chmur") >= 0 || condition.indexOf("pochmur") >= 0) {
-    // 02d/02n = few clouds, 03d/03n = scattered clouds, 04d/04n = broken clouds
+  // Group 80x: Clouds  
+  else if (iconCode.indexOf("02") >= 0 || iconCode.indexOf("03") >= 0 || iconCode.indexOf("04") >= 0 ||
+           condition.indexOf("clouds") >= 0) {
+    // 02d/02n = few clouds, 03d/03n = scattered clouds, 04d/04n = broken/overcast clouds
     tft.fillCircle(x + 15, y + 30, 12, TFT_LIGHTGREY);
     tft.fillCircle(x + 25, y + 25, 15, TFT_WHITE);
     tft.fillCircle(x + 35, y + 30, 12, TFT_LIGHTGREY);
     tft.fillRect(x + 10, y + 35, 30, 8, TFT_WHITE);
   }
-  else if (iconCode.indexOf("11") >= 0 || condition.indexOf("burza") >= 0) {
-    // 11d/11n = thunderstorm - MUSI BYĆ PRZED deszczem!
+  // Group 2xx: Thunderstorm
+  else if (iconCode.indexOf("11") >= 0 || condition.indexOf("thunderstorm") >= 0) {
+    // 11d/11n = thunderstorm (codes 200-232)
     // Ciemne chmury burzy
     tft.fillCircle(x + 15, y + 20, 10, TFT_DARKGREY);
     tft.fillCircle(x + 25, y + 15, 12, TFT_LIGHTGREY);
@@ -43,9 +46,11 @@ void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconC
       tft.drawLine(x + 13 + i * 6, y + 33, x + 13 + i * 6, y + 39, TFT_CYAN);
     }
   }
+  // Group 3xx: Drizzle + Group 5xx: Rain
   else if (iconCode.indexOf("09") >= 0 || iconCode.indexOf("10") >= 0 || 
-           condition.indexOf("deszcz") >= 0 || condition.indexOf("opad") >= 0) {
-    // 09d/09n = shower rain, 10d/10n = rain
+           condition.indexOf("drizzle") >= 0 || condition.indexOf("rain") >= 0 ||
+           condition.indexOf("mzawka") >= 0 || condition.indexOf("deszcz") >= 0 || condition.indexOf("opady") >= 0) {
+    // 09d/09n = drizzle/shower rain, 10d/10n = rain
     tft.fillCircle(x + 15, y + 20, 10, TFT_LIGHTGREY);
     tft.fillCircle(x + 25, y + 15, 12, TFT_WHITE);
     tft.fillCircle(x + 35, y + 20, 10, TFT_LIGHTGREY);
@@ -55,8 +60,10 @@ void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconC
       tft.drawLine(x + 15 + i * 5, y + 32, x + 15 + i * 5, y + 40, TFT_CYAN);
     }
   }
-  else if (iconCode.indexOf("13") >= 0 || condition.indexOf("śnieg") >= 0 || condition.indexOf("snieg") >= 0) {
-    // 13d/13n = snow
+  // Group 6xx: Snow
+  else if (iconCode.indexOf("13") >= 0 || condition.indexOf("snow") >= 0 || condition.indexOf("sleet") >= 0 ||
+           condition.indexOf("snieg") >= 0 || condition.indexOf("krupa") >= 0 || condition.indexOf("sniezyca") >= 0) {
+    // 13d/13n = snow (codes 600-622)
     tft.fillCircle(x + 15, y + 20, 10, TFT_LIGHTGREY);
     tft.fillCircle(x + 25, y + 15, 12, TFT_WHITE);
     tft.fillCircle(x + 35, y + 20, 10, TFT_LIGHTGREY);
@@ -72,8 +79,13 @@ void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconC
       tft.drawPixel(sx, sy+1, TFT_WHITE);
     }
   }
-  else if (iconCode.indexOf("50") >= 0 || condition.indexOf("mgła") >= 0 || condition.indexOf("zamgl") >= 0 || condition.indexOf("mgla") >= 0) {
-    // 50d/50n = mist/fog
+  // Group 7xx: Atmosphere  
+  else if (iconCode.indexOf("50") >= 0 || condition == "mist" || condition == "smoke" || 
+           condition == "haze" || condition == "dust" || condition == "fog" || 
+           condition == "sand" || condition == "ash" || condition == "squall" || condition == "tornado" ||
+           condition == "mgla" || condition == "dym" || condition == "zamglenie" || condition == "pyl" || 
+           condition == "piasek" || condition == "popiol" || condition == "szkwaly") {
+    // 50d/50n = mist, fog, smoke, haze, dust, sand, ash, squall, tornado (codes 701-781)
     for (int i = 0; i < 4; i++) {
       tft.drawLine(x + 5, y + 20 + i * 5, x + 45, y + 20 + i * 5, TFT_LIGHTGREY);
     }

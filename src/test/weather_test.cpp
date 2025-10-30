@@ -16,71 +16,71 @@ struct TestWeatherData {
   String testName;
 };
 
-// Tablica testowych danych pogodowych
+// Tablica testowych danych pogodowych - angielskie opisy z OpenWeatherMap API (tłumaczone na polski)
 TestWeatherData testData[] = {
-  // Test 1: MIESZANE TEMPERATURY - dwucyfrowa ujemna + dodatnia
-  {-12.5, -15.8, "śnieg", 85, 18.2, 995, "13d", "MIESZANE 1"},
+  // Test 1: MIESZANE TEMPERATURY - symuluje prawdziwe API
+  {-12.5, -15.8, "snow", 85, 18.2, 995, "13d", "MIESZANE TEMP 1"},
   
-  // Test 2: EKSTREMALNE PRZECIWNOŚCI - bardzo zimno vs ciepło  
-  {-10.0, 10.0, "przejściowe", 70, 25.3, 1008, "04d", "MIESZANE 2"},
+  // Test 2: EKSTREMALNE PRZECIWNOŚCI - chmury przejściowe  
+  {-10.0, 10.0, "broken clouds", 70, 25.3, 1008, "04d", "MIESZANE TEMP 2"},
   
-  // Test 3: ORYGINALNE SŁONECZNIE (przywrócone)
-  {23.5, 25.1, "bezchmurnie", 45, 2.1, 1025, "01d", "SŁONECZNIE"},
+  // Test 3: CZYSTE NIEBO - kategoria Clear z API
+  {23.5, 25.1, "clear sky", 45, 2.1, 1025, "01d", "BEZCHMURNIE"},
   
-  // Test 4: Duże zachmurzenie
-  {18.1, 16.5, "zachmurzenie duże", 75, 12.1, 1010, "04d", "DUŻE CHMURY"},
+  // Test 4: Chmury - kategoria Clouds z API
+  {18.1, 16.5, "few clouds", 75, 12.1, 1010, "02d", "MAŁE ZACHM."},
   
-  // Test 5: Deszcz lekki
-  {16.3, 14.2, "deszcz lekki", 85, 15.8, 1005, "10d", "LEKKI DESZCZ"},
+  // Test 5: Mżawka - jak z API
+  {16.3, 14.2, "light intensity drizzle", 85, 15.8, 1005, "09d", "LEKKA MŻAWKA"},
   
-  // Test 6: Deszcz silny + silny wiatr
-  {14.7, 12.1, "deszcz silny", 90, 22.5, 995, "09d", "SILNY DESZCZ"},
+  // Test 6: Deszcz - kategoria Rain
+  {14.7, 12.1, "moderate rain", 90, 22.5, 995, "10d", "UMIARKOWANY DESZCZ"},
   
-  // Test 7: Burza + bardzo silny wiatr
-  {12.8, 10.2, "burza z deszczem", 95, 28.3, 985, "11d", "BURZA"},
+  // Test 7: Burza - kategoria Thunderstorm  
+  {12.8, 10.2, "thunderstorm with rain", 95, 28.3, 985, "11d", "BURZA Z DESZCZEM"},
   
-  // Test 8: Śnieg
-  {-2.1, -4.8, "śnieg", 80, 18.7, 1000, "13d", "ŚNIEG"},
+  // Test 8: Śnieg - kategoria Snow
+  {-2.1, -4.8, "light snow", 80, 18.7, 1000, "13d", "LEKKI ŚNIEG"},
   
-  // Test 9: Mgła
-  {8.5, 6.9, "mgła", 98, 1.2, 1018, "50d", "MGŁA"},
+  // Test 9: Mgła - kategoria Mist
+  {8.5, 6.9, "mist", 98, 1.2, 1018, "50d", "MGŁA"},
   
-  // Test 10: Bardzo wysokie ciśnienie
-  {25.8, 28.2, "bezchmurnie", 35, 1.8, 1035, "01d", "WYSOKIE CIŚNIENIE"},
+  // Test 10: Bardzo wysokie ciśnienie - czyste niebo
+  {25.8, 28.2, "clear sky", 35, 1.8, 1035, "01d", "WYSOKIE CIŚN."},
   
-  // Test 11: Ekstremalne warunki
-  {-8.5, -12.3, "zamieć śnieżna", 88, 35.2, 975, "13d", "EKSTREMALNE"},
+  // Test 11: Ekstremalne warunki - śnieżyca
+  {-8.5, -12.3, "heavy snow", 88, 35.2, 975, "13d", "OBFITY ŚNIEG"},
   
-  // Test 12: Bardzo gorąco
-  {38.7, 42.1, "słonecznie", 25, 5.4, 1012, "01d", "UPAŁ"},
+  // Test 12: Bardzo gorąco - czyste niebo
+  {38.7, 42.1, "clear sky", 25, 5.4, 1012, "01d", "UPAŁ"},
   
   // === TESTY SPECJALNE DLA PROGNOZY ===
   
   // Test 13: Arktyczne mrozy (dwucyfrowe minusy)
-  {-15.2, -22.8, "śnieg", 92, 28.7, 988, "13d", "ARKTYKA"},
+  {-15.2, -22.8, "snow", 92, 28.7, 988, "13d", "ARKTYCZNE MROZY"},
   
   // Test 14: Skrajnie zimno (jeszcze zimniej)
-  {-25.8, -32.1, "zamieć", 85, 45.3, 965, "13d", "SYBERIA"},
+  {-25.8, -32.1, "heavy snow", 85, 45.3, 965, "13d", "EKSTREMALNE ZIMNO"},
   
-  // Test 15: Przejściowy (zero stopni)
-  {0.2, -2.1, "śnieg z deszczem", 78, 15.6, 1002, "13d", "PRZEJŚCIE"},
+  // Test 15: Przejściowy (zero stopni) - mieszane opady
+  {0.2, -2.1, "freezing rain", 78, 15.6, 1002, "13d", "MARZNĄCY DESZCZ"},
   
   // Test 16: Wietrzny letni dzień
-  {32.1, 36.8, "słonecznie", 40, 38.9, 1018, "01d", "WIETRZNIE"},
+  {32.1, 36.8, "clear sky", 40, 38.9, 1018, "01d", "WIETRZNY DZIEŃ"},
   
   // Test 17: Tropikalna burza
-  {28.5, 31.2, "burza z deszczem", 95, 42.7, 978, "11d", "TROPIKI"},
+  {28.5, 31.2, "thunderstorm with heavy rain", 95, 42.7, 978, "11d", "BURZA Z ULEWĄ"},
   
   // === TESTY SPECJALNE IKON ===
   
-  // Test 18: Test wszystkich ikon słonecznych
-  {24.8, 26.1, "bezchmurnie", 50, 8.2, 1020, "01d", "SŁOŃCE TEST"},
+  // Test 18: Test ikon słonecznych - kategoria Clear
+  {24.8, 26.1, "clear sky", 50, 8.2, 1020, "01d", "TEST BEZCHMUR."},
   
-  // Test 19: Test wszystkich ikon chmur
-  {18.5, 19.2, "zachmurzenie", 70, 12.4, 1010, "03d", "CHMURY TEST"},
+  // Test 19: Test ikon chmur - kategoria Clouds
+  {18.5, 19.2, "scattered clouds", 70, 12.4, 1010, "03d", "TEST ZACHMURZ."},
   
-  // Test 20: Test wszystkich ikon opadów
-  {15.8, 14.1, "deszcz", 85, 18.9, 1005, "10d", "OPADY TEST"}
+  // Test 20: Test ikon opadów - kategoria Rain
+  {15.8, 14.1, "light rain", 85, 18.9, 1005, "10d", "TEST OPADÓW"}
 };
 
 const int TEST_DATA_SIZE = sizeof(testData) / sizeof(testData[0]);
@@ -166,54 +166,54 @@ void loadTestForecast(int testIndex) {
     String icons[5];
     String descriptions[5];
     
-    if (testIndex == 6) { // Test 7: BURZA - test ikony burzy
+    if (testIndex == 6) { // Test 7: BURZA Z DESZCZEM - test ikony burzy
       String stormIcons[] = {"11d", "10d", "09d", "04d", "11d"};
-      String stormDescs[] = {"burza z deszczem", "deszcz", "silny deszcz", "duże chmury", "burza"};
+      String stormDescs[] = {"thunderstorm with rain", "moderate rain", "shower rain", "broken clouds", "thunderstorm"};
       for (int j = 0; j < 5; j++) { icons[j] = stormIcons[j]; descriptions[j] = stormDescs[j]; }
     } 
     else if (testIndex == 8) { // Test 9: MGŁA - test ikony mgły  
       String fogIcons[] = {"50d", "04d", "03d", "50d", "50d"};
-      String fogDescs[] = {"mgła", "duże chmury", "umiarkowane chmury", "mgła", "mgła"};
+      String fogDescs[] = {"mist", "broken clouds", "scattered clouds", "fog", "haze"};
       for (int j = 0; j < 5; j++) { icons[j] = fogIcons[j]; descriptions[j] = fogDescs[j]; }
     }
-    else if (testIndex == 16) { // Test 17: TROPIKI - mix burzowy
+    else if (testIndex == 16) { // Test 17: BURZA Z ULEWĄ - mix burzowy
       String tropicIcons[] = {"11d", "09d", "10d", "11d", "04d"};  
-      String tropicDescs[] = {"burza", "deszcz ulewny", "deszcz", "burza z piorunami", "chmury burzowe"};
+      String tropicDescs[] = {"thunderstorm with heavy rain", "shower rain", "heavy intensity rain", "thunderstorm", "overcast clouds"};
       for (int j = 0; j < 5; j++) { icons[j] = tropicIcons[j]; descriptions[j] = tropicDescs[j]; }
     }
-    else if (testIndex == 17) { // Test 18: SŁOŃCE TEST - wszystkie słoneczne
+    else if (testIndex == 17) { // Test 18: TEST BEZCHMURNIE - wszystkie słoneczne
       String sunIcons[] = {"01d", "01n", "02d", "02n", "01d"};
-      String sunDescs[] = {"bezchmurnie dzień", "bezchmurnie noc", "lekkie chmury dzień", "lekkie chmury noc", "słonecznie"};
+      String sunDescs[] = {"clear sky", "clear sky", "few clouds", "few clouds", "clear sky"};
       for (int j = 0; j < 5; j++) { icons[j] = sunIcons[j]; descriptions[j] = sunDescs[j]; }
     }
-    else if (testIndex == 18) { // Test 19: CHMURY TEST - gradacja chmur
+    else if (testIndex == 18) { // Test 19: TEST ZACHMURZENIA - gradacja chmur
       String cloudIcons[] = {"02d", "03d", "04d", "04n", "03n"};
-      String cloudDescs[] = {"lekkie chmury", "umiarkowane chmury", "duże chmury", "chmury noc", "umiarkowane noc"};
+      String cloudDescs[] = {"few clouds", "scattered clouds", "broken clouds", "overcast clouds", "scattered clouds"};
       for (int j = 0; j < 5; j++) { icons[j] = cloudIcons[j]; descriptions[j] = cloudDescs[j]; }
     }
-    else if (testIndex == 19) { // Test 20: OPADY TEST - wszystkie rodzaje opadów
+    else if (testIndex == 19) { // Test 20: TEST OPADÓW - wszystkie rodzaje opadów
       String rainIcons[] = {"09d", "10d", "11d", "13d", "50d"};
-      String rainDescs[] = {"deszcz ulewny", "deszcz", "burza", "śnieg", "mgła"};
+      String rainDescs[] = {"shower rain", "light rain", "thunderstorm", "light snow", "mist"};
       for (int j = 0; j < 5; j++) { icons[j] = rainIcons[j]; descriptions[j] = rainDescs[j]; }
     }
-    else if (testIndex == 0) { // Test 1: MIESZANE TEMPERATURY - mix ikon dla różnych temp
+    else if (testIndex == 0) { // Test 1: MIESZANE TEMP 1 - mix ikon dla różnych temp
       String mixedIcons[] = {"13d", "13d", "03d", "02d", "01d"}; // Śnieg → chmury → słońce
-      String mixedDescs[] = {"śnieg", "śnieg lekki", "chmury", "lekkie chmury", "słonecznie"};
+      String mixedDescs[] = {"snow", "light snow", "scattered clouds", "few clouds", "clear sky"};
       for (int j = 0; j < 5; j++) { icons[j] = mixedIcons[j]; descriptions[j] = mixedDescs[j]; }
     }
-    else if (testIndex == 1) { // Test 2: DRUGI MIESZANY - przejściowy
+    else if (testIndex == 1) { // Test 2: MIESZANE TEMP 2 - przejściowy
       String transIcons[] = {"13d", "10d", "03d", "02d", "01d"}; // Od śniegu do słońca
-      String transDescs[] = {"śnieg", "deszcz ze śniegiem", "chmury", "częściowo słonecznie", "słonecznie"};  
+      String transDescs[] = {"snow", "freezing rain", "scattered clouds", "few clouds", "clear sky"};  
       for (int j = 0; j < 5; j++) { icons[j] = transIcons[j]; descriptions[j] = transDescs[j]; }
     }
-    else if (testIndex == 2) { // Test 3: TRZECI MIESZANY - ekstremalne przejście
-      String extremeIcons[] = {"13d", "04d", "02d", "01d", "01d"}; // Mróz → ciepło
-      String extremeDescs[] = {"zamieć", "chmury", "lekkie chmury", "słonecznie", "gorąco"};
+    else if (testIndex == 2) { // Test 3: BEZCHMURNIE - ekstremalne przejście
+      String extremeIcons[] = {"13d", "04d", "02d", "01d", "01d"}; // Zimno → ciepło
+      String extremeDescs[] = {"heavy snow", "overcast clouds", "few clouds", "clear sky", "clear sky"};
       for (int j = 0; j < 5; j++) { icons[j] = extremeIcons[j]; descriptions[j] = extremeDescs[j]; }
     }
     else { // Standardowy cykl dla innych testów
       String defaultIcons[] = {baseTest.icon, "02d", "03d", "04d", "10d"};
-      String defaultDescs[] = {baseTest.description, "lekkie chmury", "umiarkowane chmury", "duże chmury", "deszcz"};
+      String defaultDescs[] = {baseTest.description, "few clouds", "scattered clouds", "broken clouds", "moderate rain"};
       for (int j = 0; j < 5; j++) { icons[j] = defaultIcons[j]; descriptions[j] = defaultDescs[j]; }
     }
     

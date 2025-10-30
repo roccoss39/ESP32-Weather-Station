@@ -42,11 +42,11 @@ uint16_t getWindColor(float windKmh) {
     Serial.println("Wind: " + String(windKmh, 1) + "km/h - STRONG (czerwony)");
     return COLOR_WIND_STRONG;     // 20-25 km/h - czerwony (silny)
   } else if (windKmh >= 15.0) {
-    Serial.println("Wind: " + String(windKmh, 1) + "km/h - MODERATE (żółty)");
-    return COLOR_WIND_MODERATE;   // 15-20 km/h - żółty (umiarkowany)
+    Serial.println("Wind: " + String(windKmh, 1) + "km/h - MODERATE (zolty)");
+    return COLOR_WIND_MODERATE;   // 15-20 km/h - zolty (umiarkowany)
   } else {
-    Serial.println("Wind: " + String(windKmh, 1) + "km/h - CALM (biały)");
-    return COLOR_WIND_CALM;       // 0-15 km/h - biały (spokojny)
+    Serial.println("Wind: " + String(windKmh, 1) + "km/h - CALM (bialy)");
+    return COLOR_WIND_CALM;       // 0-15 km/h - bialy (spokojny)
   }
 }
 
@@ -59,8 +59,8 @@ uint16_t getPressureColor(float pressure) {
     Serial.println("Pressure: " + String(pressure, 0) + "hPa - HIGH (magenta)");
     return COLOR_PRESSURE_HIGH;   // >1020 hPa - magenta (wysokie, pogodnie)
   } else {
-    Serial.println("Pressure: " + String(pressure, 0) + "hPa - NORMAL (biały)");
-    return COLOR_PRESSURE_NORMAL; // 1000-1020 hPa - biały (normalne)
+    Serial.println("Pressure: " + String(pressure, 0) + "hPa - NORMAL (bialy)");
+    return COLOR_PRESSURE_NORMAL; // 1000-1020 hPa - bialy (normalne)
   }
 }
 
@@ -74,66 +74,176 @@ uint16_t getHumidityColor(float humidity) {
     return COLOR_HUMIDITY_WET;     // >85% - brązowy (bardzo wilgotno)
   } else if (humidity > 70.0) {
     Serial.println("Humidity: " + String(humidity, 0) + "% - HUMID (fioletowy)");
-    return COLOR_HUMIDITY_HUMID;   // 70-85% - żółty (duszno)
+    return COLOR_HUMIDITY_HUMID;   // 70-85% - zolty (duszno)
   } else {
-    Serial.println("Humidity: " + String(humidity, 0) + "% - COMFORT (biały)");
-    return COLOR_HUMIDITY_COMFORT; // 30-70% - biały (komfort)
+    Serial.println("Humidity: " + String(humidity, 0) + "% - COMFORT (bialy)");
+    return COLOR_HUMIDITY_COMFORT; // 30-70% - bialy (komfort)
   }
 }
 
 String shortenDescription(String description) {
   // DEBUG - wypisz oryginalny opis w Serial
-  Serial.println("Opis pogody ORYGINALNY: '" + description + "'");
+  Serial.println("Description API: '" + description + "'");
   
-  String shortDescription = description;
+  String polishDescription = description;
   
-  // Zamiana polskich znaków na ASCII (dla TFT)
-  shortDescription.replace("ą", "a");
-  shortDescription.replace("ć", "c");
-  shortDescription.replace("ę", "e");
-  shortDescription.replace("ł", "l");
-  shortDescription.replace("ń", "n");
-  shortDescription.replace("ó", "o");
-  shortDescription.replace("ś", "s");
-  shortDescription.replace("ź", "z");
-  shortDescription.replace("ż", "z");
+  // Tłumaczenie angielskich opisów z OpenWeatherMap API na polski
   
-  // Skracanie opisów z API (&lang=pl) - BEZ polskich znaków
-  if (shortDescription.indexOf("zachmurzenie duze") >= 0) {
-    shortDescription = "Duze chmury";
-  } else if (shortDescription.indexOf("zachmurzenie male") >= 0) {
-    shortDescription = "Male chmury";
-  } else if (shortDescription.indexOf("zachmurzenie umiarkowane") >= 0) {
-    shortDescription = "Umiark. chmury";
-  } else if (shortDescription.indexOf("zachmurzenie") >= 0) {
-    shortDescription = "Zachmurzenie";
-  } else if (shortDescription.indexOf("pochmurnie") >= 0) {
-    shortDescription = "Pochmurnie";
-  } else if (shortDescription.indexOf("bezchmurnie") >= 0) {
-    shortDescription = "Bezchmurnie";
-  } else if (shortDescription.indexOf("slonecznie") >= 0) {
-    shortDescription = "Slonecznie";
-  } else if (shortDescription.indexOf("burza") >= 0) {
-    shortDescription = "Burza";  // BURZA MUSI BYĆ PRZED deszczem!
-  } else if (shortDescription.indexOf("deszcz lekki") >= 0) {
-    shortDescription = "Lekki deszcz";
-  } else if (shortDescription.indexOf("deszcz silny") >= 0) {
-    shortDescription = "Silny deszcz";
-  } else if (shortDescription.indexOf("deszcz") >= 0) {
-    shortDescription = "Deszcz";
-  } else if (shortDescription.indexOf("snieg") >= 0) {
-    shortDescription = "Snieg";
-  } else if (shortDescription.indexOf("mgla") >= 0) {
-    shortDescription = "Mgla";
-  } else {
-    // Jeśli nic nie pasuje, skróć do 12 znaków (bez polskich znaków)
-    if (shortDescription.length() > 12) {
-      shortDescription = shortDescription.substring(0, 12);
+  // === THUNDERSTORM (Grupa 2xx) ===
+  if (description.indexOf("thunderstorm with heavy rain") >= 0) {
+    polishDescription = "Burza z ulewa";
+  } else if (description.indexOf("thunderstorm with rain") >= 0) {
+    polishDescription = "Burza z deszczem";
+  } else if (description.indexOf("thunderstorm with light rain") >= 0) {
+    polishDescription = "Burza z mzawka";
+  } else if (description.indexOf("thunderstorm with drizzle") >= 0) {
+    polishDescription = "Burza z mzawka";
+  } else if (description.indexOf("heavy thunderstorm") >= 0) {
+    polishDescription = "Silna burza";
+  } else if (description.indexOf("ragged thunderstorm") >= 0) {
+    polishDescription = "Burza lokalna";
+  } else if (description.indexOf("light thunderstorm") >= 0) {
+    polishDescription = "Slaba burza";
+  } else if (description.indexOf("thunderstorm") >= 0) {
+    polishDescription = "Burza";
+    
+  // === DRIZZLE (Grupa 3xx) ===
+  } else if (description.indexOf("heavy intensity drizzle") >= 0) {
+    polishDescription = "Silna mzawka";
+  } else if (description.indexOf("light intensity drizzle") >= 0) {
+    polishDescription = "Lekka mzawka";
+  } else if (description.indexOf("drizzle rain") >= 0) {
+    polishDescription = "Mzawka";
+  } else if (description.indexOf("shower drizzle") >= 0) {
+    polishDescription = "Przelotna mzawka";
+  } else if (description.indexOf("drizzle") >= 0) {
+    polishDescription = "Mzawka";
+    
+  // === RAIN (Grupa 5xx) ===
+  } else if (description.indexOf("extreme rain") >= 0) {
+    polishDescription = "Ekstremalny deszcz";
+  } else if (description.indexOf("very heavy rain") >= 0) {
+    polishDescription = "Bardzo silny deszcz";
+  } else if (description.indexOf("heavy intensity rain") >= 0) {
+    polishDescription = "Ulewny deszcz";
+  } else if (description.indexOf("heavy rain") >= 0) {
+    polishDescription = "Silny deszcz";
+  } else if (description.indexOf("moderate rain") >= 0) {
+    polishDescription = "Umiarkowany deszcz";
+  } else if (description.indexOf("light rain") >= 0) {
+    polishDescription = "Slaby deszcz";
+  } else if (description.indexOf("freezing rain") >= 0) {
+    polishDescription = "Marznacy deszcz";
+  } else if (description.indexOf("heavy intensity shower rain") >= 0) {
+    polishDescription = "Silne opady";
+  } else if (description.indexOf("ragged shower rain") >= 0) {
+    polishDescription = "Lokalne opady";
+  } else if (description.indexOf("shower rain") >= 0) {
+    polishDescription = "Przelotne opady";
+  } else if (description.indexOf("rain") >= 0) {
+    polishDescription = "Deszcz";
+    
+  // === SNOW (Grupa 6xx) ===
+  } else if (description.indexOf("heavy shower snow") >= 0) {
+    polishDescription = "Sniezyca";
+  } else if (description.indexOf("shower snow") >= 0) {
+    polishDescription = "Przelotny snieg";
+  } else if (description.indexOf("light shower snow") >= 0) {
+    polishDescription = "Lekki snieg";
+  } else if (description.indexOf("rain and snow") >= 0) {
+    polishDescription = "Deszcz ze sniegiem";
+  } else if (description.indexOf("light rain and snow") >= 0) {
+    polishDescription = "Slaby snieg z deszczem";
+  } else if (description.indexOf("shower sleet") >= 0) {
+    polishDescription = "Deszcz ze sniegiem";
+  } else if (description.indexOf("light shower sleet") >= 0) {
+    polishDescription = "Lekka krupa";
+  } else if (description.indexOf("sleet") >= 0) {
+    polishDescription = "Krupa sniezna";
+  } else if (description.indexOf("heavy snow") >= 0) {
+    polishDescription = "Obfity snieg";
+  } else if (description.indexOf("light snow") >= 0) {
+    polishDescription = "Lekki snieg";
+  } else if (description.indexOf("snow") >= 0) {
+    polishDescription = "Snieg";
+    
+  // === ATMOSPHERE (Grupa 7xx) ===
+  } else if (description.indexOf("sand/dust whirls") >= 0) {
+    polishDescription = "Wiry piaskowe";
+  } else if (description.indexOf("volcanic ash") >= 0) {
+    polishDescription = "Popiol wulkaniczny";
+  } else if (description.indexOf("squalls") >= 0) {
+    polishDescription = "Szkwaly";
+  } else if (description.indexOf("tornado") >= 0) {
+    polishDescription = "Tornado";
+  } else if (description.indexOf("mist") >= 0) {
+    polishDescription = "Mgla";
+  } else if (description.indexOf("smoke") >= 0) {
+    polishDescription = "Dym";
+  } else if (description.indexOf("haze") >= 0) {
+    polishDescription = "Zamglenie";
+  } else if (description.indexOf("dust") >= 0) {
+    polishDescription = "Pyl";
+  } else if (description.indexOf("fog") >= 0) {
+    polishDescription = "Mgla";
+  } else if (description.indexOf("sand") >= 0) {
+    polishDescription = "Piasek";
+  } else if (description.indexOf("ash") >= 0) {
+    polishDescription = "Popiol";
+    
+  // === CLEAR (Grupa 800) ===
+  } else if (description.indexOf("clear sky") >= 0) {
+    polishDescription = "Bezchmurnie";
+    
+  // === CLOUDS (Grupa 80x) ===
+  } else if (description.indexOf("overcast clouds") >= 0) {
+    polishDescription = "Zachmurzenie calkowite";
+  } else if (description.indexOf("broken clouds") >= 0) {
+    polishDescription = "Duze zachmurzenie";
+  } else if (description.indexOf("scattered clouds") >= 0) {
+    polishDescription = "Umiarkowane zachmurzenie";
+  } else if (description.indexOf("few clouds") >= 0) {
+    polishDescription = "Male zachmurzenie";
+  }
+  
+  // Skróć polską nazwę jeśli jest za długa (max 15 znaków + kropka)
+  if (polishDescription.length() > 15) {
+    if (polishDescription == "Zachmurzenie calkowite") {
+      polishDescription = "Calkowite zachm.";
+    } else if (polishDescription == "Umiarkowane zachmurzenie") {
+      polishDescription = "Umiarkowane zachm.";
+    } else if (polishDescription == "Duze zachmurzenie") {
+      polishDescription = "Duze zachm.";
+    } else if (polishDescription == "Male zachmurzenie") {
+      polishDescription = "Male zachm.";
+    } else if (polishDescription == "Ekstremalny deszcz") {
+      polishDescription = "Ekstremalny des.";
+    } else if (polishDescription == "Bardzo silny deszcz") {
+      polishDescription = "Bardzo silny d.";
+    } else if (polishDescription == "Umiarkowany deszcz") {
+      polishDescription = "Umiarkowany des.";
+    } else if (polishDescription == "Marznacy deszcz") {
+      polishDescription = "Marznacy des.";
+    } else if (polishDescription == "Deszcz ze sniegiem") {
+      polishDescription = "Deszcz+snieg";
+    } else if (polishDescription == "Popiol wulkaniczny") {
+      polishDescription = "Popiol wulk.";
+    } else if (polishDescription == "Slaby snieg z deszczem") {
+      polishDescription = "Slaby snieg+d.";
+    } else if (polishDescription == "Przelotna mzawka") {
+      polishDescription = "Przelotna mz.";
+    } else if (polishDescription == "Przelotne opady") {
+      polishDescription = "Przelotne op.";
+    } else if (polishDescription == "Przelotny snieg") {
+      polishDescription = "Przelotny sn.";
+    } else {
+      // Skróć do 15 znaków i dodaj kropkę
+      polishDescription = polishDescription.substring(0, 15) + ".";
     }
   }
   
-  Serial.println("Wyswietlany opis: '" + shortDescription + "'");
-  return shortDescription;
+  Serial.println("Polish text: '" + polishDescription + "'");
+  return polishDescription;
 }
 
 void displayWeather(TFT_eSPI& tft) {
@@ -192,18 +302,18 @@ void displayWeather(TFT_eSPI& tft) {
   tft.fillRect(x + DESC_X_OFFSET, y + DESC_Y_OFFSET, 250, 25, COLOR_BACKGROUND);
   String shortDescription = shortenDescription(weather.description);
   
-  // Specjalne kolory dla różnych opisów pogody
-  if (shortDescription == "Burza") {
+  // Specjalne kolory dla różnych opisów pogody (polskie nazwy)
+  if (shortDescription.indexOf("Burza") >= 0) {
     tft.setTextColor(COLOR_DESCRIPTION_STORM, COLOR_BACKGROUND);  // Ciemny czerwony dla burzy
-  } else if (shortDescription == "Slonecznie" || shortDescription == "Bezchmurnie") {
+  } else if (shortDescription == "Bezchmurnie") {
     tft.setTextColor(COLOR_DESCRIPTION_SUNNY, COLOR_BACKGROUND);  // Żółty dla słońca
-  } else if (shortDescription == "Mgla") {
+  } else if (shortDescription == "Mgla" || shortDescription == "Zamglenie" || shortDescription == "Dym") {
     tft.setTextColor(COLOR_DESCRIPTION_FOG, COLOR_BACKGROUND);    // Biały dla mgły
   } else {
     tft.setTextColor(COLOR_DESCRIPTION, COLOR_BACKGROUND);        // Cyan dla reszty
   }
   
-  tft.drawString(shortDescription, x + DESC_X_OFFSET, y + DESC_Y_OFFSET);
+  tft.drawString(shortDescription, x + DESC_X_OFFSET, y + DESC_Y_OFFSET, 2);
   
   // Wilgotność - kolorowa na podstawie wartości
   tft.fillRect(x + HUMIDITY_X_OFFSET, y + HUMIDITY_Y_OFFSET, 120, 25, COLOR_BACKGROUND);

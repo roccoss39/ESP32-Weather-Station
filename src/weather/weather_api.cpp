@@ -41,13 +41,15 @@ bool getWeather() {
       weather.feelsLike = doc["main"]["feels_like"];  // Temperatura odczuwalna
       weather.humidity = doc["main"]["humidity"];
       weather.pressure = doc["main"]["pressure"];  // Ciśnienie w hPa
-      weather.description = doc["weather"][0]["description"].as<String>();
+      
+      // Używaj angielskiego description (szczegółowy opis)
+      weather.description = doc["weather"][0]["description"].as<String>();  // "light rain", "clear sky", etc.
       weather.windSpeed = doc["wind"]["speed"];
       
       // Dodaj kod ikony z API
       if (doc["weather"][0]["icon"]) {
         weather.icon = doc["weather"][0]["icon"].as<String>();
-        Serial.println("Ikona API: '" + weather.icon + "'");
+        Serial.println("Ikona API: '" + weather.icon + "' dla kategorii: '" + weather.description + "'");
       }
       
       weather.isValid = true;
