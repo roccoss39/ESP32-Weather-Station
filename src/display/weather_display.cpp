@@ -1,0 +1,132 @@
+#include "display/weather_display.h"
+#include "display/weather_icons.h"
+#include "config/display_config.h"
+
+// Definicje zmiennych cache
+float weatherCachePrev_temperature = -999.0;
+float weatherCachePrev_feelsLike = -999.0;
+float weatherCachePrev_humidity = -999.0;
+float weatherCachePrev_windSpeed = -999.0;
+float weatherCachePrev_pressure = -999.0;
+String weatherCachePrev_description = "";
+String weatherCachePrev_icon = "";
+
+// Funkcja sprawdzająca czy dane pogodowe się zmieniły
+bool hasWeatherChanged() {
+  return (weather.temperature != weatherCachePrev_temperature ||
+          weather.feelsLike != weatherCachePrev_feelsLike ||
+          weather.humidity != weatherCachePrev_humidity ||
+          weather.windSpeed != weatherCachePrev_windSpeed ||
+          weather.pressure != weatherCachePrev_pressure ||
+          weather.description != weatherCachePrev_description ||
+          weather.icon != weatherCachePrev_icon);
+}
+
+// Funkcja zapisująca aktualne dane do cache
+void updateWeatherCache() {
+  weatherCachePrev_temperature = weather.temperature;
+  weatherCachePrev_feelsLike = weather.feelsLike;
+  weatherCachePrev_humidity = weather.humidity;
+  weatherCachePrev_windSpeed = weather.windSpeed;
+  weatherCachePrev_pressure = weather.pressure;
+  weatherCachePrev_description = weather.description;
+  weatherCachePrev_icon = weather.icon;
+}
+
+String shortenDescription(String description) {
+  // DEBUG - wypisz oryginalny opis w Serial
+  Serial.println("Opis pogody ORYGINALNY: '" + description + "'");
+  
+  String shortDescription = description;
+  
+  // Skracanie POLSKICH opisów z API (&lang=pl)
+  if (shortDescription.indexOf("zachmurzenie duże") >= 0) {
+    shortDescription = "Duze zachmurzenie";
+  } else if (shortDescription.indexOf("zachmurzenie małe") >= 0) {
+    shortDescription = "Male zachmurzenie.";
+  } else if (shortDescription.indexOf("zachmurzenie umiarkowane") >= 0) {
+    shortDescription = "Umiark. zachmurzenie";
+  } else if (shortDescription.indexOf("zachmurzenie") >= 0) {
+    shortDescription = "Zachmurzurzenie";
+  } else if (shortDescription.indexOf("pochmurnie") >= 0) {
+    shortDescription = "Pochmurnie";
+  } else if (shortDescription.indexOf("bezchmurnie") >= 0) {
+    shortDescription = "Bezchmurnie";
+  } else if (shortDescription.indexOf("słonecznie") >= 0) {
+    shortDescription = "Slonecznie";
+  } else if (shortDescription.indexOf("deszcz lekki") >= 0) {
+    shortDescription = "Lekki deszcz";
+  } else if (shortDescription.indexOf("deszcz silny") >= 0) {
+    shortDescription = "Silny deszcz";
+  } else if (shortDescription.indexOf("deszcz") >= 0) {
+    shortDescription = "Deszcz";
+  } else if (shortDescription.indexOf("snieg") >= 0) {
+    shortDescription = "Snieg";
+  } else if (shortDescription.indexOf("mgla") >= 0) {
+    shortDescription = "Mgla";
+  } else if (shortDescription.indexOf("burza") >= 0) {
+    shortDescription = "Burza";
+  } else {
+    // Jeśli nic nie pasuje, skróć do 11 znaków
+    if (shortDescription.length() > 11) {
+      shortDescription = shortDescription.substring(0, 11) + ".";
+    }
+  }
+  
+  Serial.println("Wyswietlany opis: '" + shortDescription + "'");
+  return shortDescription;
+}
+
+void displayWeather(TFT_eSPI& tft) {
+  if (!weather.isValid) return;
+  
+  // Sprawdź czy dane pogodowe się zmieniły
+  if (!hasWeatherChanged()) {
+    return; // Nie ma zmian - nie rysuj ponownie!
+  }
+  
+  Serial.println("Weather data changed - redrawing display");
+  
+  // Pozycja pogody - GÓRA na całej szerokości
+  int x = WEATHER_AREA_X;
+  int y = WEATHER_AREA_Y;
+  
+  // Wyczyść obszar pogody TYLKO gdy są zmiany
+  tft.fillRect(x, y, WEATHER_AREA_WIDTH, WEATHER_AREA_HEIGHT, COLOR_BACKGROUND);
+  
+  // Ikona pogody
+  drawWeatherIcon(tft, x + ICON_X_OFFSET, y + ICON_Y_OFFSET, weather.description, weather.icon);
+  
+  // Ustawienia tekstu
+  tft.setTextSize(FONT_SIZE_LARGE);
+  tft.setTextDatum(TL_DATUM);
+  
+  // Temperatura z odczuwalną w nawiasie
+  tft.setTextColor(COLOR_TEMPERATURE, COLOR_BACKGROUND);
+  String tempStr = String(weather.temperature, 1) + "'C(" + String(weather.feelsLike, 1) + "'C)";
+  tft.drawString(tempStr, x + TEMP_X_OFFSET, y + TEMP_Y_OFFSET);
+  
+  // Opis pogody
+  tft.setTextColor(COLOR_DESCRIPTION, COLOR_BACKGROUND);
+  String shortDescription = shortenDescription(weather.description);
+  tft.drawString(shortDescription, x + DESC_X_OFFSET, y + DESC_Y_OFFSET);
+  
+  // Wilgotność
+  tft.setTextColor(COLOR_HUMIDITY, COLOR_BACKGROUND);
+  String humStr = "Wilg: " + String(weather.humidity, 0) + "%";
+  tft.drawString(humStr, x + HUMIDITY_X_OFFSET, y + HUMIDITY_Y_OFFSET);
+  
+  // Wiatr (przelicz z m/s na km/h)
+  tft.setTextColor(COLOR_WIND, COLOR_BACKGROUND);
+  float windKmh = weather.windSpeed * 3.6;
+  String windStr = "Wiatr: " + String(windKmh, 1) + " km/h";
+  tft.drawString(windStr, x + WIND_X_OFFSET, y + WIND_Y_OFFSET);
+  
+  // Ciśnienie
+  tft.setTextColor(COLOR_PRESSURE, COLOR_BACKGROUND);
+  String pressureStr = "Cisn: " + String(weather.pressure, 0) + " hPa";
+  tft.drawString(pressureStr, x + PRESSURE_X_OFFSET, y + PRESSURE_Y_OFFSET);
+  
+  // Zaktualizuj cache po narysowaniu
+  updateWeatherCache();
+}
