@@ -62,6 +62,13 @@ bool getWeather() {
       weather.humidity = doc["main"]["humidity"];
       weather.description = doc["weather"][0]["description"].as<String>();
       weather.windSpeed = doc["wind"]["speed"];
+      
+      // Dodaj kod ikony z API
+      if (doc["weather"][0]["icon"]) {
+        weather.icon = doc["weather"][0]["icon"].as<String>();
+        Serial.println("Ikona API: '" + weather.icon + "'");
+      }
+      
       weather.isValid = true;
       weather.lastUpdate = millis();
       
@@ -80,9 +87,13 @@ bool getWeather() {
 void drawWeatherIcon(int x, int y, String condition) {
   tft.fillRect(x, y, 50, 50, TFT_BLACK); // Wyczyść obszar ikony
   
-  condition.toLowerCase();
+  // Sprawdź również kod ikony z API
+  String iconCode = weather.icon;
+  Serial.println("Rysowanie ikony dla: opis='" + condition + "', kod='" + iconCode + "'");
   
-  if (condition.indexOf("słon") >= 0 || condition.indexOf("jas") >= 0) {
+  // Ikony na podstawie kodu API (bardziej precyzyjne)
+  if (iconCode.indexOf("01") >= 0) { // 01d, 01n = clear sky
+    // Słońce - czyste niebo
     // Słońce - żółte koło z promieniami
     tft.fillCircle(x + 25, y + 25, 15, TFT_YELLOW);
     for (int i = 0; i < 8; i++) {
@@ -94,14 +105,18 @@ void drawWeatherIcon(int x, int y, String condition) {
       tft.drawLine(x1, y1, x2, y2, TFT_YELLOW);
     }
   }
-  else if (condition.indexOf("chmur") >= 0 || condition.indexOf("pochmur") >= 0) {
+  else if (iconCode.indexOf("02") >= 0 || iconCode.indexOf("03") >= 0 || iconCode.indexOf("04") >= 0 || 
+           condition.indexOf("chmur") >= 0 || condition.indexOf("pochmur") >= 0) {
+    // 02d/02n = few clouds, 03d/03n = scattered clouds, 04d/04n = broken clouds
     // Chmura - białe/szare kółka
     tft.fillCircle(x + 15, y + 30, 12, TFT_LIGHTGREY);
     tft.fillCircle(x + 25, y + 25, 15, TFT_WHITE);
     tft.fillCircle(x + 35, y + 30, 12, TFT_LIGHTGREY);
     tft.fillRect(x + 10, y + 35, 30, 8, TFT_WHITE);
   }
-  else if (condition.indexOf("deszcz") >= 0 || condition.indexOf("opad") >= 0) {
+  else if (iconCode.indexOf("09") >= 0 || iconCode.indexOf("10") >= 0 || 
+           condition.indexOf("deszcz") >= 0 || condition.indexOf("opad") >= 0) {
+    // 09d/09n = shower rain, 10d/10n = rain
     // Chmura z deszczem
     tft.fillCircle(x + 15, y + 20, 10, TFT_LIGHTGREY);
     tft.fillCircle(x + 25, y + 15, 12, TFT_WHITE);
@@ -112,7 +127,8 @@ void drawWeatherIcon(int x, int y, String condition) {
       tft.drawLine(x + 15 + i * 5, y + 32, x + 15 + i * 5, y + 40, TFT_CYAN);
     }
   }
-  else if (condition.indexOf("śnieg") >= 0) {
+  else if (iconCode.indexOf("13") >= 0 || condition.indexOf("śnieg") >= 0 || condition.indexOf("snieg") >= 0) {
+    // 13d/13n = snow
     // Chmura ze śniegiem
     tft.fillCircle(x + 15, y + 20, 10, TFT_LIGHTGREY);
     tft.fillCircle(x + 25, y + 15, 12, TFT_WHITE);
@@ -129,7 +145,8 @@ void drawWeatherIcon(int x, int y, String condition) {
       tft.drawPixel(sx, sy+1, TFT_WHITE);
     }
   }
-  else if (condition.indexOf("mgła") >= 0 || condition.indexOf("zamgl") >= 0) {
+  else if (iconCode.indexOf("50") >= 0 || condition.indexOf("mgła") >= 0 || condition.indexOf("zamgl") >= 0 || condition.indexOf("mgla") >= 0) {
+    // 50d/50n = mist/fog
     // Mgła - poziome linie
     for (int i = 0; i < 4; i++) {
       tft.drawLine(x + 5, y + 20 + i * 5, x + 45, y + 20 + i * 5, TFT_LIGHTGREY);
