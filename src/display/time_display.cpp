@@ -51,12 +51,12 @@ void displayTime(TFT_eSPI& tft) {
   if (strcmp(timeStr, timeStrPrev) != 0) {
     Serial.println("Time changed - redrawing time");
     // Wyczyść tylko obszar czasu
-    tft.fillRect(TIME_AREA_X + 5, TIME_AREA_Y + 5, 110, 20, COLOR_BACKGROUND);
+    tft.fillRect(TIME_AREA_X + 5, TIME_AREA_Y, 110, 20, COLOR_BACKGROUND);
     
     tft.setTextDatum(TL_DATUM);
     tft.setTextSize(FONT_SIZE_MEDIUM);
     tft.setTextColor(COLOR_TIME, COLOR_BACKGROUND);
-    tft.drawString(timeStr, TIME_AREA_X + 5, TIME_AREA_Y + 5);
+    tft.drawString(timeStr, TIME_AREA_X + 5, TIME_AREA_Y);
     
     strcpy(timeStrPrev, timeStr);
   }
@@ -65,12 +65,12 @@ void displayTime(TFT_eSPI& tft) {
   if (strcmp(dateStr, dateStrPrev) != 0) {
     Serial.println("Date changed - redrawing date");
     // Wyczyść tylko obszar daty
-    tft.fillRect(TIME_AREA_X + 125, TIME_AREA_Y + 5, 120, 20, COLOR_BACKGROUND);
+    tft.fillRect(TIME_AREA_X + 125, TIME_AREA_Y, 120, 20, COLOR_BACKGROUND);
     
     tft.setTextDatum(TL_DATUM);
     tft.setTextSize(FONT_SIZE_MEDIUM);
     tft.setTextColor(COLOR_DATE, COLOR_BACKGROUND);
-    tft.drawString(dateStr, TIME_AREA_X + 125, TIME_AREA_Y + 5);
+    tft.drawString(dateStr, TIME_AREA_X + 125, TIME_AREA_Y);
     
     strcpy(dateStrPrev, dateStr);
   }
@@ -79,12 +79,12 @@ void displayTime(TFT_eSPI& tft) {
   if (polishDay != dayStrPrev) {
     Serial.println("Day changed - redrawing day");
     // Wyczyść tylko obszar dnia
-    tft.fillRect(TIME_AREA_X + 5, TIME_AREA_Y + 30, 140, 20, COLOR_BACKGROUND);
+    tft.fillRect(TIME_AREA_X + 5, TIME_AREA_Y + TIME_AREA_OFFSET_Y, 140, 20, COLOR_BACKGROUND);
     
     tft.setTextDatum(TL_DATUM);
     tft.setTextSize(FONT_SIZE_MEDIUM);
     tft.setTextColor(COLOR_DAY, COLOR_BACKGROUND);
-    tft.drawString(polishDay, TIME_AREA_X + 5, TIME_AREA_Y + 30);
+    tft.drawString(polishDay, TIME_AREA_X + 5, TIME_AREA_Y + TIME_AREA_OFFSET_Y);
     
     dayStrPrev = polishDay;
   }
@@ -93,17 +93,17 @@ void displayTime(TFT_eSPI& tft) {
   if (currentWifiStatus != wifiStatusPrev) {
     Serial.println("WiFi status changed - redrawing WiFi");
     // Wyczyść tylko obszar WiFi
-    tft.fillRect(TIME_AREA_X + 145, TIME_AREA_Y + 30, 100, 20, COLOR_BACKGROUND);
+    tft.fillRect(TIME_AREA_X + 145, TIME_AREA_Y + TIME_AREA_OFFSET_Y, 100, 20, COLOR_BACKGROUND);
     
     tft.setTextDatum(TL_DATUM);
     tft.setTextSize(FONT_SIZE_MEDIUM);
     
     if (currentWifiStatus == WL_CONNECTED) {
       tft.setTextColor(COLOR_WIFI_OK, COLOR_BACKGROUND);
-      tft.drawString("WiFi: OK", TIME_AREA_X + 145, TIME_AREA_Y + 30);
+      tft.drawString("WiFi: OK", TIME_AREA_X + 145, TIME_AREA_Y + TIME_AREA_OFFSET_Y);
     } else {
       tft.setTextColor(COLOR_WIFI_ERROR, COLOR_BACKGROUND);
-      tft.drawString("WiFi: BLAD", TIME_AREA_X + 145, TIME_AREA_Y + 30);
+      tft.drawString("WiFi: BLAD", TIME_AREA_X + 145, TIME_AREA_Y + TIME_AREA_OFFSET_Y);
     }
     
     wifiStatusPrev = currentWifiStatus;

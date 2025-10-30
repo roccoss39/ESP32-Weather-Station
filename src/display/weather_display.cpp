@@ -33,6 +33,37 @@ void updateWeatherCache() {
   weatherCachePrev_icon = weather.icon;
 }
 
+// Funkcja wybierająca kolor wiatru na podstawie prędkości
+uint16_t getWindColor(float windKmh) {
+  if (windKmh >= 25.0) {
+    Serial.println("Wind: " + String(windKmh, 1) + "km/h - EXTREME (bordowy)");
+    return COLOR_WIND_EXTREME;    // 25+ km/h - bordowy (bardzo silny)
+  } else if (windKmh >= 20.0) {
+    Serial.println("Wind: " + String(windKmh, 1) + "km/h - STRONG (czerwony)");
+    return COLOR_WIND_STRONG;     // 20-25 km/h - czerwony (silny)
+  } else if (windKmh >= 15.0) {
+    Serial.println("Wind: " + String(windKmh, 1) + "km/h - MODERATE (żółty)");
+    return COLOR_WIND_MODERATE;   // 15-20 km/h - żółty (umiarkowany)
+  } else {
+    Serial.println("Wind: " + String(windKmh, 1) + "km/h - CALM (biały)");
+    return COLOR_WIND_CALM;       // 0-15 km/h - biały (spokojny)
+  }
+}
+
+// Funkcja wybierająca kolor ciśnienia na podstawie wartości
+uint16_t getPressureColor(float pressure) {
+  if (pressure < 1000.0) {
+    Serial.println("Pressure: " + String(pressure, 0) + "hPa - LOW (pomarańczowy)");
+    return COLOR_PRESSURE_LOW;    // <1000 hPa - pomarańczowy (niskie, deszcz)
+  } else if (pressure > 1020.0) {
+    Serial.println("Pressure: " + String(pressure, 0) + "hPa - HIGH (magenta)");
+    return COLOR_PRESSURE_HIGH;   // >1020 hPa - magenta (wysokie, pogodnie)
+  } else {
+    Serial.println("Pressure: " + String(pressure, 0) + "hPa - NORMAL (biały)");
+    return COLOR_PRESSURE_NORMAL; // 1000-1020 hPa - biały (normalne)
+  }
+}
+
 String shortenDescription(String description) {
   // DEBUG - wypisz oryginalny opis w Serial
   Serial.println("Opis pogody ORYGINALNY: '" + description + "'");
@@ -69,7 +100,7 @@ String shortenDescription(String description) {
   } else {
     // Jeśli nic nie pasuje, skróć do 11 znaków
     if (shortDescription.length() > 11) {
-      shortDescription = shortDescription.substring(0, 11) + ".";
+      shortDescription = shortDescription.substring(0, 11) + ". error";
     }
   }
   
@@ -111,19 +142,21 @@ void displayWeather(TFT_eSPI& tft) {
   String shortDescription = shortenDescription(weather.description);
   tft.drawString(shortDescription, x + DESC_X_OFFSET, y + DESC_Y_OFFSET);
   
-  // Wilgotność
+  // Wilgotność (bez spacji przed %)
   tft.setTextColor(COLOR_HUMIDITY, COLOR_BACKGROUND);
   String humStr = "Wilg: " + String(weather.humidity, 0) + "%";
   tft.drawString(humStr, x + HUMIDITY_X_OFFSET, y + HUMIDITY_Y_OFFSET);
   
-  // Wiatr (przelicz z m/s na km/h)
-  tft.setTextColor(COLOR_WIND, COLOR_BACKGROUND);
+  // Wiatr - całość kolorowa (nazwa + wartość)
   float windKmh = weather.windSpeed * 3.6;
+  uint16_t windColor = getWindColor(windKmh);
+  tft.setTextColor(windColor, COLOR_BACKGROUND);
   String windStr = "Wiatr: " + String(windKmh, 1) + " km/h";
   tft.drawString(windStr, x + WIND_X_OFFSET, y + WIND_Y_OFFSET);
   
-  // Ciśnienie
-  tft.setTextColor(COLOR_PRESSURE, COLOR_BACKGROUND);
+  // Ciśnienie - całość kolorowa (nazwa + wartość)
+  uint16_t pressureColor = getPressureColor(weather.pressure);
+  tft.setTextColor(pressureColor, COLOR_BACKGROUND);
   String pressureStr = "Cisn: " + String(weather.pressure, 0) + " hPa";
   tft.drawString(pressureStr, x + PRESSURE_X_OFFSET, y + PRESSURE_Y_OFFSET);
   
