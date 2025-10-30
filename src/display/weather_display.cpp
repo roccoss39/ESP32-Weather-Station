@@ -70,20 +70,31 @@ String shortenDescription(String description) {
   
   String shortDescription = description;
   
-  // Skracanie POLSKICH opisów z API (&lang=pl)
-  if (shortDescription.indexOf("zachmurzenie duże") >= 0) {
-    shortDescription = "Duze zachmurzenie";
-  } else if (shortDescription.indexOf("zachmurzenie małe") >= 0) {
-    shortDescription = "Male zachmurzenie.";
+  // Zamiana polskich znaków na ASCII (dla TFT)
+  shortDescription.replace("ą", "a");
+  shortDescription.replace("ć", "c");
+  shortDescription.replace("ę", "e");
+  shortDescription.replace("ł", "l");
+  shortDescription.replace("ń", "n");
+  shortDescription.replace("ó", "o");
+  shortDescription.replace("ś", "s");
+  shortDescription.replace("ź", "z");
+  shortDescription.replace("ż", "z");
+  
+  // Skracanie opisów z API (&lang=pl) - BEZ polskich znaków
+  if (shortDescription.indexOf("zachmurzenie duze") >= 0) {
+    shortDescription = "Duze chmury";
+  } else if (shortDescription.indexOf("zachmurzenie male") >= 0) {
+    shortDescription = "Male chmury";
   } else if (shortDescription.indexOf("zachmurzenie umiarkowane") >= 0) {
-    shortDescription = "Umiark. zachmurzenie";
+    shortDescription = "Umiark. chmury";
   } else if (shortDescription.indexOf("zachmurzenie") >= 0) {
-    shortDescription = "Zachmurzurzenie";
+    shortDescription = "Zachmurzenie";
   } else if (shortDescription.indexOf("pochmurnie") >= 0) {
     shortDescription = "Pochmurnie";
   } else if (shortDescription.indexOf("bezchmurnie") >= 0) {
     shortDescription = "Bezchmurnie";
-  } else if (shortDescription.indexOf("słonecznie") >= 0) {
+  } else if (shortDescription.indexOf("slonecznie") >= 0) {
     shortDescription = "Slonecznie";
   } else if (shortDescription.indexOf("deszcz lekki") >= 0) {
     shortDescription = "Lekki deszcz";
@@ -98,9 +109,9 @@ String shortenDescription(String description) {
   } else if (shortDescription.indexOf("burza") >= 0) {
     shortDescription = "Burza";
   } else {
-    // Jeśli nic nie pasuje, skróć do 11 znaków
-    if (shortDescription.length() > 11) {
-      shortDescription = shortDescription.substring(0, 11) + ". error";
+    // Jeśli nic nie pasuje, skróć do 12 znaków (bez polskich znaków)
+    if (shortDescription.length() > 12) {
+      shortDescription = shortDescription.substring(0, 12);
     }
   }
   
@@ -122,40 +133,45 @@ void displayWeather(TFT_eSPI& tft) {
   int x = WEATHER_AREA_X;
   int y = WEATHER_AREA_Y;
   
-  // Wyczyść obszar pogody TYLKO gdy są zmiany
+  // Wyczyść CAŁY obszar pogody gdy są zmiany
   tft.fillRect(x, y, WEATHER_AREA_WIDTH, WEATHER_AREA_HEIGHT, COLOR_BACKGROUND);
-  
-  // Ikona pogody
-  drawWeatherIcon(tft, x + ICON_X_OFFSET, y + ICON_Y_OFFSET, weather.description, weather.icon);
   
   // Ustawienia tekstu
   tft.setTextSize(FONT_SIZE_LARGE);
   tft.setTextDatum(TL_DATUM);
   
-  // Temperatura z odczuwalną w nawiasie
+  // Ikona pogody
+  drawWeatherIcon(tft, x + ICON_X_OFFSET, y + ICON_Y_OFFSET, weather.description, weather.icon);
+  
+  // Temperatura z odczuwalną w nawiasie - wyczyść całą linię
+  tft.fillRect(x + TEMP_X_OFFSET, y + TEMP_Y_OFFSET, 200, 25, COLOR_BACKGROUND);
   tft.setTextColor(COLOR_TEMPERATURE, COLOR_BACKGROUND);
   String tempStr = String(weather.temperature, 1) + "'C(" + String(weather.feelsLike, 1) + "'C)";
   tft.drawString(tempStr, x + TEMP_X_OFFSET, y + TEMP_Y_OFFSET);
   
-  // Opis pogody
+  // Opis pogody - wyczyść całą linię
+  tft.fillRect(x + DESC_X_OFFSET, y + DESC_Y_OFFSET, 250, 25, COLOR_BACKGROUND);
   tft.setTextColor(COLOR_DESCRIPTION, COLOR_BACKGROUND);
   String shortDescription = shortenDescription(weather.description);
   tft.drawString(shortDescription, x + DESC_X_OFFSET, y + DESC_Y_OFFSET);
   
-  // Wilgotność (bez spacji przed %)
+  // Wilgotność - wyczyść lewą część linii
+  tft.fillRect(x + HUMIDITY_X_OFFSET, y + HUMIDITY_Y_OFFSET, 120, 25, COLOR_BACKGROUND);
   tft.setTextColor(COLOR_HUMIDITY, COLOR_BACKGROUND);
   String humStr = "Wilg: " + String(weather.humidity, 0) + "%";
   tft.drawString(humStr, x + HUMIDITY_X_OFFSET, y + HUMIDITY_Y_OFFSET);
   
-  // Wiatr - całość kolorowa (nazwa + wartość)
+  // Wiatr - wyczyść linię wiatru
   float windKmh = weather.windSpeed * 3.6;
   uint16_t windColor = getWindColor(windKmh);
+  tft.fillRect(x + WIND_X_OFFSET, y + WIND_Y_OFFSET, 200, 25, COLOR_BACKGROUND);
   tft.setTextColor(windColor, COLOR_BACKGROUND);
   String windStr = "Wiatr: " + String(windKmh, 1) + " km/h";
   tft.drawString(windStr, x + WIND_X_OFFSET, y + WIND_Y_OFFSET);
   
-  // Ciśnienie - całość kolorowa (nazwa + wartość)
+  // Ciśnienie - wyczyść linię ciśnienia (POD wiatrem) - szerszy obszar dla długich liczb
   uint16_t pressureColor = getPressureColor(weather.pressure);
+  tft.fillRect(x + PRESSURE_X_OFFSET, y + PRESSURE_Y_OFFSET, 250, 25, COLOR_BACKGROUND);
   tft.setTextColor(pressureColor, COLOR_BACKGROUND);
   String pressureStr = "Cisn: " + String(weather.pressure, 0) + " hPa";
   tft.drawString(pressureStr, x + PRESSURE_X_OFFSET, y + PRESSURE_Y_OFFSET);
