@@ -5,6 +5,8 @@
 // Definicje globalnych zmiennych
 char timeStrPrev[9] = "        ";
 char dateStrPrev[11] = "          ";
+String dayStrPrev = "";
+int wifiStatusPrev = -1;
 
 String getPolishDayName(int dayNum) {
   switch(dayNum) {
@@ -35,47 +37,75 @@ void displayTime(TFT_eSPI& tft) {
   char dateStr[11];
   strftime(dateStr, sizeof(dateStr), "%d.%m.%Y", &timeinfo);
 
-  // Rysuj tylko jeśli czas się zmienił
-  if (strcmp(timeStr, timeStrPrev) != 0) {
-    // Wyczyść obszar czasu
-    tft.fillRect(TIME_AREA_X, TIME_AREA_Y, TIME_AREA_WIDTH, TIME_AREA_HEIGHT, COLOR_BACKGROUND);
+  // Przygotuj wszystkie elementy
+  char dayStr[20];
+  strftime(dayStr, sizeof(dayStr), "%w", &timeinfo);
+  int dayNum = atoi(dayStr);
+  String polishDay = getPolishDayName(dayNum);
+  
+  int currentWifiStatus = WiFi.status();
 
-    // Ustawienia tekstu
+  // Sprawdź co się zmieniło i rysuj tylko potrzebne elementy
+  
+  // 1. CZAS (zmienia się co sekundę)
+  if (strcmp(timeStr, timeStrPrev) != 0) {
+    Serial.println("Time changed - redrawing time");
+    // Wyczyść tylko obszar czasu
+    tft.fillRect(TIME_AREA_X + 5, TIME_AREA_Y + 5, 110, 20, COLOR_BACKGROUND);
+    
     tft.setTextDatum(TL_DATUM);
     tft.setTextSize(FONT_SIZE_MEDIUM);
-    
-    // Czas po lewej
     tft.setTextColor(COLOR_TIME, COLOR_BACKGROUND);
     tft.drawString(timeStr, TIME_AREA_X + 5, TIME_AREA_Y + 5);
     
-    // Data obok czasu
+    strcpy(timeStrPrev, timeStr);
+  }
+
+  // 2. DATA (zmienia się raz dziennie)
+  if (strcmp(dateStr, dateStrPrev) != 0) {
+    Serial.println("Date changed - redrawing date");
+    // Wyczyść tylko obszar daty
+    tft.fillRect(TIME_AREA_X + 125, TIME_AREA_Y + 5, 120, 20, COLOR_BACKGROUND);
+    
+    tft.setTextDatum(TL_DATUM);
+    tft.setTextSize(FONT_SIZE_MEDIUM);
     tft.setTextColor(COLOR_DATE, COLOR_BACKGROUND);
     tft.drawString(dateStr, TIME_AREA_X + 125, TIME_AREA_Y + 5);
     
-    // Dzień tygodnia po polsku - w drugim wierszu
-    char dayStr[20];
-    strftime(dayStr, sizeof(dayStr), "%w", &timeinfo);
-    int dayNum = atoi(dayStr);
-    String polishDay = getPolishDayName(dayNum);
+    strcpy(dateStrPrev, dateStr);
+  }
+
+  // 3. DZIEŃ TYGODNIA (zmienia się raz dziennie)
+  if (polishDay != dayStrPrev) {
+    Serial.println("Day changed - redrawing day");
+    // Wyczyść tylko obszar dnia
+    tft.fillRect(TIME_AREA_X + 5, TIME_AREA_Y + 30, 140, 20, COLOR_BACKGROUND);
     
+    tft.setTextDatum(TL_DATUM);
+    tft.setTextSize(FONT_SIZE_MEDIUM);
     tft.setTextColor(COLOR_DAY, COLOR_BACKGROUND);
     tft.drawString(polishDay, TIME_AREA_X + 5, TIME_AREA_Y + 30);
     
-    // Status WiFi w tej samej linii po prawej
-    if (WiFi.status() == WL_CONNECTED) {
+    dayStrPrev = polishDay;
+  }
+
+  // 4. STATUS WiFi (zmienia się przy problemach z połączeniem)
+  if (currentWifiStatus != wifiStatusPrev) {
+    Serial.println("WiFi status changed - redrawing WiFi");
+    // Wyczyść tylko obszar WiFi
+    tft.fillRect(TIME_AREA_X + 145, TIME_AREA_Y + 30, 100, 20, COLOR_BACKGROUND);
+    
+    tft.setTextDatum(TL_DATUM);
+    tft.setTextSize(FONT_SIZE_MEDIUM);
+    
+    if (currentWifiStatus == WL_CONNECTED) {
       tft.setTextColor(COLOR_WIFI_OK, COLOR_BACKGROUND);
       tft.drawString("WiFi: OK", TIME_AREA_X + 145, TIME_AREA_Y + 30);
     } else {
       tft.setTextColor(COLOR_WIFI_ERROR, COLOR_BACKGROUND);
       tft.drawString("WiFi: BLAD", TIME_AREA_X + 145, TIME_AREA_Y + 30);
     }
-
-    strcpy(timeStrPrev, timeStr);
-    strcpy(dateStrPrev, dateStr);
-
-    Serial.print("Time: ");
-    Serial.print(dateStr);
-    Serial.print(" ");
-    Serial.println(timeStr);
+    
+    wifiStatusPrev = currentWifiStatus;
   }
 }
