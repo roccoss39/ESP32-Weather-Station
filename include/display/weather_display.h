@@ -15,6 +15,7 @@ void updateWeatherCache();
 // --- FUNKCJE KOLORÓW ---
 uint16_t getWindColor(float windKmh);
 uint16_t getPressureColor(float pressure);
+uint16_t getHumidityColor(float humidity);
 
 // Cache dla optymalizacji rysowania
 extern float weatherCachePrev_temperature;

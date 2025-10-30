@@ -6,7 +6,11 @@
 // --- KOLORY ---
 #define COLOR_BACKGROUND    TFT_BLACK
 #define COLOR_TEMPERATURE   TFT_ORANGE
+#define COLOR_TEMPERATURE_COLD TFT_BLUE   // Niebieski dla temp < 0°C
 #define COLOR_DESCRIPTION   TFT_CYAN
+#define COLOR_DESCRIPTION_STORM TFT_MAROON // Ciemny czerwony dla burzy
+#define COLOR_DESCRIPTION_SUNNY TFT_YELLOW // Żółty dla słońca
+#define COLOR_DESCRIPTION_FOG   TFT_WHITE  // Biały dla mgły
 #define COLOR_HUMIDITY      TFT_WHITE
 #define COLOR_TIME          TFT_YELLOW
 #define COLOR_DATE          TFT_WHITE
@@ -24,6 +28,12 @@
 #define COLOR_PRESSURE_LOW    TFT_ORANGE   // <1000 hPa - niskie (deszcz)
 #define COLOR_PRESSURE_NORMAL TFT_WHITE    // 1000-1020 hPa - normalne
 #define COLOR_PRESSURE_HIGH   TFT_MAGENTA  // >1020 hPa - wysokie (pogodnie)
+
+// --- KOLORY WILGOTNOŚCI (według %) ---
+#define COLOR_HUMIDITY_DRY     TFT_MAROON  // <30% - za sucho (ciemny czerwony)
+#define COLOR_HUMIDITY_COMFORT TFT_WHITE   // 30-70% - komfort  
+#define COLOR_HUMIDITY_HUMID   TFT_PURPLE  // 70-85% - podwyższona (unikalny fioletowy)
+#define COLOR_HUMIDITY_WET     TFT_BROWN   // >85% - bardzo wilgotno (brązowy - pleśń)
 
 // --- POZYCJE I ROZMIARY ---
 #define WEATHER_AREA_X      5

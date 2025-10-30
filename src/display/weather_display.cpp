@@ -64,6 +64,23 @@ uint16_t getPressureColor(float pressure) {
   }
 }
 
+// Funkcja wybierająca kolor wilgotności na podstawie wartości
+uint16_t getHumidityColor(float humidity) {
+  if (humidity < 30.0) {
+    Serial.println("Humidity: " + String(humidity, 0) + "% - DRY (ciemny czerwony)");
+    return COLOR_HUMIDITY_DRY;     // <30% - ciemny czerwony (za sucho)
+  } else if (humidity > 85.0) {
+    Serial.println("Humidity: " + String(humidity, 0) + "% - WET (brązowy)");
+    return COLOR_HUMIDITY_WET;     // >85% - brązowy (bardzo wilgotno)
+  } else if (humidity > 70.0) {
+    Serial.println("Humidity: " + String(humidity, 0) + "% - HUMID (fioletowy)");
+    return COLOR_HUMIDITY_HUMID;   // 70-85% - żółty (duszno)
+  } else {
+    Serial.println("Humidity: " + String(humidity, 0) + "% - COMFORT (biały)");
+    return COLOR_HUMIDITY_COMFORT; // 30-70% - biały (komfort)
+  }
+}
+
 String shortenDescription(String description) {
   // DEBUG - wypisz oryginalny opis w Serial
   Serial.println("Opis pogody ORYGINALNY: '" + description + "'");
@@ -96,6 +113,8 @@ String shortenDescription(String description) {
     shortDescription = "Bezchmurnie";
   } else if (shortDescription.indexOf("slonecznie") >= 0) {
     shortDescription = "Slonecznie";
+  } else if (shortDescription.indexOf("burza") >= 0) {
+    shortDescription = "Burza";  // BURZA MUSI BYĆ PRZED deszczem!
   } else if (shortDescription.indexOf("deszcz lekki") >= 0) {
     shortDescription = "Lekki deszcz";
   } else if (shortDescription.indexOf("deszcz silny") >= 0) {
@@ -106,8 +125,6 @@ String shortenDescription(String description) {
     shortDescription = "Snieg";
   } else if (shortDescription.indexOf("mgla") >= 0) {
     shortDescription = "Mgla";
-  } else if (shortDescription.indexOf("burza") >= 0) {
-    shortDescription = "Burza";
   } else {
     // Jeśli nic nie pasuje, skróć do 12 znaków (bez polskich znaków)
     if (shortDescription.length() > 12) {
@@ -145,19 +162,53 @@ void displayWeather(TFT_eSPI& tft) {
   
   // Temperatura z odczuwalną w nawiasie - wyczyść całą linię
   tft.fillRect(x + TEMP_X_OFFSET, y + TEMP_Y_OFFSET, 200, 25, COLOR_BACKGROUND);
-  tft.setTextColor(COLOR_TEMPERATURE, COLOR_BACKGROUND);
-  String tempStr = String(weather.temperature, 1) + "'C(" + String(weather.feelsLike, 1) + "'C)";
+  
+  // Dynamiczny kolor temperatury - niebieski dla mrozu
+  uint16_t tempColor;
+  if (weather.temperature < 0.0 || weather.feelsLike < 0.0) {
+    tempColor = COLOR_TEMPERATURE_COLD;  // Niebieski dla temp < 0°C
+    Serial.println("Uzywam niebieskiego koloru dla temperatury ponizej zera: " + String(weather.temperature, 1) + "°C");
+  } else {
+    tempColor = COLOR_TEMPERATURE;       // Pomarańczowy dla temp ≥ 0°C
+  }
+  tft.setTextColor(tempColor, COLOR_BACKGROUND);
+  
+  // Skrócony format dla bardzo niskich temperatur (bez 'C)
+  String tempStr;
+  if (weather.temperature <= -5.0 || weather.feelsLike <= -5.0) {
+    tempStr = String(weather.temperature, 1) + "(" + String(weather.feelsLike, 1) + ")";  // Bez 'C
+    Serial.println("Uzywam skroconego formatu dla niskiej temperatury: " + String(weather.temperature, 1) + "°C");
+  } else {
+    tempStr = String(weather.temperature, 1) + "'C(" + String(weather.feelsLike, 1) + "'C)";  // Z 'C
+  }
+  
+  tft.setTextSize(FONT_SIZE_LARGE);   // Zawsze duża czcionka
   tft.drawString(tempStr, x + TEMP_X_OFFSET, y + TEMP_Y_OFFSET);
+  
+  // Przywróć normalną wielkość dla reszty elementów
+  tft.setTextSize(FONT_SIZE_LARGE);
   
   // Opis pogody - wyczyść całą linię
   tft.fillRect(x + DESC_X_OFFSET, y + DESC_Y_OFFSET, 250, 25, COLOR_BACKGROUND);
-  tft.setTextColor(COLOR_DESCRIPTION, COLOR_BACKGROUND);
   String shortDescription = shortenDescription(weather.description);
+  
+  // Specjalne kolory dla różnych opisów pogody
+  if (shortDescription == "Burza") {
+    tft.setTextColor(COLOR_DESCRIPTION_STORM, COLOR_BACKGROUND);  // Ciemny czerwony dla burzy
+  } else if (shortDescription == "Slonecznie" || shortDescription == "Bezchmurnie") {
+    tft.setTextColor(COLOR_DESCRIPTION_SUNNY, COLOR_BACKGROUND);  // Żółty dla słońca
+  } else if (shortDescription == "Mgla") {
+    tft.setTextColor(COLOR_DESCRIPTION_FOG, COLOR_BACKGROUND);    // Biały dla mgły
+  } else {
+    tft.setTextColor(COLOR_DESCRIPTION, COLOR_BACKGROUND);        // Cyan dla reszty
+  }
+  
   tft.drawString(shortDescription, x + DESC_X_OFFSET, y + DESC_Y_OFFSET);
   
-  // Wilgotność - wyczyść lewą część linii
+  // Wilgotność - kolorowa na podstawie wartości
   tft.fillRect(x + HUMIDITY_X_OFFSET, y + HUMIDITY_Y_OFFSET, 120, 25, COLOR_BACKGROUND);
-  tft.setTextColor(COLOR_HUMIDITY, COLOR_BACKGROUND);
+  uint16_t humidityColor = getHumidityColor(weather.humidity);
+  tft.setTextColor(humidityColor, COLOR_BACKGROUND);
   String humStr = "Wilg: " + String(weather.humidity, 0) + "%";
   tft.drawString(humStr, x + HUMIDITY_X_OFFSET, y + HUMIDITY_Y_OFFSET);
   

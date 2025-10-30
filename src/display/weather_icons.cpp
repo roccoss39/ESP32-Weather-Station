@@ -27,6 +27,22 @@ void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconC
     tft.fillCircle(x + 35, y + 30, 12, TFT_LIGHTGREY);
     tft.fillRect(x + 10, y + 35, 30, 8, TFT_WHITE);
   }
+  else if (iconCode.indexOf("11") >= 0 || condition.indexOf("burza") >= 0) {
+    // 11d/11n = thunderstorm - MUSI BYĆ PRZED deszczem!
+    // Ciemne chmury burzy
+    tft.fillCircle(x + 15, y + 20, 10, TFT_DARKGREY);
+    tft.fillCircle(x + 25, y + 15, 12, TFT_LIGHTGREY);
+    tft.fillCircle(x + 35, y + 20, 10, TFT_DARKGREY);
+    tft.fillRect(x + 12, y + 25, 26, 6, TFT_DARKGREY);
+    // Błyskawica
+    tft.drawLine(x + 20, y + 32, x + 25, y + 38, TFT_YELLOW);
+    tft.drawLine(x + 25, y + 38, x + 22, y + 42, TFT_YELLOW);
+    tft.drawLine(x + 22, y + 42, x + 27, y + 47, TFT_YELLOW);
+    // Krople deszczu burzy
+    for (int i = 0; i < 3; i++) {
+      tft.drawLine(x + 13 + i * 6, y + 33, x + 13 + i * 6, y + 39, TFT_CYAN);
+    }
+  }
   else if (iconCode.indexOf("09") >= 0 || iconCode.indexOf("10") >= 0 || 
            condition.indexOf("deszcz") >= 0 || condition.indexOf("opad") >= 0) {
     // 09d/09n = shower rain, 10d/10n = rain
