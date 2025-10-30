@@ -29,7 +29,13 @@ bool getWeather() {
   if (httpCode == HTTP_CODE_OK) {
     String payload = http.getString();
     
-    DynamicJsonDocument doc(1024);
+    // === DEBUG: WYŚWIETL CAŁY JSON Z API ===
+    Serial.println("=== RAW JSON WEATHER API ===");
+    Serial.println(payload);
+    Serial.println("=== KONIEC RAW JSON ===");
+    Serial.println();
+    
+    JsonDocument doc;
     if (deserializeJson(doc, payload) == DeserializationError::Ok) {
       weather.temperature = doc["main"]["temp"];
       weather.feelsLike = doc["main"]["feels_like"];  // Temperatura odczuwalna

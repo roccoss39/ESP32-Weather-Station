@@ -11,10 +11,15 @@
 
 // --- DANE I API ---
 #include "weather/weather_data.h"
+#include "weather/weather_api.h"
+#include "weather/forecast_data.h"
+#include "weather/forecast_api.h"
 
 // --- WYŚWIETLANIE ---
 #include "display/weather_display.h"
+#include "display/forecast_display.h"
 #include "display/time_display.h"
+#include "display/screen_manager.h"
 
 // --- TESTY ---
 #include "test/weather_test.h"
@@ -63,6 +68,14 @@ void setup() {
   
   tft.fillScreen(COLOR_BACKGROUND); // Wyczyść ekran
   
+  // Pierwsze pobranie pogody i prognozy
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("Getting initial weather...");
+    getWeather();
+    Serial.println("Getting initial forecast...");
+    getForecast();
+  }
+  
   // --- Inicjalizacja testów ---
   initWeatherTest();
   
@@ -94,39 +107,71 @@ void loop() {
       case 's':
       case 'S':
         Serial.println("Current test: " + String(weather.description));
-        Serial.println("Icon: " + weather.icon);
+        Serial.println("Screen: " + String(currentScreen == SCREEN_CURRENT_WEATHER ? "WEATHER" : "FORECAST"));
         Serial.println("Valid: " + String(weather.isValid ? "YES" : "NO"));
+        break;
+      case 'f':
+      case 'F':
+        // Wymuś pobranie prognozy
+        if (WiFi.status() == WL_CONNECTED) {
+          Serial.println("Force forecast update...");
+          getForecast();
+        }
+        break;
+      case 'w':
+      case 'W':
+        // Wymuś pobranie aktualnej pogody
+        if (WiFi.status() == WL_CONNECTED) {
+          Serial.println("Force weather update...");
+          getWeather();
+        }
         break;
     }
   }
 
-  // --- WYŚWIETLANIE CZASU (jeśli WiFi działa) ---
-  if (WiFi.status() == WL_CONNECTED) {
-    displayTime(tft);
-  } else {
-    // Pokazuj info o trybie offline
-    static unsigned long lastOfflineMsg = 0;
-    if (millis() - lastOfflineMsg > 5000) {
-      tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
-      tft.setTextSize(1);
-      tft.setTextDatum(TR_DATUM);
-      tft.drawString("OFFLINE", tft.width() - 5, 5);
-      lastOfflineMsg = millis();
-    }
-  }
+  // --- ZARZĄDZANIE EKRANAMI ---
+  updateScreenManager();
 
   // --- TESTY POGODOWE ---
   runWeatherTest();
 
-  // --- WALIDACJA I WYŚWIETLANIE ---
-  if (validateWeatherData()) {
-    displayWeather(tft);
-  } else {
-    // Pokazuj błąd na ekranie
-    tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
-    tft.setTextSize(2);
-    tft.setTextDatum(MC_DATUM);
-    tft.drawString("DATA ERROR!", tft.width() / 2, 50);
+  // --- AKTUALIZACJA PROGNOZY (co 30 minut) ---
+  static unsigned long lastForecastCheck = 0;
+  if (millis() - lastForecastCheck >= 1800000) { // 30 minut
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("Updating forecast...");
+      getForecast();
+    }
+    lastForecastCheck = millis();
+  }
+
+  // --- WYŚWIETLANIE ODPOWIEDNIEGO EKRANU ---
+  static ScreenType previousScreen = SCREEN_CURRENT_WEATHER;
+  static unsigned long lastDisplayUpdate = 0;
+  
+  // Sprawdź czy ekran się zmienił - wtedy wymuś pełne odświeżenie
+  if (currentScreen != previousScreen) {
+    Serial.println("Zmiana ekranu - czyszczenie i odswiezanie");
+    switchToNextScreen(tft);
+    previousScreen = currentScreen;
+    lastDisplayUpdate = millis();
+  }
+  // Odświeżaj tylko ekran aktualnej pogody (dla czasu i testów)
+  else if (currentScreen == SCREEN_CURRENT_WEATHER && millis() - lastDisplayUpdate > 1000) {
+    if (WiFi.status() == WL_CONNECTED) {
+      displayTime(tft);
+    }
+    
+    if (validateWeatherData()) {
+      displayWeather(tft);
+    } else {
+      tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
+      tft.setTextSize(2);
+      tft.setTextDatum(MC_DATUM);
+      tft.drawString("DATA ERROR!", tft.width() / 2, 50);
+    }
+    
+    lastDisplayUpdate = millis();
   }
 
   delay(100); // Krótka pauza

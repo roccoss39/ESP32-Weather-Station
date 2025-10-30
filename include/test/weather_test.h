@@ -5,6 +5,7 @@
 void initWeatherTest();
 void runWeatherTest();
 void resetWeatherTest();
+void loadTestForecast(int testIndex);
 bool validateWeatherData();
 
 // --- KONFIGURACJA TESTÓW ---
