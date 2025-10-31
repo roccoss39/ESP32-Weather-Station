@@ -313,7 +313,7 @@ void displayWeather(TFT_eSPI& tft) {
     tft.setTextColor(COLOR_DESCRIPTION, COLOR_BACKGROUND);        // Cyan dla reszty
   }
   
-  tft.drawString(shortDescription, x + DESC_X_OFFSET, y + DESC_Y_OFFSET, 2);
+  tft.drawString(shortDescription, x + DESC_X_OFFSET, y + DESC_Y_OFFSET);
   
   // Wilgotność - kolorowa na podstawie wartości
   tft.fillRect(x + HUMIDITY_X_OFFSET, y + HUMIDITY_Y_OFFSET, 120, 25, COLOR_BACKGROUND);
