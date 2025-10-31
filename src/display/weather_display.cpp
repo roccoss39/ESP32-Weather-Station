@@ -206,41 +206,8 @@ String shortenDescription(String description) {
     polishDescription = "Male zachmurzenie";
   }
   
-  // Skróć polską nazwę jeśli jest za długa (max 15 znaków + kropka)
-  if (polishDescription.length() > 15) {
-    if (polishDescription == "Zachmurzenie calkowite") {
-      polishDescription = "Calkowite zachm.";
-    } else if (polishDescription == "Umiarkowane zachmurzenie") {
-      polishDescription = "Umiarkowane zachm.";
-    } else if (polishDescription == "Duze zachmurzenie") {
-      polishDescription = "Duze zachm.";
-    } else if (polishDescription == "Male zachmurzenie") {
-      polishDescription = "Male zachm.";
-    } else if (polishDescription == "Ekstremalny deszcz") {
-      polishDescription = "Ekstremalny des.";
-    } else if (polishDescription == "Bardzo silny deszcz") {
-      polishDescription = "Bardzo silny d.";
-    } else if (polishDescription == "Umiarkowany deszcz") {
-      polishDescription = "Umiarkowany des.";
-    } else if (polishDescription == "Marznacy deszcz") {
-      polishDescription = "Marznacy des.";
-    } else if (polishDescription == "Deszcz ze sniegiem") {
-      polishDescription = "Deszcz+snieg";
-    } else if (polishDescription == "Popiol wulkaniczny") {
-      polishDescription = "Popiol wulk.";
-    } else if (polishDescription == "Slaby snieg z deszczem") {
-      polishDescription = "Slaby snieg+d.";
-    } else if (polishDescription == "Przelotna mzawka") {
-      polishDescription = "Przelotna mz.";
-    } else if (polishDescription == "Przelotne opady") {
-      polishDescription = "Przelotne op.";
-    } else if (polishDescription == "Przelotny snieg") {
-      polishDescription = "Przelotny sn.";
-    } else {
-      // Skróć do 15 znaków i dodaj kropkę
-      polishDescription = polishDescription.substring(0, 15) + ".";
-    }
-  }
+  // Nie skracamy opisu - zostanie obsłużony przez mniejszą czcionkę w displayWeather()
+  // Usunięto logikę skracania z kropkami
   
   Serial.println("Polish text: '" + polishDescription + "'");
   return polishDescription;
@@ -300,20 +267,31 @@ void displayWeather(TFT_eSPI& tft) {
   
   // Opis pogody - wyczyść całą linię
   tft.fillRect(x + DESC_X_OFFSET, y + DESC_Y_OFFSET, 250, 25, COLOR_BACKGROUND);
-  String shortDescription = shortenDescription(weather.description);
+  String fullDescription = shortenDescription(weather.description);
+  
+  // Sprawdź czy opis jest długi (>15 znaków) - jeśli tak, użyj mniejszej czcionki
+  bool isLongDescription = fullDescription.length() > 15;
   
   // Specjalne kolory dla różnych opisów pogody (polskie nazwy)
-  if (shortDescription.indexOf("Burza") >= 0) {
+  if (fullDescription.indexOf("Burza") >= 0) {
     tft.setTextColor(COLOR_DESCRIPTION_STORM, COLOR_BACKGROUND);  // Ciemny czerwony dla burzy
-  } else if (shortDescription == "Bezchmurnie") {
+  } else if (fullDescription == "Bezchmurnie") {
     tft.setTextColor(COLOR_DESCRIPTION_SUNNY, COLOR_BACKGROUND);  // Żółty dla słońca
-  } else if (shortDescription == "Mgla" || shortDescription == "Zamglenie" || shortDescription == "Dym") {
+  } else if (fullDescription == "Mgla" || fullDescription == "Zamglenie" || fullDescription == "Dym") {
     tft.setTextColor(COLOR_DESCRIPTION_FOG, COLOR_BACKGROUND);    // Biały dla mgły
   } else {
     tft.setTextColor(COLOR_DESCRIPTION, COLOR_BACKGROUND);        // Cyan dla reszty
   }
   
-  tft.drawString(shortDescription, x + DESC_X_OFFSET, y + DESC_Y_OFFSET);
+  // Ustaw mniejszą czcionkę dla długich opisów
+  if (isLongDescription) {
+    tft.setTextSize(FONT_SIZE_LARGE - 1);  // O 1 mniejsza niż standardowa
+  }
+  
+  tft.drawString(fullDescription, x + DESC_X_OFFSET, y + DESC_Y_OFFSET);
+  
+  // Przywróć standardową czcionkę
+  tft.setTextSize(FONT_SIZE_LARGE);
   
   // Wilgotność - kolorowa na podstawie wartości
   tft.fillRect(x + HUMIDITY_X_OFFSET, y + HUMIDITY_Y_OFFSET, 120, 25, COLOR_BACKGROUND);
