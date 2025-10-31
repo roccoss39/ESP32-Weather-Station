@@ -12,6 +12,8 @@ struct WeatherData {
   float windSpeed = 0;
   float pressure = 0;         // Ciśnienie w hPa
   String icon = "";
+  unsigned long sunrise = 0;  // Wschód słońca (timestamp Unix)
+  unsigned long sunset = 0;   // Zachód słońca (timestamp Unix)
   bool isValid = false;
   unsigned long lastUpdate = 0;
 };

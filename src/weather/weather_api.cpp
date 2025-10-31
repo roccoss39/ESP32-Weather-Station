@@ -52,10 +52,15 @@ bool getWeather() {
         Serial.println("Ikona API: '" + weather.icon + "' dla kategorii: '" + weather.description + "'");
       }
       
+      // Dodaj dane wschodu i zachodu słońca
+      weather.sunrise = doc["sys"]["sunrise"];
+      weather.sunset = doc["sys"]["sunset"];
+      
       weather.isValid = true;
       weather.lastUpdate = millis();
       
       Serial.println("Weather OK: " + String(weather.temperature) + "°C, odczuwalna: " + String(weather.feelsLike) + "°C, ciśnienie: " + String(weather.pressure) + "hPa");
+      Serial.println("Wschód: " + String(weather.sunrise) + ", Zachód: " + String(weather.sunset));
       http.end();
       return true;
     }

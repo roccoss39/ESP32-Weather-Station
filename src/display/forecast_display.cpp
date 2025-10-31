@@ -143,9 +143,9 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
   tft.setTextColor(TFT_LIGHTGREY, COLOR_BACKGROUND);
   tft.setTextDatum(TL_DATUM);
   
-  // Temp: z małą czcionką
+  // Temp: z małą czcionką - przesunięty o 10 pikseli wyżej
   tft.setTextSize(1);
-  tft.drawString("Temp:", 10, y);
+  tft.drawString("Temp:", 10, y - 10);
   
   // Wartości temperatury z normalną czcionką - dynamiczne formatowanie
   tft.setTextSize(2);
@@ -161,16 +161,45 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
     tempValues = String(minTemp, 0) + "'C/" + String(maxTemp, 0) + "'C";
   }
   
-  tft.drawString(tempValues, 45, y);
+  tft.drawString(tempValues, 45, y - 10);
   
-  // Wiatr.max: z małą czcionką  
+  // Wiatr.max: z małą czcionką - przesunięty o 10 pikseli wyżej
   tft.setTextSize(1);
-  tft.drawString("Wiatr.max:", 160, y);
+  tft.drawString("Wiatr.max:", 160, y - 10);
   
   // Wartości wiatru z normalną czcionką
   tft.setTextSize(2);
   String windValue = String(maxWind, 0) + "km/h";
-  tft.drawString(windValue, 230, y);
+  tft.drawString(windValue, 230, y - 10);
+  
+  // Dodaj wschód i zachód słońca pod temperaturą i wiatrem - przesunięty o 10 pikseli niżej
+  if (weather.sunrise > 0 && weather.sunset > 0) {
+    // Konwertuj Unix timestamp na czas lokalny (UTC+1 dla Polski)
+    unsigned long sunriseLocal = weather.sunrise + 3600; // +1 godzina dla UTC+1
+    unsigned long sunsetLocal = weather.sunset + 3600;
+    
+    // Oblicz godziny i minuty
+    int sunriseHour = (sunriseLocal % 86400) / 3600;
+    int sunriseMin = (sunriseLocal % 3600) / 60;
+    int sunsetHour = (sunsetLocal % 86400) / 3600;
+    int sunsetMin = (sunsetLocal % 3600) / 60;
+    
+    // Formatuj czas (HH:MM)
+    String sunriseTime = String(sunriseHour) + ":" + (sunriseMin < 10 ? "0" : "") + String(sunriseMin);
+    String sunsetTime = String(sunsetHour) + ":" + (sunsetMin < 10 ? "0" : "") + String(sunsetMin);
+    
+    // Wschód słońca - mała czcionka jak "Temp:" i "Wiatr.max:"
+    tft.setTextSize(1);
+    tft.setTextColor(TFT_YELLOW, COLOR_BACKGROUND);
+    tft.drawString("Wschod: ", 10, y + 10);
+    tft.drawString(sunriseTime, 60, y + 10);
+    
+    // Zachód słońca
+    tft.drawString("Zachod: ", 160, y + 10);
+    tft.drawString(sunsetTime, 210, y + 10);
+    
+    Serial.println("Słońce: Wschód " + sunriseTime + ", Zachód " + sunsetTime);
+  }
   
   Serial.println("Podsumowanie: Temp:" + String(minTemp, 0) + "'C/" + String(maxTemp, 0) + 
                 "'C Wiatr.max:" + String(maxWind, 0) + "km/h");
