@@ -9,9 +9,8 @@ CurrentImageData currentImage;
 // --- INCLUDE ULTIMATE NASA COLLECTION (401 obrazków) ---
 #include "photo_display/esp32_nasa_ultimate.h"
 
-// --- TEST CONFIG: 3 obrazki co 3 sekundy ---
-const int TEST_IMAGE_COUNT = 3;              // Tylko 3 obrazki dla testów
-const unsigned long TEST_CHANGE_INTERVAL = 3000;  // 3 sekundy
+// --- RANDOM CONFIG: wszystkie obrazki ---
+const unsigned long IMAGE_CHANGE_INTERVAL = 3000;  // 3 sekundy
 
 // Callback dla TJpg_Decoder (z photo_display)
 bool tft_output_nasa(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) {
@@ -24,7 +23,7 @@ bool tft_output_nasa(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bit
 void initNASAImageSystem() {
   Serial.println("=== INICJALIZACJA NASA ULTIMATE SYSTEM ===");
   Serial.println("Calkowita kolekcja: " + String(num_nasa_images) + " obrazków");
-  Serial.println("TEST MODE: " + String(TEST_IMAGE_COUNT) + " obrazki co " + String(TEST_CHANGE_INTERVAL/1000) + " sekund");
+  Serial.println("RANDOM MODE: Losowe obrazki co " + String(IMAGE_CHANGE_INTERVAL/1000) + " sekund");
   
   // Zainicjalizuj pierwszy obraz (z pierwszych 3 dla testów)
   currentImage.imageNumber = 0; // Zacznij od pierwszego obrazka
@@ -44,17 +43,15 @@ bool getRandomNASAImage() {
     return false;
   }
   
-  // TEST MODE: Cyklicznie przez pierwsze 3 obrazki (0, 1, 2)
-  static int testIndex = 0;
-  currentImage.imageNumber = testIndex;
-  testIndex = (testIndex + 1) % TEST_IMAGE_COUNT; // 0->1->2->0->1->2...
+  // LOSOWY WYBÓR ze wszystkich 401 obrazków
+  currentImage.imageNumber = random(0, num_nasa_images); // 0-400 (losowy)
   
   currentImage.url = String(nasa_ultimate_collection[currentImage.imageNumber].url);
   currentImage.title = String(nasa_ultimate_collection[currentImage.imageNumber].title);
   currentImage.date = String(nasa_ultimate_collection[currentImage.imageNumber].filename); // filename as date
   currentImage.lastUpdate = millis();
   
-  Serial.println("=== NASA Image " + String(currentImage.imageNumber + 1) + " ===");
+  Serial.println("=== Losowy NASA Image " + String(currentImage.imageNumber + 1) + "/" + String(num_nasa_images) + " ===");
   Serial.println("Tytuł: " + currentImage.title);
   Serial.println("URL: " + currentImage.url);
   
@@ -69,7 +66,7 @@ void displayGitHubImage(TFT_eSPI& tft) {
   static unsigned long lastImageChange = 0;
   static bool firstRun = true;
   
-  if (firstRun || (millis() - lastImageChange >= TEST_CHANGE_INTERVAL)) {
+  if (firstRun || (millis() - lastImageChange >= IMAGE_CHANGE_INTERVAL)) {
     Serial.println("🔄 Zmiana obrazka NASA...");
     
     if (!getRandomNASAImage()) {
@@ -115,8 +112,19 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
   Serial.println("Filename: " + String(selectedImage.filename));
   Serial.println("URL: " + String(selectedImage.url));
   
-  // Pokaż loading screen (czysty)
+  // Pokaż loading screen z ikoną ładowania
   tft.fillScreen(TFT_BLACK);
+  
+  // Ikona ładowania - animowany spinner
+  int centerX = tft.width() / 2;
+  int centerY = tft.height() / 2;
+  
+  // Narysuj spinner (kółko z linią)
+  tft.drawCircle(centerX, centerY, 20, TFT_CYAN);
+  tft.drawCircle(centerX, centerY, 15, TFT_BLUE);
+  tft.drawLine(centerX, centerY, centerX + 15, centerY - 10, TFT_WHITE);
+  
+  // Bez tekstu - tylko ikona ładowania
   
   // HTTP download przez HTTPClient (prostsze niż WiFiClientSecure)
   HTTPClient http;
@@ -164,22 +172,20 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
   int result = TJpgDec.drawJpg(0, 0, buffer, contentLength);
   
   if (result == 0) {
-    // Dodaj tytuł i informacje (jak w photo_display)
+    // Dodaj tytuł na dole - wyśrodkowany
     tft.fillRect(0, 220, 320, 20, TFT_BLACK);
     
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
     tft.setTextSize(1);
+    tft.setTextDatum(MC_DATUM); // Wyśrodkowanie
     
     String titleStr = String(selectedImage.title);
     if (titleStr.length() > 45) {
       titleStr = titleStr.substring(0, 42) + "...";
     }
     
-    int titleWidth = tft.textWidth(titleStr);
-    int titleX = (320 - titleWidth) / 2;
-    if (titleX < 0) titleX = 5;
-    
-    tft.drawString(titleStr, titleX, 225);
+    // Wyśrodkowany na dole ekranu
+    tft.drawString(titleStr, tft.width() / 2, 225);
     
     // Usuń progress info - tylko czysty obrazek
     

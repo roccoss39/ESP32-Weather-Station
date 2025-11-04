@@ -8,7 +8,7 @@
 // Definicje zmiennych globalnych
 ScreenType currentScreen = SCREEN_CURRENT_WEATHER;
 unsigned long lastScreenSwitch = 0;
-const unsigned long SCREEN_SWITCH_INTERVAL = 5000; // 5 sekund
+const unsigned long SCREEN_SWITCH_INTERVAL = 10000; // 10 sekund
 
 void updateScreenManager() {
   unsigned long currentTime = millis();
