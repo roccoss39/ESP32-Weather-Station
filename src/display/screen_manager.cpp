@@ -2,6 +2,7 @@
 #include "display/weather_display.h"
 #include "display/forecast_display.h"
 #include "display/time_display.h"
+#include "display/github_image.h"
 #include "config/display_config.h"
 
 // Definicje zmiennych globalnych
@@ -16,10 +17,13 @@ void updateScreenManager() {
   if (currentTime - lastScreenSwitch >= SCREEN_SWITCH_INTERVAL) {
     lastScreenSwitch = currentTime;
     
-    // Przełącz na następny ekran
+    // Przełącz na następny ekran (rotacja przez 3 ekrany: pogoda -> prognoza -> zdjęcie)
     if (currentScreen == SCREEN_CURRENT_WEATHER) {
       currentScreen = SCREEN_FORECAST;
       Serial.println("Przełączanie na ekran PROGNOZY");
+    } else if (currentScreen == SCREEN_FORECAST) {
+      currentScreen = SCREEN_IMAGE;
+      Serial.println("Przełączanie na ekran ZDJĘCIA");
     } else {
       currentScreen = SCREEN_CURRENT_WEATHER;
       Serial.println("Przełączanie na ekran AKTUALNEJ POGODY");
@@ -73,6 +77,9 @@ void switchToNextScreen(TFT_eSPI& tft) {
   } else if (currentScreen == SCREEN_FORECAST) {
     // Ekran 2: Prognoza 3h
     displayForecast(tft);
+  } else if (currentScreen == SCREEN_IMAGE) {
+    // Ekran 3: Zdjęcie z GitHub
+    displayGitHubImage(tft);
   }
 }
 

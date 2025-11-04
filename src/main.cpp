@@ -20,6 +20,7 @@
 #include "display/forecast_display.h"
 #include "display/time_display.h"
 #include "display/screen_manager.h"
+#include "display/github_image.h"
 
 // Testy zostały usunięte
 
@@ -77,6 +78,9 @@ void setup() {
   }
   
   tft.fillScreen(COLOR_BACKGROUND); // Wyczyść ekran
+  
+  // Inicjalizacja systemu NASA images
+  initNASAImageSystem();
   
   // Pierwsze pobranie pogody i prognozy z obsługą błędów
   if (WiFi.status() == WL_CONNECTED) {

@@ -2,12 +2,9 @@
 #define SCREEN_MANAGER_H
 
 #include <TFT_eSPI.h>
+#include "config/display_config.h"
 
-// --- TYPY EKRANÓW ---
-enum ScreenType {
-  SCREEN_CURRENT_WEATHER = 0,  // Ekran 1: Aktualna pogoda
-  SCREEN_FORECAST = 1          // Ekran 2: Prognoza 3h
-};
+// --- TYPY EKRANÓW (zdefiniowane w display_config.h) ---
 
 // --- ZARZĄDZANIE EKRANAMI ---
 extern ScreenType currentScreen;
