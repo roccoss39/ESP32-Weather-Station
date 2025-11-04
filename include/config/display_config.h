@@ -51,19 +51,19 @@
 #define ICON_X_OFFSET       5
 #define ICON_Y_OFFSET       0
 
-#define TEMP_X_OFFSET       60
+#define TEMP_X_OFFSET       60   // Przywrócone do oryginalnej pozycji
 #define TEMP_Y_OFFSET       20
 
-#define DESC_X_OFFSET       5
+#define DESC_X_OFFSET       5    // Przywrócone do oryginalnej pozycji
 #define DESC_Y_OFFSET       55
 
-#define HUMIDITY_X_OFFSET   5
+#define HUMIDITY_X_OFFSET   5    // Przywrócone do oryginalnej pozycji
 #define HUMIDITY_Y_OFFSET   85
 
-#define WIND_X_OFFSET       5
+#define WIND_X_OFFSET       5    // Przywrócone do oryginalnej pozycji
 #define WIND_Y_OFFSET       115
 
-#define PRESSURE_X_OFFSET   5
+#define PRESSURE_X_OFFSET   5    // Przywrócone do oryginalnej pozycji
 #define PRESSURE_Y_OFFSET   145
 
 // --- ROZMIARY CZCIONEK ---

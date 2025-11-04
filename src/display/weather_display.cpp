@@ -339,4 +339,7 @@ void displayWeather(TFT_eSPI& tft) {
   
   // Zaktualizuj cache po narysowaniu
   updateWeatherCache();
+  
+  // Dodaj cienką białą linię oddzielającą sekcję pogody od czasu
+  tft.drawLine(0, 180, tft.width(), 180, TFT_WHITE);
 }
