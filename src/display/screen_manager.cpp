@@ -35,6 +35,26 @@ void switchToNextScreen(TFT_eSPI& tft) {
   
   if (currentScreen == SCREEN_CURRENT_WEATHER) {
     // Ekran 1: Aktualna pogoda + czas
+    
+    // RESET CACHE POGODY - wymusza ponowne rysowanie
+    extern float weatherCachePrev_temperature;
+    extern float weatherCachePrev_feelsLike;
+    extern float weatherCachePrev_humidity;
+    extern float weatherCachePrev_windSpeed;
+    extern float weatherCachePrev_pressure;
+    extern String weatherCachePrev_description;
+    extern String weatherCachePrev_icon;
+    
+    weatherCachePrev_temperature = -999.0;  // Reset cache
+    weatherCachePrev_feelsLike = -999.0;    // Reset cache
+    weatherCachePrev_humidity = -999.0;     // Reset cache
+    weatherCachePrev_windSpeed = -999.0;    // Reset cache
+    weatherCachePrev_pressure = -999.0;     // Reset cache
+    weatherCachePrev_description = "";      // Reset cache
+    weatherCachePrev_icon = "";             // Reset cache
+    
+    Serial.println("DEBUG: Reset cache pogody - wymuszam rysowanie");
+    
     displayWeather(tft);
     
     // Wymuś pokazanie wszystkich elementów czasu natychmiast

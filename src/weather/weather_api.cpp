@@ -56,6 +56,29 @@ bool getWeather() {
       weather.sunrise = doc["sys"]["sunrise"];
       weather.sunset = doc["sys"]["sunset"];
       
+      // --- DANE O OPADACH ---
+      weather.rainLastHour = 0;  // Domyślnie brak
+      weather.snowLastHour = 0;  // Domyślnie brak
+      weather.cloudiness = 0;    // Domyślnie brak
+      
+      // Sprawdź opady deszczu w ostatniej godzinie
+      if (doc["rain"] && doc["rain"]["1h"]) {
+        weather.rainLastHour = doc["rain"]["1h"];
+        Serial.println("Deszcz (1h): " + String(weather.rainLastHour) + "mm");
+      }
+      
+      // Sprawdź opady śniegu w ostatniej godzinie  
+      if (doc["snow"] && doc["snow"]["1h"]) {
+        weather.snowLastHour = doc["snow"]["1h"];
+        Serial.println("Śnieg (1h): " + String(weather.snowLastHour) + "mm");
+      }
+      
+      // Zachmurzenie
+      if (doc["clouds"] && doc["clouds"]["all"]) {
+        weather.cloudiness = doc["clouds"]["all"];
+        Serial.println("Zachmurzenie: " + String(weather.cloudiness) + "%");
+      }
+      
       weather.isValid = true;
       weather.lastUpdate = millis();
       

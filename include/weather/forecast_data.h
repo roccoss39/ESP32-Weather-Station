@@ -10,6 +10,7 @@ struct ForecastItem {
   float windSpeed = 0;        // prędkość wiatru w m/s
   String icon = "";           // kod ikony API
   String description = "";    // opis (dla debug)
+  int precipitationChance = 0; // Prawdopodobieństwo opadów (0-100%)
 };
 
 // --- STRUKTURA PROGNOZY 3H ---

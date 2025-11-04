@@ -64,6 +64,12 @@ bool getForecast() {
         // Używaj angielskiego description (szczegółowy opis)
         forecast.items[i].description = item["weather"][0]["description"].as<String>();  // "light rain", "clear sky", etc.
         
+        // Prawdopodobieństwo opadów (pop = probability of precipitation)
+        forecast.items[i].precipitationChance = 0;
+        if (item["pop"]) {
+          forecast.items[i].precipitationChance = (int)(item["pop"].as<float>() * 100); // Konwersja z 0.0-1.0 na 0-100%
+        }
+        
         Serial.println("Forecast " + String(i+1) + ": " + forecast.items[i].time + 
                       " - " + String(forecast.items[i].temperature, 1) + "°C - " + 
                       forecast.items[i].icon + " - " + forecast.items[i].description);

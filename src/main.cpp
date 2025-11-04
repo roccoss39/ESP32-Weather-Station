@@ -24,6 +24,7 @@
 // --- TESTY ---
 #include "test/weather_test.h"
 
+
 // --- GLOBALNE OBIEKTY ---
 TFT_eSPI tft = TFT_eSPI();
 
@@ -76,14 +77,10 @@ void setup() {
     getForecast();
   }
   
-  // --- Inicjalizacja testów ---
-  initWeatherTest();
-  
-  Serial.println("=== TEST MODE READY ===");
+  Serial.println("=== LIVE WEATHER MODE READY ===");
   Serial.println("Commands:");
-  Serial.println("  'r' - reset test cycle");
-  Serial.println("  'v' - validate current data");
-  Serial.println("  's' - show current test info");
+  Serial.println("  'f' - force forecast update");
+  Serial.println("  'w' - force weather update");
   Serial.println("=======================");
 }
 
@@ -92,24 +89,6 @@ void loop() {
   if (Serial.available()) {
     char command = Serial.read();
     switch (command) {
-      case 'r':
-      case 'R':
-        resetWeatherTest();
-        break;
-      case 'v':
-      case 'V':
-        if (validateWeatherData()) {
-          Serial.println("✓ Weather data is valid");
-        } else {
-          Serial.println("✗ Weather data validation failed!");
-        }
-        break;
-      case 's':
-      case 'S':
-        Serial.println("Current test: " + String(weather.description));
-        Serial.println("Screen: " + String(currentScreen == SCREEN_CURRENT_WEATHER ? "WEATHER" : "FORECAST"));
-        Serial.println("Valid: " + String(weather.isValid ? "YES" : "NO"));
-        break;
       case 'f':
       case 'F':
         // Wymuś pobranie prognozy
@@ -132,8 +111,15 @@ void loop() {
   // --- ZARZĄDZANIE EKRANAMI ---
   updateScreenManager();
 
-  // --- TESTY POGODOWE ---
-  runWeatherTest();
+  // --- PRAWDZIWA AKTUALIZACJA POGODY (co 10 minut) ---
+  static unsigned long lastWeatherCheck = 0;
+  if (millis() - lastWeatherCheck >= 600000) { // 10 minut
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("Updating weather...");
+      getWeather();
+    }
+    lastWeatherCheck = millis();
+  }
 
   // --- AKTUALIZACJA PROGNOZY (co 30 minut) ---
   static unsigned long lastForecastCheck = 0;
@@ -151,27 +137,46 @@ void loop() {
   
   // Sprawdź czy ekran się zmienił - wtedy wymuś pełne odświeżenie
   if (currentScreen != previousScreen) {
-    Serial.println("Zmiana ekranu - czyszczenie i odswiezanie");
+    Serial.println("=== DEBUG: ZMIANA EKRANU ===");
+    Serial.println("Poprzedni ekran: " + String(previousScreen));
+    Serial.println("Nowy ekran: " + String(currentScreen));
+    Serial.println("weather.isValid przed zmianą: " + String(weather.isValid ? "TRUE" : "FALSE"));
+    
     switchToNextScreen(tft);
+    
+    Serial.println("weather.isValid po zmianie: " + String(weather.isValid ? "TRUE" : "FALSE"));
+    Serial.println("=== DEBUG: KONIEC ZMIANY EKRANU ===");
+    
     previousScreen = currentScreen;
     lastDisplayUpdate = millis();
   }
-  // Odświeżaj tylko ekran aktualnej pogody (dla czasu i testów)
+  // Odświeżaj tylko ekran aktualnej pogody (z debugiem)
   else if (currentScreen == SCREEN_CURRENT_WEATHER && millis() - lastDisplayUpdate > 1000) {
+    Serial.println("=== DEBUG: Odświeżanie ekranu CURRENT_WEATHER ===");
+    Serial.println("WiFi status: " + String(WiFi.status()));
+    Serial.println("weather.isValid: " + String(weather.isValid ? "TRUE" : "FALSE"));
+    Serial.println("weather.temperature: " + String(weather.temperature));
+    Serial.println("weather.description: " + String(weather.description));
+    
     if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("DEBUG: Wyświetlam czas...");
       displayTime(tft);
     }
     
-    if (validateWeatherData()) {
+    if (weather.isValid) {
+      Serial.println("DEBUG: Wyświetlam pogodę - weather.isValid=TRUE");
       displayWeather(tft);
+      Serial.println("DEBUG: displayWeather() wywołane");
     } else {
+      Serial.println("DEBUG: weather.isValid=FALSE - pokazuję LOADING");
       tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
       tft.setTextSize(2);
       tft.setTextDatum(MC_DATUM);
-      tft.drawString("DATA ERROR!", tft.width() / 2, 50);
+      tft.drawString("LOADING WEATHER...", tft.width() / 2, 50);
     }
     
     lastDisplayUpdate = millis();
+    Serial.println("=== DEBUG: Koniec odświeżania ===");
   }
 
   delay(100); // Krótka pauza

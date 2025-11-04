@@ -1,6 +1,7 @@
 #include "display/weather_display.h"
 #include "display/weather_icons.h"
 #include "config/display_config.h"
+#include "weather/forecast_data.h"
 
 // Definicje zmiennych cache
 float weatherCachePrev_temperature = -999.0;
@@ -223,6 +224,15 @@ void displayWeather(TFT_eSPI& tft) {
   
   Serial.println("Weather data changed - redrawing display");
   
+  // DEBUG: Wyświetl dodatkowe dane o opadach
+  if (weather.rainLastHour > 0) {
+    Serial.println("DESZCZ: " + String(weather.rainLastHour) + "mm/h");
+  }
+  if (weather.snowLastHour > 0) {
+    Serial.println("ŚNIEG: " + String(weather.snowLastHour) + "mm/h");  
+  }
+  Serial.println("ZACHMURZENIE: " + String(weather.cloudiness) + "%");
+  
   // Pozycja pogody - GÓRA na całej szerokości
   int x = WEATHER_AREA_X;
   int y = WEATHER_AREA_Y;
@@ -297,8 +307,20 @@ void displayWeather(TFT_eSPI& tft) {
   tft.fillRect(x + HUMIDITY_X_OFFSET, y + HUMIDITY_Y_OFFSET, 120, 25, COLOR_BACKGROUND);
   uint16_t humidityColor = getHumidityColor(weather.humidity);
   tft.setTextColor(humidityColor, COLOR_BACKGROUND);
-  String humStr = "Wilg: " + String(weather.humidity, 0) + "%";
+  String humStr = "Wilg:" + String(weather.humidity, 0) + "%";
   tft.drawString(humStr, x + HUMIDITY_X_OFFSET, y + HUMIDITY_Y_OFFSET);
+  
+  // Wyświetl prawdopodobieństwo opadów z prognozy (pierwszy element)
+  int precipChance = 0;
+  if (forecast.isValid && forecast.count > 0) {
+    precipChance = forecast.items[0].precipitationChance; // Najbliższa prognoza
+  }
+  
+  String precipStr = "Opad:" + String(precipChance) + "%";
+  uint16_t precipColor = TFT_BLUE; // Zawsze niebieski
+  
+  tft.setTextColor(precipColor, COLOR_BACKGROUND);
+  tft.drawString(precipStr, x + HUMIDITY_X_OFFSET + 160, y + HUMIDITY_Y_OFFSET);
   
   // Wiatr - wyczyść linię wiatru
   float windKmh = weather.windSpeed * 3.6;
