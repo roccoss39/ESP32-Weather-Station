@@ -19,11 +19,11 @@ void displayForecast(TFT_eSPI& tft) {
   // Rysuj wykres temperatury na górze
   drawTemperatureGraph(tft, 10, 20, 300, 80);
   
-  // Rysuj ikony, godziny i wiatr
-  drawForecastItems(tft, 120);
+  // Rysuj ikony, godziny i wiatr (podniesione o 15px)
+  drawForecastItems(tft, 105);
   
-  // Rysuj podsumowanie na dole (jedna linia)
-  drawForecastSummary(tft, 215);
+  // Rysuj podsumowanie na dole (podniesione o 15px)
+  drawForecastSummary(tft, 200);
 }
 
 void drawTemperatureGraph(TFT_eSPI& tft, int x, int y, int width, int height) {
@@ -185,18 +185,26 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
     int sunsetMin = (sunsetLocal % 3600) / 60;
     
     // Formatuj czas (HH:MM)
-    String sunriseTime = String(sunriseHour) + ":" + (sunriseMin < 10 ? "0" : "") + String(sunriseMin);
-    String sunsetTime = String(sunsetHour) + ":" + (sunsetMin < 10 ? "0" : "") + String(sunsetMin);
+    // Format 4-cyfrowy: 07:06 zamiast 7:06
+    String sunriseTime = (sunriseHour < 10 ? "0" : "") + String(sunriseHour) + ":" + (sunriseMin < 10 ? "0" : "") + String(sunriseMin);
+    String sunsetTime = (sunsetHour < 10 ? "0" : "") + String(sunsetHour) + ":" + (sunsetMin < 10 ? "0" : "") + String(sunsetMin);
     
-    // Wschód słońca - mała czcionka jak "Temp:" i "Wiatr.max:"
+    // Wschód słońca - etykiety mała, godziny większa czcionka (obniżone o 5px)
     tft.setTextSize(1);
     tft.setTextColor(TFT_YELLOW, COLOR_BACKGROUND);
-    tft.drawString("Wschod: ", 10, y + 10);
-    tft.drawString(sunriseTime, 60, y + 10);
+    tft.drawString("Wschod: ", 10, y + 15);
     
-    // Zachód słońca
-    tft.drawString("Zachod: ", 160, y + 10);
-    tft.drawString(sunsetTime, 210, y + 10);
+    // Godzina wschodu - większa czcionka (obniżona o 5px)
+    tft.setTextSize(2);
+    tft.drawString(sunriseTime, 60, y + 15);
+    
+    // Zachód słońca - etykieta mała czcionka (obniżona o 5px)
+    tft.setTextSize(1);
+    tft.drawString("Zachod: ", 160, y + 15);
+    
+    // Godzina zachodu - większa czcionka (obniżona o 5px)
+    tft.setTextSize(2);
+    tft.drawString(sunsetTime, 210, y + 15);
     
     Serial.println("Słońce: Wschód " + sunriseTime + ", Zachód " + sunsetTime);
   }

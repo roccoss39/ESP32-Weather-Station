@@ -111,9 +111,8 @@ void setup() {
     }
     
     if (weather.isValid && forecast.isValid) {
-      tft.setTextColor(TFT_GREEN, COLOR_BACKGROUND);
-      tft.drawString("GOTOWE", tft.width() / 2, tft.height() / 2 + 70);
-      delay(1000);
+      // Usuń napis "GOTOWE" - przejdź od razu do ekranów
+      Serial.println("Dane załadowane - uruchamiam ekrany");
     }
   }
   
