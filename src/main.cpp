@@ -21,8 +21,7 @@
 #include "display/time_display.h"
 #include "display/screen_manager.h"
 
-// --- TESTY ---
-#include "test/weather_test.h"
+// Testy zostały usunięte
 
 
 // --- GLOBALNE OBIEKTY ---
@@ -30,7 +29,7 @@ TFT_eSPI tft = TFT_eSPI();
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("=== ESP32 Weather Station - TEST MODE ===");
+  Serial.println("=== ESP32 Weather Station ===");
 
   // --- Inicjalizacja TFT ---
   tft.init();
@@ -40,7 +39,7 @@ void setup() {
   tft.setTextDatum(MC_DATUM);
   tft.setTextSize(FONT_SIZE_LARGE);
 
-  tft.drawString("TEST MODE", tft.width() / 2, tft.height() / 2 - 20);
+  tft.drawString("WEATHER STATION", tft.width() / 2, tft.height() / 2 - 20);
   tft.drawString("Laczenie WiFi...", tft.width() / 2, tft.height() / 2 + 20);
   
   Serial.print("Connecting to WiFi: ");
@@ -64,23 +63,64 @@ void setup() {
     Serial.println("Configuring time...");
     configTzTime(TIMEZONE_INFO, NTP_SERVER);
   } else {
-    Serial.println("\nWiFi failed - continuing in offline test mode");
+    Serial.println("\nWiFi failed - funkcje API niedostępne");
+    
+    // Wyświetl błąd połączenia WiFi
+    tft.fillScreen(COLOR_BACKGROUND);
+    tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
+    tft.setTextSize(2);
+    tft.setTextDatum(MC_DATUM);
+    tft.drawString("BLAD WiFi", tft.width() / 2, tft.height() / 2 - 20);
+    tft.setTextSize(1);
+    tft.drawString("Sprawdz ustawienia sieci", tft.width() / 2, tft.height() / 2 + 10);
+    delay(3000);
   }
   
   tft.fillScreen(COLOR_BACKGROUND); // Wyczyść ekran
   
-  // Pierwsze pobranie pogody i prognozy
+  // Pierwsze pobranie pogody i prognozy z obsługą błędów
   if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("Getting initial weather...");
+    Serial.println("Pobieranie danych pogodowych...");
+    
+    // Wyświetl status ładowania
+    tft.setTextColor(TFT_YELLOW, COLOR_BACKGROUND);
+    tft.setTextSize(2);
+    tft.drawString("LADOWANIE", tft.width() / 2, tft.height() / 2 - 20);
+    tft.setTextSize(1);
+    tft.drawString("Pobieranie pogody...", tft.width() / 2, tft.height() / 2 + 10);
+    
     getWeather();
-    Serial.println("Getting initial forecast...");
+    if (!weather.isValid) {
+      Serial.println("BLAD: Nie udalo sie pobrac danych pogodowych");
+      tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
+      tft.drawString("BLAD API POGODY", tft.width() / 2, tft.height() / 2 + 30);
+      delay(2000);
+    }
+    
+    tft.drawString("Pobieranie prognozy...", tft.width() / 2, tft.height() / 2 + 10);
     getForecast();
+    if (!forecast.isValid) {
+      Serial.println("BLAD: Nie udalo sie pobrac prognozy");
+      tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
+      tft.drawString("BLAD API PROGNOZY", tft.width() / 2, tft.height() / 2 + 50);
+      delay(2000);
+    }
+    
+    if (weather.isValid && forecast.isValid) {
+      tft.setTextColor(TFT_GREEN, COLOR_BACKGROUND);
+      tft.drawString("GOTOWE", tft.width() / 2, tft.height() / 2 + 70);
+      delay(1000);
+    }
   }
   
-  Serial.println("=== LIVE WEATHER MODE READY ===");
-  Serial.println("Commands:");
-  Serial.println("  'f' - force forecast update");
-  Serial.println("  'w' - force weather update");
+  Serial.println("=== STACJA POGODOWA GOTOWA ===");
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("Komendy Serial:");
+    Serial.println("  'f' - wymusz aktualizacje prognozy");
+    Serial.println("  'w' - wymusz aktualizacje pogody");
+  } else {
+    Serial.println("Tryb offline - brak polaczenia WiFi");
+  }
   Serial.println("=======================");
 }
 
@@ -93,16 +133,30 @@ void loop() {
       case 'F':
         // Wymuś pobranie prognozy
         if (WiFi.status() == WL_CONNECTED) {
-          Serial.println("Force forecast update...");
+          Serial.println("Wymuszam aktualizacje prognozy...");
           getForecast();
+          if (forecast.isValid) {
+            Serial.println("✓ Prognoza zaktualizowana");
+          } else {
+            Serial.println("✗ Blad aktualizacji prognozy");
+          }
+        } else {
+          Serial.println("✗ Brak połączenia WiFi");
         }
         break;
       case 'w':
       case 'W':
         // Wymuś pobranie aktualnej pogody
         if (WiFi.status() == WL_CONNECTED) {
-          Serial.println("Force weather update...");
+          Serial.println("Wymuszam aktualizacje pogody...");
           getWeather();
+          if (weather.isValid) {
+            Serial.println("✓ Pogoda zaktualizowana");
+          } else {
+            Serial.println("✗ Blad aktualizacji pogody");
+          }
+        } else {
+          Serial.println("✗ Brak połączenia WiFi");
         }
         break;
     }
@@ -111,22 +165,28 @@ void loop() {
   // --- ZARZĄDZANIE EKRANAMI ---
   updateScreenManager();
 
-  // --- PRAWDZIWA AKTUALIZACJA POGODY (co 10 minut) ---
+  // --- AUTOMATYCZNA AKTUALIZACJA POGODY (co 10 minut) ---
   static unsigned long lastWeatherCheck = 0;
   if (millis() - lastWeatherCheck >= 600000) { // 10 minut
     if (WiFi.status() == WL_CONNECTED) {
-      Serial.println("Updating weather...");
+      Serial.println("Automatyczna aktualizacja pogody...");
       getWeather();
+      if (!weather.isValid) {
+        Serial.println("⚠️ Blad automatycznej aktualizacji pogody");
+      }
     }
     lastWeatherCheck = millis();
   }
 
-  // --- AKTUALIZACJA PROGNOZY (co 30 minut) ---
+  // --- AUTOMATYCZNA AKTUALIZACJA PROGNOZY (co 30 minut) ---
   static unsigned long lastForecastCheck = 0;
   if (millis() - lastForecastCheck >= 1800000) { // 30 minut
     if (WiFi.status() == WL_CONNECTED) {
-      Serial.println("Updating forecast...");
+      Serial.println("Automatyczna aktualizacja prognozy...");
       getForecast();
+      if (!forecast.isValid) {
+        Serial.println("⚠️ Blad automatycznej aktualizacji prognozy");
+      }
     }
     lastForecastCheck = millis();
   }
@@ -137,46 +197,35 @@ void loop() {
   
   // Sprawdź czy ekran się zmienił - wtedy wymuś pełne odświeżenie
   if (currentScreen != previousScreen) {
-    Serial.println("=== DEBUG: ZMIANA EKRANU ===");
-    Serial.println("Poprzedni ekran: " + String(previousScreen));
-    Serial.println("Nowy ekran: " + String(currentScreen));
-    Serial.println("weather.isValid przed zmianą: " + String(weather.isValid ? "TRUE" : "FALSE"));
-    
     switchToNextScreen(tft);
-    
-    Serial.println("weather.isValid po zmianie: " + String(weather.isValid ? "TRUE" : "FALSE"));
-    Serial.println("=== DEBUG: KONIEC ZMIANY EKRANU ===");
-    
     previousScreen = currentScreen;
     lastDisplayUpdate = millis();
   }
-  // Odświeżaj tylko ekran aktualnej pogody (z debugiem)
+  // Odświeżaj ekran aktualnej pogody (co sekundę)
   else if (currentScreen == SCREEN_CURRENT_WEATHER && millis() - lastDisplayUpdate > 1000) {
-    Serial.println("=== DEBUG: Odświeżanie ekranu CURRENT_WEATHER ===");
-    Serial.println("WiFi status: " + String(WiFi.status()));
-    Serial.println("weather.isValid: " + String(weather.isValid ? "TRUE" : "FALSE"));
-    Serial.println("weather.temperature: " + String(weather.temperature));
-    Serial.println("weather.description: " + String(weather.description));
-    
+    // Aktualizuj czas (jeśli WiFi działa)
     if (WiFi.status() == WL_CONNECTED) {
-      Serial.println("DEBUG: Wyświetlam czas...");
       displayTime(tft);
     }
     
+    // Aktualizuj pogodę lub pokaż błąd
     if (weather.isValid) {
-      Serial.println("DEBUG: Wyświetlam pogodę - weather.isValid=TRUE");
       displayWeather(tft);
-      Serial.println("DEBUG: displayWeather() wywołane");
     } else {
-      Serial.println("DEBUG: weather.isValid=FALSE - pokazuję LOADING");
+      // Pokaż komunikat o braku danych
       tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
       tft.setTextSize(2);
       tft.setTextDatum(MC_DATUM);
-      tft.drawString("LOADING WEATHER...", tft.width() / 2, 50);
+      tft.drawString("BRAK DANYCH", tft.width() / 2, 50);
+      tft.setTextSize(1);
+      if (WiFi.status() != WL_CONNECTED) {
+        tft.drawString("Sprawdz polaczenie WiFi", tft.width() / 2, 80);
+      } else {
+        tft.drawString("Blad API pogody", tft.width() / 2, 80);
+      }
     }
     
     lastDisplayUpdate = millis();
-    Serial.println("=== DEBUG: Koniec odświeżania ===");
   }
 
   delay(100); // Krótka pauza
