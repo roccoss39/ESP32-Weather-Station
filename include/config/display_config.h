@@ -72,10 +72,11 @@
 #define FONT_SIZE_SMALL     1
 
 // --- TYPY EKRANÓW ---
-enum ScreenType {
-  SCREEN_CURRENT_WEATHER = 0,
-  SCREEN_FORECAST = 1,
-  SCREEN_IMAGE = 2
-};
+// ScreenType enum przeniesiony do ScreenManager.h
+// enum ScreenType {
+//   SCREEN_CURRENT_WEATHER = 0,
+//   SCREEN_FORECAST = 1,
+//   SCREEN_IMAGE = 2
+// };
 
 #endif

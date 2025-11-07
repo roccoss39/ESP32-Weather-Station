@@ -9,6 +9,7 @@
 #include "config/wifi_config.h"
 #include "config/weather_config.h"
 #include "config/display_config.h"
+#include "config/secrets.h"
 
 // --- DANE I API ---
 #include "weather/weather_data.h"
@@ -20,11 +21,17 @@
 #include "display/weather_display.h"
 #include "display/forecast_display.h"
 #include "display/time_display.h"
+#include "managers/ScreenManager.h"
 #include "display/screen_manager.h"
 #include "display/github_image.h"
 
 // --- SENSORY ---
 #include "sensors/motion_sensor.h"
+
+// --- EXPLICIT FUNCTION DECLARATIONS (fix for compilation) ---
+extern void updateScreenManager();
+extern void switchToNextScreen(TFT_eSPI& tft);
+extern ScreenManager& getScreenManager();
 
 // Testy zostały usunięte
 
@@ -160,7 +167,7 @@ void loop() {
   
   // Jeśli display śpi, nie wykonuj reszty operacji
   if (getDisplayState() == DISPLAY_SLEEPING) {
-    delay(100);
+    delay(50); // Krótka pauza dla PIR check
     return;
   }
   
@@ -235,6 +242,7 @@ void loop() {
   static unsigned long lastDisplayUpdate = 0;
   
   // Sprawdź czy ekran się zmienił - wtedy wymuś pełne odświeżenie
+  ScreenType currentScreen = getScreenManager().getCurrentScreen();
   if (currentScreen != previousScreen) {
     switchToNextScreen(tft);
     previousScreen = currentScreen;
@@ -267,5 +275,5 @@ void loop() {
     lastDisplayUpdate = millis();
   }
 
-  delay(100); // Krótka pauza
+  delay(50); // Optymalizowana pauza
 }

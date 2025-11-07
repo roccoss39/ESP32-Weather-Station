@@ -1,12 +1,16 @@
 #include "display/time_display.h"
 #include "config/display_config.h"
+#include "managers/TimeDisplayCache.h"
 #include <WiFi.h>
 
-// Definicje globalnych zmiennych
-char timeStrPrev[9] = "        ";
-char dateStrPrev[11] = "          ";
-String dayStrPrev = "";
-int wifiStatusPrev = -1;
+// Singleton instance TimeDisplayCache  
+static TimeDisplayCache timeDisplayCache;
+
+TimeDisplayCache& getTimeDisplayCache() {
+  return timeDisplayCache;
+}
+
+// ❌ USUNIĘTE: 4 extern variables zastąpione TimeDisplayCache class
 
 String getPolishDayName(int dayNum) {
   switch(dayNum) {
@@ -47,8 +51,8 @@ void displayTime(TFT_eSPI& tft) {
 
   // Sprawdź co się zmieniło i rysuj tylko potrzebne elementy
   
-  // 1. CZAS (zmienia się co sekundę)
-  if (strcmp(timeStr, timeStrPrev) != 0) {
+  // 1. CZAS (zmienia się co sekundę) - OOP style
+  if (getTimeDisplayCache().hasTimeChanged(timeStr)) {
     Serial.println("Time changed - redrawing time");
     // Wyczyść tylko obszar czasu (przesunięty o 5px w lewo)
     tft.fillRect(TIME_AREA_X + 45, TIME_AREA_Y, 110, 20, COLOR_BACKGROUND);
@@ -58,11 +62,11 @@ void displayTime(TFT_eSPI& tft) {
     tft.setTextColor(COLOR_TIME, COLOR_BACKGROUND);
     tft.drawString(timeStr, TIME_AREA_X + 45, TIME_AREA_Y);
     
-    strcpy(timeStrPrev, timeStr);
+    getTimeDisplayCache().setPrevTimeStr(timeStr);
   }
 
-  // 2. DATA (zmienia się raz dziennie)
-  if (strcmp(dateStr, dateStrPrev) != 0) {
+  // 2. DATA (zmienia się raz dziennie) - OOP style
+  if (getTimeDisplayCache().hasDateChanged(dateStr)) {
     Serial.println("Date changed - redrawing date");
     // Wyczyść tylko obszar daty (przesunięty o 5px w lewo)
     tft.fillRect(TIME_AREA_X + 165, TIME_AREA_Y, 120, 20, COLOR_BACKGROUND);
@@ -72,11 +76,11 @@ void displayTime(TFT_eSPI& tft) {
     tft.setTextColor(COLOR_DATE, COLOR_BACKGROUND);
     tft.drawString(dateStr, TIME_AREA_X + 165, TIME_AREA_Y);
     
-    strcpy(dateStrPrev, dateStr);
+    getTimeDisplayCache().setPrevDateStr(dateStr);
   }
 
-  // 3. DZIEŃ TYGODNIA (zmienia się raz dziennie)
-  if (polishDay != dayStrPrev) {
+  // 3. DZIEŃ TYGODNIA (zmienia się raz dziennie) - OOP style
+  if (getTimeDisplayCache().hasDayChanged(polishDay)) {
     Serial.println("Day changed - redrawing day");
     // Wyczyść tylko obszar dnia (przesunięty o 5px w lewo)
     tft.fillRect(TIME_AREA_X + 45, TIME_AREA_Y + TIME_AREA_OFFSET_Y, 140, 20, COLOR_BACKGROUND);
@@ -86,11 +90,11 @@ void displayTime(TFT_eSPI& tft) {
     tft.setTextColor(COLOR_DAY, COLOR_BACKGROUND);
     tft.drawString(polishDay, TIME_AREA_X + 45, TIME_AREA_Y + TIME_AREA_OFFSET_Y);
     
-    dayStrPrev = polishDay;
+    getTimeDisplayCache().setPrevDayStr(polishDay);
   }
 
-  // 4. STATUS WiFi (zmienia się przy problemach z połączeniem)
-  if (currentWifiStatus != wifiStatusPrev) {
+  // 4. STATUS WiFi (zmienia się przy problemach z połączeniem) - OOP style
+  if (getTimeDisplayCache().hasWifiStatusChanged(currentWifiStatus)) {
     Serial.println("WiFi status changed - redrawing WiFi");
     // Wyczyść tylko obszar WiFi (przesunięty o 5px w lewo)
     tft.fillRect(TIME_AREA_X + 185, TIME_AREA_Y + TIME_AREA_OFFSET_Y, 100, 20, COLOR_BACKGROUND);
@@ -106,6 +110,6 @@ void displayTime(TFT_eSPI& tft) {
       tft.drawString("WiFi: BLAD", TIME_AREA_X + 185, TIME_AREA_Y + TIME_AREA_OFFSET_Y);
     }
     
-    wifiStatusPrev = currentWifiStatus;
+    getTimeDisplayCache().setPrevWifiStatus(currentWifiStatus);
   }
 }

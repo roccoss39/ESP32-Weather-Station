@@ -1,9 +1,5 @@
 #include "config/wifi_config.h"
+#include "config/secrets.h"
 
-// --- DEFINICJE ZMIENNYCH KONFIGURACYJNYCH ---
-const char* WIFI_SSID = "zero";
-const char* WIFI_PASSWORD = "Qweqweqwe1";
-
-// --- KONFIGURACJA NTP ---
-const char* NTP_SERVER = "pool.ntp.org";
-const char* TIMEZONE_INFO = "CET-1CEST,M3.5.0/2,M10.5.0/3";
+// UWAGA: Credentials przeniesione do secrets.h dla bezpieczeństwa
+// Wszystkie zmienne są teraz w secrets.h

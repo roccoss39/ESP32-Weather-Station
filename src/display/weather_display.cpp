@@ -1,37 +1,27 @@
 #include "display/weather_display.h"
+#include "managers/WeatherCache.h"
+
+// Singleton instance WeatherCache  
+static WeatherCache weatherCache;
+
+WeatherCache& getWeatherCache() {
+  return weatherCache;
+}
 #include "display/weather_icons.h"
 #include "config/display_config.h"
 #include "weather/forecast_data.h"
 
 // Definicje zmiennych cache
-float weatherCachePrev_temperature = -999.0;
-float weatherCachePrev_feelsLike = -999.0;
-float weatherCachePrev_humidity = -999.0;
-float weatherCachePrev_windSpeed = -999.0;
-float weatherCachePrev_pressure = -999.0;
-String weatherCachePrev_description = "";
-String weatherCachePrev_icon = "";
+// ❌ USUNIĘTE: 7 extern variables zastąpione WeatherCache class
 
-// Funkcja sprawdzająca czy dane pogodowe się zmieniły
+// --- OOP CACHE FUNCTIONS - Używają WeatherCache class ---
+
 bool hasWeatherChanged() {
-  return (weather.temperature != weatherCachePrev_temperature ||
-          weather.feelsLike != weatherCachePrev_feelsLike ||
-          weather.humidity != weatherCachePrev_humidity ||
-          weather.windSpeed != weatherCachePrev_windSpeed ||
-          weather.pressure != weatherCachePrev_pressure ||
-          weather.description != weatherCachePrev_description ||
-          weather.icon != weatherCachePrev_icon);
+  return getWeatherCache().hasChanged(weather);
 }
 
-// Funkcja zapisująca aktualne dane do cache
 void updateWeatherCache() {
-  weatherCachePrev_temperature = weather.temperature;
-  weatherCachePrev_feelsLike = weather.feelsLike;
-  weatherCachePrev_humidity = weather.humidity;
-  weatherCachePrev_windSpeed = weather.windSpeed;
-  weatherCachePrev_pressure = weather.pressure;
-  weatherCachePrev_description = weather.description;
-  weatherCachePrev_icon = weather.icon;
+  getWeatherCache().updateCache(weather);
 }
 
 // Funkcja wybierająca kolor wiatru na podstawie prędkości

@@ -4,23 +4,24 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 
-// --- KONFIGURACJA PIR MOD-01655 ---
-#define PIR_PIN 27                    // GPIO pin dla MOD-01655
-#define MOTION_TIMEOUT 30000          // 30 sekund timeout bez ruchu
-#define DEBOUNCE_TIME 500            // 500ms debounce dla stabilności
+// --- KONFIGURACJA PRZENIESIONA DO MotionSensorManager.h ---
+// PIR_PIN, MOTION_TIMEOUT, DEBOUNCE_TIME, DisplayState enum
+// są teraz w MotionSensorManager class
 
-// --- STANY WYŚWIETLACZA ---
+// --- DODAJEMY ENUM TUTAJ dla backward compatibility ---
 enum DisplayState {
   DISPLAY_SLEEPING = 0,   // Wyświetlacz wyłączony, czeka na ruch
   DISPLAY_ACTIVE = 1,     // Wyświetlacz aktywny, pokazuje dane
   DISPLAY_TIMEOUT = 2     // Przejście do sleep mode
 };
 
-// --- ZMIENNE GLOBALNE ---
-extern volatile bool motionDetected;
-extern DisplayState currentDisplayState;
-extern unsigned long lastMotionTime;
-extern unsigned long lastDisplayUpdate;
+// --- NOWY OOP SYSTEM ---
+// Zastąpiono 4 extern variables MotionSensorManager class
+// Forward declaration zamiast include w header
+class MotionSensorManager;
+
+// Singleton instance MotionSensorManager
+MotionSensorManager& getMotionSensorManager();
 
 // --- FUNKCJE ---
 void initMotionSensor();

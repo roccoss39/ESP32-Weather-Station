@@ -8,16 +8,16 @@ Czujnik ruchu PIR MOD-01655 został w pełni zintegrowany z ESP32 Weather Statio
 
 ### 1. **Cold Start (pierwszy restart)**
 ```
-ESP32 → Inicjalizacja → PIR Setup → Display ACTIVE (30s demo) → Deep Sleep
+ESP32 → Inicjalizacja → PIR Setup → Display ACTIVE (60s demo) → Deep Sleep
 ```
 
 ### 2. **Motion Detection Wake Up**
 ```
-PIR wykrywa ruch → ESP32 budzi się → Display ACTIVE → Stacja pogodowa działa 30s → Sleep
+PIR wykrywa ruch → ESP32 budzi się → Display ACTIVE → Stacja pogodowa działa 60s → Sleep
 ```
 
 ### 3. **Cykl pracy**
-- **ACTIVE**: 30 sekund wyświetlania pogody/prognozy/zdjęć NASA
+- **ACTIVE**: 60 sekund (1 minuta) wyświetlania pogody/prognozy/zdjęć NASA
 - **SLEEP**: Deep sleep z czekaniem na PIR interrupt
 - **WAKE UP**: Natychmiastowe budzenie na ruch
 
@@ -110,7 +110,7 @@ Deep sleep in 3s...
 === INICJALIZACJA PIR MOD-01655 ===
 🔥 PIR WAKE UP - Display AKTYWNY
 ✅ PIR Sensor na GPIO 27 gotowy!
-🕐 Timeout: 30 sekund
+🕐 Timeout: 60 sekund (1 minuta)
 ```
 
 ## ⚙️ Konfiguracja PIR
@@ -118,7 +118,7 @@ Deep sleep in 3s...
 ### Hardware:
 ```cpp
 #define PIR_PIN 27                    // GPIO pin dla MOD-01655
-#define MOTION_TIMEOUT 30000          // 30 sekund timeout
+#define MOTION_TIMEOUT 60000          // 60 sekund (1 minuta) timeout
 #define DEBOUNCE_TIME 500            // 500ms debounce
 ```
 
@@ -155,7 +155,7 @@ w / W  - Wymusza aktualizację pogody
 ```
 
 ### Wake up test:
-1. Poczekaj na deep sleep (30s bez ruchu)
+1. Poczekaj na deep sleep (60s bez ruchu)
 2. Pomaż ręką przed PIR
 3. ESP32 powinien się obudzić w <1 sekundę
 
@@ -201,7 +201,7 @@ w / W  - Wymusza aktualizację pogody
 - [x] PIR motion detection
 - [x] ESP32 deep sleep
 - [x] Auto wake up na ruch
-- [x] 30s timeout bez ruchu
+- [x] 60s timeout bez ruchu
 - [x] Rotacja ekranów pogoda/prognoza/NASA
 - [x] Serial monitoring
 - [x] Debounce protection

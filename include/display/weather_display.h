@@ -17,13 +17,12 @@ uint16_t getWindColor(float windKmh);
 uint16_t getPressureColor(float pressure);
 uint16_t getHumidityColor(float humidity);
 
-// Cache dla optymalizacji rysowania
-extern float weatherCachePrev_temperature;
-extern float weatherCachePrev_feelsLike;
-extern float weatherCachePrev_humidity;
-extern float weatherCachePrev_windSpeed;
-extern float weatherCachePrev_pressure;
-extern String weatherCachePrev_description;
-extern String weatherCachePrev_icon;
+// --- NOWY OOP CACHE SYSTEM ---
+// Zastąpiono 7 extern variables WeatherCache class
+// Forward declaration zamiast include w header
+class WeatherCache;
+
+// Singleton instance WeatherCache
+WeatherCache& getWeatherCache();
 
 #endif

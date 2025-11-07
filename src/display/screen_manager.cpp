@@ -1,3 +1,4 @@
+#include "managers/ScreenManager.h"
 #include "display/screen_manager.h"
 #include "display/weather_display.h"
 #include "display/forecast_display.h"
@@ -5,11 +6,17 @@
 #include "display/github_image.h"
 #include "config/display_config.h"
 #include "sensors/motion_sensor.h"
+#include "managers/WeatherCache.h"
+#include "managers/TimeDisplayCache.h"
 
-// Definicje zmiennych globalnych
-ScreenType currentScreen = SCREEN_CURRENT_WEATHER;
-unsigned long lastScreenSwitch = 0;
-const unsigned long SCREEN_SWITCH_INTERVAL = 10000; // 10 sekund
+// Singleton instance ScreenManager
+static ScreenManager screenManager;
+
+ScreenManager& getScreenManager() {
+  return screenManager;
+}
+
+// ❌ USUNIĘTE: 3 extern variables zastąpione ScreenManager class
 
 void updateScreenManager() {
   // Nie przełączaj ekranów jeśli display śpi
@@ -17,79 +24,41 @@ void updateScreenManager() {
     return;
   }
   
-  unsigned long currentTime = millis();
-  
-  // Sprawdź czy czas na przełączenie ekranu
-  if (currentTime - lastScreenSwitch >= SCREEN_SWITCH_INTERVAL) {
-    lastScreenSwitch = currentTime;
-    
-    // Przełącz na następny ekran (rotacja przez 3 ekrany: pogoda -> prognoza -> zdjęcie)
-    if (currentScreen == SCREEN_CURRENT_WEATHER) {
-      currentScreen = SCREEN_FORECAST;
-      Serial.println("Przełączanie na ekran PROGNOZY");
-    } else if (currentScreen == SCREEN_FORECAST) {
-      currentScreen = SCREEN_IMAGE;
-      Serial.println("Przełączanie na ekran ZDJĘCIA");
-    } else {
-      currentScreen = SCREEN_CURRENT_WEATHER;
-      Serial.println("Przełączanie na ekran AKTUALNEJ POGODY");
-    }
-  }
+  // Deleguj do ScreenManager - OOP style
+  getScreenManager().updateScreenManager();
 }
 
 void switchToNextScreen(TFT_eSPI& tft) {
-  // ZAWSZE wyczyść cały ekran przed przełączeniem
-  tft.fillScreen(COLOR_BACKGROUND);
-  
-  Serial.println("Ekran wyczyszczony - rysowanie nowego zawartosci");
-  
-  if (currentScreen == SCREEN_CURRENT_WEATHER) {
-    // Ekran 1: Aktualna pogoda + czas
-    
-    // RESET CACHE POGODY - wymusza ponowne rysowanie
-    extern float weatherCachePrev_temperature;
-    extern float weatherCachePrev_feelsLike;
-    extern float weatherCachePrev_humidity;
-    extern float weatherCachePrev_windSpeed;
-    extern float weatherCachePrev_pressure;
-    extern String weatherCachePrev_description;
-    extern String weatherCachePrev_icon;
-    
-    weatherCachePrev_temperature = -999.0;  // Reset cache
-    weatherCachePrev_feelsLike = -999.0;    // Reset cache
-    weatherCachePrev_humidity = -999.0;     // Reset cache
-    weatherCachePrev_windSpeed = -999.0;    // Reset cache
-    weatherCachePrev_pressure = -999.0;     // Reset cache
-    weatherCachePrev_description = "";      // Reset cache
-    weatherCachePrev_icon = "";             // Reset cache
-    
-    Serial.println("DEBUG: Reset cache pogody - wymuszam rysowanie");
-    
-    displayWeather(tft);
-    
-    // Wymuś pokazanie wszystkich elementów czasu natychmiast
-    extern String dayStrPrev;
-    extern char timeStrPrev[9];
-    extern char dateStrPrev[11];
-    extern int wifiStatusPrev;
-    
-    dayStrPrev = "";           // Reset cache
-    strcpy(timeStrPrev, "");   // Reset cache  
-    strcpy(dateStrPrev, "");   // Reset cache
-    wifiStatusPrev = -1;       // Reset cache
-    
-    displayTime(tft);          // Wywołaj po reset cache - elementy się pokażą od razu
-    
-  } else if (currentScreen == SCREEN_FORECAST) {
-    // Ekran 2: Prognoza 3h
-    displayForecast(tft);
-  } else if (currentScreen == SCREEN_IMAGE) {
-    // Ekran 3: Zdjęcie z GitHub
-    displayGitHubImage(tft);
-  }
+  // Deleguj do ScreenManager - OOP style
+  getScreenManager().renderCurrentScreen(tft);
 }
 
 void forceScreenRefresh(TFT_eSPI& tft) {
-  // Wymusza odświeżenie aktualnego ekranu
-  switchToNextScreen(tft);
+  // Deleguj do ScreenManager - OOP style
+  getScreenManager().forceScreenRefresh(tft);
+}
+
+// --- IMPLEMENTACJA RENDERING METHODS dla ScreenManager ---
+
+void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
+  // Ekran 1: Aktualna pogoda + czas
+  displayWeather(tft);
+  displayTime(tft);
+}
+
+void ScreenManager::renderForecastScreen(TFT_eSPI& tft) {
+  // Ekran 2: Prognoza 3h
+  displayForecast(tft);
+}
+
+void ScreenManager::renderImageScreen(TFT_eSPI& tft) {
+  // Ekran 3: Zdjęcie z GitHub
+  displayGitHubImage(tft);
+}
+
+void ScreenManager::resetWeatherAndTimeCache() {
+  // Coordination z Phase 1+2 managers - teraz includes są w .cpp
+  getWeatherCache().resetCache();
+  getTimeDisplayCache().resetCache();
+  Serial.println("📱 Cache reset: WeatherCache + TimeDisplayCache");
 }

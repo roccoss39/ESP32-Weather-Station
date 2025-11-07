@@ -1,5 +1,6 @@
 #include "weather/weather_data.h"
 #include "config/weather_config.h"
+#include "config/secrets.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -15,10 +16,12 @@ bool getWeather() {
   }
 
   HTTPClient http;
-  String url = "http://api.openweathermap.org/data/2.5/weather?q=" + 
-               String(WEATHER_CITY) + "," + String(WEATHER_COUNTRY) + 
-               "&appid=" + String(WEATHER_API_KEY) + 
-               "&units=metric&lang=" + String(WEATHER_LANGUAGE);
+  
+  // Optymalizowane URL building - bez String concatenation hell
+  char url[256];
+  snprintf(url, sizeof(url), 
+    "http://api.openweathermap.org/data/2.5/weather?q=%s,%s&appid=%s&units=metric&lang=%s",
+    WEATHER_CITY, WEATHER_COUNTRY, WEATHER_API_KEY, WEATHER_LANGUAGE);
   
   Serial.println("Getting weather...");
   
@@ -29,11 +32,13 @@ bool getWeather() {
   if (httpCode == HTTP_CODE_OK) {
     String payload = http.getString();
     
-    // === DEBUG: WYŚWIETL CAŁY JSON Z API ===
-    Serial.println("=== RAW JSON WEATHER API ===");
-    Serial.println(payload);
-    Serial.println("=== KONIEC RAW JSON ===");
-    Serial.println();
+    // === DEBUG: JSON dump tylko w debug mode ===
+    #ifdef DEBUG_WEATHER_API
+      Serial.println("=== RAW JSON WEATHER API ===");
+      Serial.println(payload);
+      Serial.println("=== KONIEC RAW JSON ===");
+      Serial.println();
+    #endif
     
     JsonDocument doc;
     if (deserializeJson(doc, payload) == DeserializationError::Ok) {
@@ -84,12 +89,16 @@ bool getWeather() {
       
       Serial.println("Weather OK: " + String(weather.temperature) + "°C, odczuwalna: " + String(weather.feelsLike) + "°C, ciśnienie: " + String(weather.pressure) + "hPa");
       Serial.println("Wschód: " + String(weather.sunrise) + ", Zachód: " + String(weather.sunset));
-      http.end();
+      
+      http.end(); // Cleanup
       return true;
+    } else {
+      Serial.println("Weather JSON parse error");
     }
+  } else {
+    Serial.println("Weather HTTP error: " + String(httpCode));
   }
   
-  Serial.println("Weather failed: " + String(httpCode));
-  http.end();
+  http.end(); // ZAWSZE cleanup
   return false;
 }

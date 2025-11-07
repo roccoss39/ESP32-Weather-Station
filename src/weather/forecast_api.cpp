@@ -1,6 +1,7 @@
 #include "weather/forecast_api.h"
 #include "weather/forecast_data.h"
 #include "config/weather_config.h"
+#include "config/secrets.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -17,10 +18,12 @@ bool getForecast() {
   }
 
   HTTPClient http;
-  String url = "http://api.openweathermap.org/data/2.5/forecast?q=" + 
-               String(WEATHER_CITY) + "," + String(WEATHER_COUNTRY) + 
-               "&appid=" + String(WEATHER_API_KEY) + 
-               "&units=metric&lang=" + String(WEATHER_LANGUAGE);
+  
+  // Optymalizowane URL building - bez String concatenation hell
+  char url[256];
+  snprintf(url, sizeof(url), 
+    "http://api.openweathermap.org/data/2.5/forecast?q=%s,%s&appid=%s&units=metric&lang=%s",
+    WEATHER_CITY, WEATHER_COUNTRY, WEATHER_API_KEY, WEATHER_LANGUAGE);
   
   Serial.println("Getting forecast...");
   
@@ -31,11 +34,13 @@ bool getForecast() {
   if (httpCode == HTTP_CODE_OK) {
     String payload = http.getString();
     
-    // === DEBUG: WYŚWIETL CAŁY JSON Z API PROGNOZY ===
-    Serial.println("=== RAW JSON FORECAST API ===");
-    Serial.println(payload);
-    Serial.println("=== KONIEC RAW JSON FORECAST ===");
-    Serial.println();
+    // === DEBUG: JSON dump tylko w debug mode ===
+    #ifdef DEBUG_WEATHER_API
+      Serial.println("=== RAW JSON FORECAST API ===");
+      Serial.println(payload);
+      Serial.println("=== KONIEC RAW JSON FORECAST ===");
+      Serial.println();
+    #endif
     
     JsonDocument doc; // Nowa wersja ArduinoJson
     if (deserializeJson(doc, payload) == DeserializationError::Ok) {
@@ -81,7 +86,8 @@ bool getForecast() {
       forecast.lastUpdate = millis();
       
       Serial.println("Forecast OK: " + String(forecast.count) + " items loaded");
-      http.end();
+      
+      http.end(); // Cleanup
       return true;
     } else {
       Serial.println("Forecast JSON parse error");
@@ -90,6 +96,6 @@ bool getForecast() {
     Serial.println("Forecast HTTP error: " + String(httpCode));
   }
   
-  http.end();
+  http.end(); // ZAWSZE cleanup
   return false;
 }

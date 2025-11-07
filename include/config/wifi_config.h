@@ -1,12 +1,7 @@
 #ifndef WIFI_CONFIG_H
 #define WIFI_CONFIG_H
 
-// --- KONFIGURACJA WIFI ---
-extern const char* WIFI_SSID;
-extern const char* WIFI_PASSWORD;
-
-// --- KONFIGURACJA NTP ---
-extern const char* NTP_SERVER;
-extern const char* TIMEZONE_INFO;
+// UWAGA: Credentials przeniesione do secrets.h
+// Include secrets.h tam gdzie potrzebujesz WIFI_SSID, WIFI_PASSWORD, etc.
 
 #endif

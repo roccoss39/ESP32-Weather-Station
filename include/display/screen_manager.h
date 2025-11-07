@@ -4,12 +4,17 @@
 #include <TFT_eSPI.h>
 #include "config/display_config.h"
 
-// --- TYPY EKRANÓW (zdefiniowane w display_config.h) ---
+// --- TYPY EKRANÓW (używamy z ScreenManager.h) ---
+// Note: ScreenType enum jest teraz w ScreenManager.h
 
 // --- ZARZĄDZANIE EKRANAMI ---
-extern ScreenType currentScreen;
-extern unsigned long lastScreenSwitch;
-extern const unsigned long SCREEN_SWITCH_INTERVAL; // 5 sekund
+// --- NOWY OOP SYSTEM ---
+// Zastąpiono 3 extern variables ScreenManager class
+// Forward declaration w header, include w .cpp
+class ScreenManager;
+
+// Singleton instance ScreenManager
+ScreenManager& getScreenManager();
 
 // --- FUNKCJE ---
 void updateScreenManager();

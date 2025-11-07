@@ -8,10 +8,12 @@
 void displayTime(TFT_eSPI& tft);
 String getPolishDayName(int dayNum);
 
-// Zmienne czasowe - cache
-extern char timeStrPrev[9];
-extern char dateStrPrev[11];
-extern String dayStrPrev;
-extern int wifiStatusPrev;
+// --- NOWY OOP CACHE SYSTEM ---
+// Zastąpiono 4 extern variables TimeDisplayCache class
+// Forward declaration zamiast include w header
+class TimeDisplayCache;
+
+// Singleton instance TimeDisplayCache
+TimeDisplayCache& getTimeDisplayCache();
 
 #endif
