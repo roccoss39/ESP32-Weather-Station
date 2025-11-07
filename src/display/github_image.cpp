@@ -51,7 +51,7 @@ bool getRandomNASAImage() {
   currentImage.date = String(nasa_ultimate_collection[currentImage.imageNumber].filename); // filename as date
   currentImage.lastUpdate = millis();
   
-  Serial.println("=== Losowy NASA Image " + String(currentImage.imageNumber + 1) + "/" + String(num_nasa_images) + " ===");
+  Serial.println("=== 🎲 RANDOM NASA " + String(currentImage.imageNumber + 1) + "/" + String(num_nasa_images) + " (MEGA COLLECTION) ===");
   Serial.println("Tytuł: " + currentImage.title);
   Serial.println("URL: " + currentImage.url);
   
