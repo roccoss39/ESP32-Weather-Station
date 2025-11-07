@@ -4,6 +4,7 @@
 #include "display/time_display.h"
 #include "display/github_image.h"
 #include "config/display_config.h"
+#include "sensors/motion_sensor.h"
 
 // Definicje zmiennych globalnych
 ScreenType currentScreen = SCREEN_CURRENT_WEATHER;
@@ -11,6 +12,11 @@ unsigned long lastScreenSwitch = 0;
 const unsigned long SCREEN_SWITCH_INTERVAL = 10000; // 10 sekund
 
 void updateScreenManager() {
+  // Nie przełączaj ekranów jeśli display śpi
+  if (getDisplayState() == DISPLAY_SLEEPING) {
+    return;
+  }
+  
   unsigned long currentTime = millis();
   
   // Sprawdź czy czas na przełączenie ekranu

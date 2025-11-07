@@ -3,6 +3,7 @@
 #include <time.h>
 #include <SPI.h>
 #include <TFT_eSPI.h>
+#include <esp_sleep.h>
 
 // --- KONFIGURACJA ---
 #include "config/wifi_config.h"
@@ -22,6 +23,9 @@
 #include "display/screen_manager.h"
 #include "display/github_image.h"
 
+// --- SENSORY ---
+#include "sensors/motion_sensor.h"
+
 // Testy zostały usunięte
 
 
@@ -30,7 +34,25 @@ TFT_eSPI tft = TFT_eSPI();
 
 void setup() {
   Serial.begin(115200);
+  delay(1000); // Stabilizacja po wake up
+  
+  // Sprawdź przyczynę restartu/wake up
+  esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+  
   Serial.println("=== ESP32 Weather Station ===");
+  
+  switch(wakeup_reason) {
+    case ESP_SLEEP_WAKEUP_EXT0:
+      Serial.println("🔥 WAKE UP: PIR Motion Detected!");
+      break;
+    case ESP_SLEEP_WAKEUP_TIMER:
+      Serial.println("⏰ WAKE UP: Timer");
+      break;
+    case ESP_SLEEP_WAKEUP_UNDEFINED:
+    default:
+      Serial.println("🚀 COLD START: Power On/Reset");
+      break;
+  }
 
   // --- Inicjalizacja TFT ---
   tft.init();
@@ -78,6 +100,11 @@ void setup() {
   }
   
   tft.fillScreen(COLOR_BACKGROUND); // Wyczyść ekran
+  
+  // --- Inicjalizacja czujnika ruchu PIR ---
+  initMotionSensor();
+  
+  // Display już jest aktywny po initMotionSensor() - nie potrzeba podwójnej aktywacji
   
   // Inicjalizacja systemu NASA images
   initNASAImageSystem();
@@ -128,6 +155,15 @@ void setup() {
 }
 
 void loop() {
+  // --- OBSŁUGA CZUJNIKA RUCHU PIR ---
+  updateDisplayPowerState(tft);
+  
+  // Jeśli display śpi, nie wykonuj reszty operacji
+  if (getDisplayState() == DISPLAY_SLEEPING) {
+    delay(100);
+    return;
+  }
+  
   // --- OBSŁUGA KOMEND SERIAL ---
   if (Serial.available()) {
     char command = Serial.read();
@@ -165,7 +201,7 @@ void loop() {
     }
   }
 
-  // --- ZARZĄDZANIE EKRANAMI ---
+  // --- ZARZĄDZANIE EKRANAMI (tylko gdy display aktywny) ---
   updateScreenManager();
 
   // --- AUTOMATYCZNA AKTUALIZACJA POGODY (co 10 minut) ---
