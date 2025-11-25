@@ -4,7 +4,7 @@
 // 📋 TEMPLATE: Skopiuj ten plik jako secrets.h i uzupełnij prawdziwe dane
 
 // --- KONFIGURACJA WIFI ---
-const char* WIFI_SSID = "your_network_name";           // Nazwa Twojej sieci WiFi
+const char* eWIFI_SSID = "your_network_name";           // Nazwa Twojej sieci WiFi
 const char* WIFI_PASSWORD = "your_wifi_password";      // Hasło do WiFi
 
 // --- KLUCZ API OPENWEATHERMAP ---
