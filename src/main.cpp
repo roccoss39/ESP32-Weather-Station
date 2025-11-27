@@ -11,6 +11,7 @@
 #include "config/weather_config.h"
 #include "config/display_config.h"
 #include "config/secrets.h"
+#include "config/timing_config.h"
 
 // --- DANE I API ---
 #include "weather/weather_data.h"
@@ -53,7 +54,7 @@ unsigned long lastForecastCheckGlobal = 0;
 
 void setup() {
   Serial.begin(115200);
-  delay(1000); // Stabilizacja po wake up
+  delay(DELAY_STABILIZATION); // Stabilizacja po wake up
   
   // Sprawdź przyczynę restartu/wake up
   esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
@@ -202,7 +203,7 @@ if (WiFi.status() == WL_CONNECTED) {
       
       // AKTYWUJ ERROR MODE - natychmiastowy retry potem co 20s
       weatherErrorModeGlobal = true;
-      lastWeatherCheckGlobal = millis() - 20000;  // <-- POPRAWKA
+      lastWeatherCheckGlobal = millis() - WEATHER_FORCE_REFRESH;  // <-- POPRAWKA
       Serial.println("Weather error mode AKTYWNY - natychmiastowy retry potem co 20s");
     }
     
@@ -218,7 +219,7 @@ if (WiFi.status() == WL_CONNECTED) {
       forecastErrorModeGlobal = true;
       
       // Reset timer żeby pierwszy retry był za 20s (nie od razu)
-      lastForecastCheckGlobal = millis() - 20000;
+      lastForecastCheckGlobal = millis() - WEATHER_FORCE_REFRESH;
       
       Serial.println("Forecast error mode AKTYWNY - pierwszy retry za 20s");
     }
@@ -262,7 +263,7 @@ void loop() {
   // --- AUTO-RECONNECT SYSTEM (z test_wifi) ---
   // Wywołaj system auto-reconnect nawet gdy WiFi config nie jest aktywny
   static unsigned long lastWiFiSystemCheck = 0;
-  if (millis() - lastWiFiSystemCheck > 2000) { // Co 2 sekundy jak w test_wifi
+  if (millis() - lastWiFiSystemCheck > WIFI_STATUS_CHECK_INTERVAL) { // Co 2 sekundy jak w test_wifi
     lastWiFiSystemCheck = millis();
     
     // Wywołaj funkcje z wifi_touch_interface.cpp które obsługują auto-reconnect
@@ -352,9 +353,9 @@ void loop() {
   // Określ interwał w zależności od stanu (używa globalnej flagi)
   unsigned long weatherInterval;
   if (weatherErrorModeGlobal) {
-    weatherInterval = 20000;   // 20 sekund po błędzie
+    weatherInterval = WEATHER_UPDATE_ERROR;   // 20 sekund po błędzie
   } else {
-    weatherInterval = 600000;  // 10 minut normalnie (oryginalne)
+    weatherInterval = WEATHER_UPDATE_NORMAL;  // 10 minut normalnie (oryginalne)
   }
   
   if (millis() - lastWeatherCheckGlobal >= weatherInterval) {
@@ -393,7 +394,7 @@ void loop() {
   // Określ interwał w zależności od stanu (używa globalnej flagi)
   unsigned long forecastInterval;
   if (forecastErrorModeGlobal) {
-    forecastInterval = 20000;   // 20 sekund po błędzie
+    forecastInterval = WEATHER_UPDATE_ERROR;   // 20 sekund po błędzie
   } else {
     forecastInterval = 1800000; // 30 minut normalnie (oryginalne)
   }
@@ -442,7 +443,7 @@ void loop() {
       lastDisplayUpdate = millis();
     }
     // Odświeżaj ekran aktualnej pogody (co sekundę)
-    else if (currentScreen == SCREEN_CURRENT_WEATHER && millis() - lastDisplayUpdate > 1000) {
+    else if (currentScreen == SCREEN_CURRENT_WEATHER && millis() - lastDisplayUpdate > DISPLAY_UPDATE_INTERVAL) {
     // Aktualizuj czas (jeśli WiFi działa)
     if (WiFi.status() == WL_CONNECTED) {
       displayTime(tft);

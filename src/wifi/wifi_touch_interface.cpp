@@ -500,7 +500,7 @@ void connectToWiFi() {
     tft.setCursor(10, 130);
     tft.println("Touch to retry");
     
-    delay(3000);
+    delay(DELAY_SUCCESS_DISPLAY);
     currentState = STATE_SCAN_NETWORKS;
     drawNetworkList(tft);
   }
@@ -531,7 +531,7 @@ void handleLongPress(TFT_eSPI& tft) {
   }
   else if (currentTouch && touchActive && !longPressDetected) {
     // Touch continues - check for long press
-    if (millis() - touchStartTime >= 5000) { // 5 seconds
+    if (millis() - touchStartTime >= WIFI_LONG_PRESS_TIME) { // 5 seconds
       longPressDetected = true;
       Serial.println("LONG PRESS DETECTED - Entering config mode!");
       
@@ -572,7 +572,7 @@ void handleConfigModeTimeout() {
   if (currentState == STATE_CONFIG_MODE) {
     unsigned long elapsed = millis() - configModeStartTime;
     
-    if (elapsed >= 120000) { // 120 seconds = 2 minutes
+    if (elapsed >= WIFI_CONFIG_MODE_TIMEOUT) { // 120 seconds = 2 minutes
       Serial.println("Config mode timeout - returning to normal operation");
       currentState = STATE_CONNECTED;
       // Clear screen and let main.cpp take over
@@ -583,7 +583,7 @@ void handleConfigModeTimeout() {
       static unsigned long lastUpdate = 0;
       if (millis() - lastUpdate > 1000) { // Update every second
         lastUpdate = millis();
-        int remaining = (120000 - elapsed) / 1000;
+        int remaining = (WIFI_CONFIG_MODE_TIMEOUT - elapsed) / 1000;
         
         tft.fillRect(250, 10, 65, 20, BLACK);
         tft.setTextColor(YELLOW);
@@ -698,7 +698,7 @@ void handleBackgroundReconnect() {
     }
     
     // 1.2: Sprawdź, czy próba nie trwa zbyt długo (10 sekund timeout)
-    if (millis() - reconnectStartTime > 10000) { 
+    if (millis() - reconnectStartTime > WIFI_CONNECTION_TIMEOUT) { 
       Serial.println("Background reconnect attempt timed out, will retry in 19s...");
       reconnectAttemptInProgress = false; // Zezwól na nową próbę
       lastReconnectAttempt = millis(); // Ustaw timer na NASTĘPNĄ próbę za 19s
@@ -710,7 +710,7 @@ void handleBackgroundReconnect() {
   }
 
   // --- CZĘŚĆ 2: Sprawdź, czy czas rozpocząć NOWĄ próbę połączenia ---
-  if (millis() - lastReconnectAttempt >= 19000) {
+  if (millis() - lastReconnectAttempt >= WIFI_RECONNECT_INTERVAL) {
     
     String savedSSID = preferences.getString("ssid", "");
     String savedPassword = preferences.getString("password", "");
@@ -740,10 +740,10 @@ void handleBackgroundReconnect() {
   // --- CZĘŚĆ 3: Aktualizuj licznik (tylko jeśli NIE próbujemy się teraz łączyć) ---
   if (!reconnectAttemptInProgress) {
     static unsigned long lastUpdateTime = 0;
-    if (millis() - lastUpdateTime > 5000) { // Aktualizuj co 5 sekund
+    if (millis() - lastUpdateTime > WIFI_UI_UPDATE_INTERVAL) { // Aktualizuj co 5 sekund
       lastUpdateTime = millis();
       unsigned long elapsed = millis() - lastReconnectAttempt;
-      int nextAttempt = (19000 - elapsed) / 1000;
+      int nextAttempt = (WIFI_RECONNECT_INTERVAL - elapsed) / 1000;
       
       if (nextAttempt > 0 && nextAttempt <= 19) {
         tft.fillRect(250, 200, 65, 25, BLUE);
@@ -758,7 +758,7 @@ void handleBackgroundReconnect() {
 
 void checkWiFiConnection() {
   // Check WiFi status every 2 seconds
-  if (millis() - lastWiFiCheck > 2000) {
+  if (millis() - lastWiFiCheck > WIFI_STATUS_CHECK_INTERVAL) {
     lastWiFiCheck = millis();
     
     bool isConnected = (WiFi.status() == WL_CONNECTED);
@@ -817,7 +817,7 @@ void handleWiFiLoss() {
     }
     
     // 1.2: Sprawdź, czy próba nie trwa zbyt długo (10 sekund timeout)
-    if (millis() - reconnectStartTime > 10000) { 
+    if (millis() - reconnectStartTime > WIFI_CONNECTION_TIMEOUT) { 
       Serial.println("Auto-reconnect attempt timed out, will retry in 19s...");
       reconnectAttemptInProgress = false; // Zezwól na nową próbę
       lastReconnectAttempt = millis();    // Ustaw timer na NASTĘPNĄ próbę za 19s

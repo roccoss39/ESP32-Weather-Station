@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 #include <esp_sleep.h>
+#include "config/timing_config.h"
 
 // Forward declaration - enum jest już w motion_sensor.h
 
@@ -205,7 +206,7 @@ void updateDisplayPowerState(TFT_eSPI& tft, bool isConfigModeActive = false) {
     unsigned long currentTimeout;
     if (isConfigModeActive) {
         // Jesteśmy w menu WiFi
-        currentTimeout = 600000; // 10 minut (600,000 ms)
+        currentTimeout = MOTION_CONFIG_TIMEOUT; // 10 minut (600,000 ms)
     } else {
         // Jesteśmy w trybie normalnym (pogoda)
         currentTimeout = MOTION_TIMEOUT; // 60 sekund (60,000 ms) z pliku .h
@@ -255,7 +256,7 @@ void updateDisplayPowerState(TFT_eSPI& tft, bool isConfigModeActive = false) {
         tft.drawString("Motion detected", tft.width() / 2, tft.height() / 2);
         tft.drawString("Starting weather station...", tft.width() / 2, tft.height() / 2 + 20);
         
-        delay(2000); // 2 sekundy na pokazanie wake up message
+        delay(DELAY_WAKE_UP_MESSAGE); // 2 sekundy na pokazanie wake up message
         
         Serial.println("✅ Display AWAKE - rozpoczynam stację pogodową");
     }
@@ -277,7 +278,7 @@ void updateDisplayPowerState(TFT_eSPI& tft, bool isConfigModeActive = false) {
         tft.drawString("PIR MOD-01655 active", tft.width() / 2, tft.height() / 2 + 30);
         tft.drawString("Deep sleep in 3s...", tft.width() / 2, tft.height() / 2 + 50);
         
-        delay(3000);
+        delay(DELAY_SLEEP_MESSAGE);
         
         // Wyłącz ekran całkowicie
         tft.fillScreen(TFT_BLACK);
