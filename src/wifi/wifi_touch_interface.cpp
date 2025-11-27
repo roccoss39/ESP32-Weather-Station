@@ -1,6 +1,8 @@
 #include "wifi/wifi_touch_interface.h"
 #include <SPI.h>
 #include "managers/ScreenManager.h"
+#include "sensors/motion_sensor.h"
+#include "managers/MotionSensorManager.h" // Upewnij się, że masz ten include
 
 // Hardware pins - moved from header
 #define TFT_BL   25  // Backlight
@@ -174,10 +176,19 @@ void handleWiFiTouchLoop(TFT_eSPI& tft) {
   }
   
   // Use built-in calibrated TFT_eSPI touch function
+  // Use built-in calibrated TFT_eSPI touch function
   if (tft.getTouch(&x, &y)) {
+
+    // --- POPRAWKA UŚPIENIA (KROK 2) ---
+    // Ręcznie zresetuj 10-sekundowy timer bezczynności,
+    // ponieważ właśnie wykryliśmy PRAWDZIWĄ aktywność (dotyk).
+    extern MotionSensorManager& getMotionSensorManager();
+    getMotionSensorManager().handleMotionInterrupt(); // Ta funkcja resetuje timer
+    // --- KONIEC POPRAWKI ---
+
     Serial.printf("Calibrated Touch: X=%d, Y=%d\n", x, y);
     handleTouchInput((int16_t)x, (int16_t)y);
-    delay(150); // Shorter debounce for better responsiveness in config mode
+    delay(150); // Debounce
   }
 }
 

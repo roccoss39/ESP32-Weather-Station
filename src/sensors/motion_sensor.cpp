@@ -32,9 +32,9 @@ bool isMotionActive() {
   return getMotionSensorManager().isMotionActive();
 }
 
-void updateDisplayPowerState(TFT_eSPI& tft) {
-  // Deleguj do MotionSensorManager - OOP style
-  getMotionSensorManager().updateDisplayPowerState(tft);
+void updateDisplayPowerState(TFT_eSPI& tft, bool isConfigModeActive) {
+  // Deleguj do MotionSensorManager - OOP style z przekazaniem parametru
+  getMotionSensorManager().updateDisplayPowerState(tft, isConfigModeActive);
 }
 
 void wakeUpDisplay(TFT_eSPI& tft) {

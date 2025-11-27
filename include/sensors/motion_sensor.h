@@ -27,7 +27,7 @@ MotionSensorManager& getMotionSensorManager();
 void initMotionSensor();
 void IRAM_ATTR motionInterrupt();
 bool isMotionActive();
-void updateDisplayPowerState(TFT_eSPI& tft);
+void updateDisplayPowerState(TFT_eSPI& tft, bool isConfigModeActive = false);
 void wakeUpDisplay(TFT_eSPI& tft);
 void sleepDisplay(TFT_eSPI& tft);
 DisplayState getDisplayState();

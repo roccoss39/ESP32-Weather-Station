@@ -217,6 +217,17 @@ void setup() {
 }
 
 void loop() {
+  // --- OBSŁUGA CZUJNIKA RUCHU PIR (NAJWYŻSZY PRIORYTET - ZAWSZE PIERWSZA) ---
+  // To musi być sprawdzane jako pierwsze, niezależnie od stanu WiFi
+  // POPRAWKA: Przekaż info czy WiFi config aktywny (unika race condition)
+  updateDisplayPowerState(tft, isWiFiConfigActive());
+  
+  // Jeśli display śpi, nie wykonuj reszty operacji
+  if (getDisplayState() == DISPLAY_SLEEPING) {
+    delay(50); // Krótka pauza dla PIR check
+    return;
+  }
+
   // --- OBSŁUGA WIFI TOUCH INTERFACE ---
   // Sprawdź czy WiFi config jest aktywny (ma priorytet nad wszystkim)
   if (isWiFiConfigActive()) {
@@ -244,27 +255,13 @@ void loop() {
     if (isWiFiLost()) {
       Serial.println("🔴 WiFi LOST - Screen rotation PAUSED until reconnect");
       
-      // NAPRAWKA: PIR musi działać nawet podczas WiFi lost
-      updateDisplayPowerState(tft);
-      
-      // Jeśli display śpi, nie wykonuj reszty operacji
-      if (getDisplayState() == DISPLAY_SLEEPING) {
-        delay(50);
-        return;
-      }
+      // USUNIĘTE: PIR logic już na górze loop() - nie trzeba duplikować
       
       return; // Skip normal screen updates during WiFi loss
     }
   }
   
-  // --- OBSŁUGA CZUJNIKA RUCHU PIR ---
-  updateDisplayPowerState(tft);
-  
-  // Jeśli display śpi, nie wykonuj reszty operacji
-  if (getDisplayState() == DISPLAY_SLEEPING) {
-    delay(50); // Krótka pauza dla PIR check
-    return;
-  }
+  // USUNIĘTE: PIR logic przeniesiona na samą górę loop() dla najwyższego priorytetu
   
   // ZMIENIONO: PIR działa również podczas WiFi config (ale z 10 min timeout)
   

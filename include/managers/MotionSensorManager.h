@@ -9,7 +9,7 @@
 
 // Hardware config
 #define PIR_PIN 27
-#define MOTION_TIMEOUT 60000    // 60 sekund (1 minuta) timeout bez ruchu
+#define MOTION_TIMEOUT 10000    // 60 sekund (1 minuta) timeout bez ruchu
 #define DEBOUNCE_TIME 500       // 500ms debounce dla stabilności
 
 /**
@@ -132,59 +132,78 @@ public:
     /**
      * Główna logika zarządzania mocą display
      * Wywołuj w każdym loop()
+     * @param isConfigModeActive - true gdy WiFi config aktywny (unika touch race condition)
      */
-    void updateDisplayPowerState(TFT_eSPI& tft) {
-        // Forward declaration for WiFi check
-        extern bool isWiFiConfigActive();
-        
-        // Podczas WiFi config: sleep po 10 min bez ruchu (nie po 1 min)
-        unsigned long wifiConfigTimeout = 600000; // 10 minut = 600000ms
-        
-        if (isWiFiConfigActive()) {
-            // Sprawdź czy minęło 10 min bez ruchu podczas WiFi config
-            if ((millis() - lastMotionTime) > wifiConfigTimeout) {
-                Serial.println("💤 WiFi config timeout (10 min) - przejście do sleep");
-                currentDisplayState = DISPLAY_TIMEOUT;
-                return;
-            }
-            
-            // Utrzymuj display active jeśli był ruch w ciągu 10 min
-            if (currentDisplayState != DISPLAY_ACTIVE) {
-                currentDisplayState = DISPLAY_ACTIVE;
-                Serial.println("🌐 WiFi CONFIG ACTIVE - timeout 10 min");
-            }
-        }
-        
-        switch (currentDisplayState) {
-            case DISPLAY_ACTIVE: {
-                // DEBUG: Sprawdź timeout z dodatkowymi logami
-                unsigned long timeSinceMotion = millis() - lastMotionTime;
-                if (timeSinceMotion > 30000) { // Debug log co 30s
-                    Serial.printf("⏰ DEBUG: Time since motion: %lu ms (timeout at %lu ms)\n", 
-                                  timeSinceMotion, (unsigned long)MOTION_TIMEOUT);
-                }
-                
-                if (isMotionTimeout()) {
-                    Serial.printf("💤 Motion timeout - przejście do DISPLAY_TIMEOUT (waited %lu ms)\n", 
-                                  timeSinceMotion);
-                    currentDisplayState = DISPLAY_TIMEOUT;
-                    // Nie wywołuj sleepDisplay() od razu - daj jeden cycle
-                }
-                break;
-            }
-            case DISPLAY_TIMEOUT:
-                // Przejście do sleep
-                Serial.println("💤 Entering sleep mode");
-                sleepDisplay(tft);
-                currentDisplayState = DISPLAY_SLEEPING;
-                break;
-                
-            case DISPLAY_SLEEPING:
-                // W deep sleep - nie powinno się wykonać
-                // (ale dla bezpieczeństwa)
-                break;
+    /**
+ * Główna logika zarządzania mocą display
+ * Wywołuj w każdym loop()
+ * @param isConfigModeActive - true gdy WiFi config aktywny (unika touch race condition)
+ */
+void updateDisplayPowerState(TFT_eSPI& tft, bool isConfigModeActive = false) {
+
+    // --- KROK 1: Sprawdź aktywność DOTYKU (tylko w trybie NORMALNYM) ---
+    // (W trybie WiFi dotyk jest sprawdzany w wifi_touch_interface.cpp,
+    //  co zapobiega konfliktowi "race condition")
+    if (!isConfigModeActive) {
+        uint16_t x, y;
+        // Sprawdź dotyk tylko jeśli nie jesteśmy w menu WiFi
+        if (tft.getTouch(&x, &y)) { 
+           Serial.println("🔍 Normal mode touch detected - resetting timer");
+           lastMotionTime = millis(); // Resetuj uniwersalny timer aktywności
+           
+           if (currentDisplayState == DISPLAY_SLEEPING) {
+               // Obudź ekran (chociaż PIR powinien to zrobić pierwszy)
+               wakeUpDisplay(tft);
+               currentDisplayState = DISPLAY_ACTIVE; // Ustaw stan ręcznie
+           }
         }
     }
+    
+    // --- KROK 2: Sprawdź aktywność RUCHU (PIR) ---
+    // Flaga motionDetected jest ustawiana przez przerwanie w handleMotionInterrupt()
+    // handleMotionInterrupt() również resetuje lastMotionTime.
+    if (motionDetected) {
+        motionDetected = false; // Zresetuj flagę przerwania
+        if (currentDisplayState == DISPLAY_SLEEPING) {
+            wakeUpDisplay(tft);
+            currentDisplayState = DISPLAY_ACTIVE; // Ustaw stan ręcznie
+        }
+        // Timer został już zresetowany w handleMotionInterrupt
+    }
+
+
+    // --- KROK 3: Główna logika stanów (teraz wspólna dla obu trybów) ---
+    
+    // Używamy MOTION_TIMEOUT (Twoje 10s) jako uniwersalnego timeoutu.
+    // lastMotionTime jest teraz resetowany przez:
+    // 1. Przerwanie PIR (w handleMotionInterrupt)
+    // 2. Dotyk w menu WiFi (w handleWiFiTouchLoop -> handleMotionInterrupt)
+    // 3. Dotyk w trybie normalnym (w Kroku 1 powyżej)
+    
+    unsigned long timeSinceLastActivity = millis() - lastMotionTime;
+
+    switch (currentDisplayState) {
+        case DISPLAY_ACTIVE: {
+            // Sprawdź, czy minął czas bezczynności
+            if (timeSinceLastActivity > MOTION_TIMEOUT) {
+                Serial.printf("💤 Timeout - przejście do DISPLAY_TIMEOUT (waited %lu ms) [Config: %s]\n", 
+                              timeSinceLastActivity, isConfigModeActive ? "YES" : "NO");
+                currentDisplayState = DISPLAY_TIMEOUT;
+            }
+            break;
+        }
+        case DISPLAY_TIMEOUT:
+            // Stan pośredni, aby bezpiecznie wywołać uśpienie
+            Serial.println("💤 Entering sleep mode");
+            sleepDisplay(tft);
+            currentDisplayState = DISPLAY_SLEEPING;
+            break;
+            
+        case DISPLAY_SLEEPING:
+            // Nie rób nic, czekaj na przerwanie PIR
+            break;
+    }
+}
     
     /**
      * Budzi display (przy motion detection)
