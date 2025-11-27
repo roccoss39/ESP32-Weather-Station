@@ -116,6 +116,10 @@ public:
         motionDetected = true;
         lastMotionTime = currentTime;
         
+        // DEBUG: Log motion detection z więcej szczegółów
+        Serial.printf("🔥 PIR MOTION DETECTED! Timer reset to %lu ms (was %lu ms since last motion)\n", 
+                      currentTime, currentTime - lastMotionTime);
+        
         // Wake up display if sleeping
         if (currentDisplayState == DISPLAY_SLEEPING) {
             currentDisplayState = DISPLAY_ACTIVE;
@@ -152,15 +156,22 @@ public:
         }
         
         switch (currentDisplayState) {
-            case DISPLAY_ACTIVE:
-                // Sprawdź timeout
+            case DISPLAY_ACTIVE: {
+                // DEBUG: Sprawdź timeout z dodatkowymi logami
+                unsigned long timeSinceMotion = millis() - lastMotionTime;
+                if (timeSinceMotion > 30000) { // Debug log co 30s
+                    Serial.printf("⏰ DEBUG: Time since motion: %lu ms (timeout at %lu ms)\n", 
+                                  timeSinceMotion, (unsigned long)MOTION_TIMEOUT);
+                }
+                
                 if (isMotionTimeout()) {
-                    Serial.println("💤 Motion timeout - przejście do DISPLAY_TIMEOUT");
+                    Serial.printf("💤 Motion timeout - przejście do DISPLAY_TIMEOUT (waited %lu ms)\n", 
+                                  timeSinceMotion);
                     currentDisplayState = DISPLAY_TIMEOUT;
                     // Nie wywołuj sleepDisplay() od razu - daj jeden cycle
                 }
                 break;
-                
+            }
             case DISPLAY_TIMEOUT:
                 // Przejście do sleep
                 Serial.println("💤 Entering sleep mode");

@@ -243,6 +243,16 @@ void loop() {
     // STOP screen rotation during WiFi loss
     if (isWiFiLost()) {
       Serial.println("🔴 WiFi LOST - Screen rotation PAUSED until reconnect");
+      
+      // NAPRAWKA: PIR musi działać nawet podczas WiFi lost
+      updateDisplayPowerState(tft);
+      
+      // Jeśli display śpi, nie wykonuj reszty operacji
+      if (getDisplayState() == DISPLAY_SLEEPING) {
+        delay(50);
+        return;
+      }
+      
       return; // Skip normal screen updates during WiFi loss
     }
   }
