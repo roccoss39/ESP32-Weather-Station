@@ -130,6 +130,20 @@ public:
      * Wywołuj w każdym loop()
      */
     void updateDisplayPowerState(TFT_eSPI& tft) {
+        // Forward declaration for WiFi check
+        extern bool isWiFiConfigActive();
+        
+        // Nie pozwalaj na sleep podczas WiFi config
+        if (isWiFiConfigActive()) {
+            // Reset motion time to keep display awake during WiFi setup
+            lastMotionTime = millis();
+            if (currentDisplayState != DISPLAY_ACTIVE) {
+                currentDisplayState = DISPLAY_ACTIVE;
+                Serial.println("🌐 WiFi CONFIG ACTIVE - keeping display awake");
+            }
+            return;
+        }
+        
         switch (currentDisplayState) {
             case DISPLAY_ACTIVE:
                 // Sprawdź timeout

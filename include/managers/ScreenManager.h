@@ -50,6 +50,15 @@ public:
         lastScreenSwitch = millis();
     }
     
+    /**
+     * Resetuje timer rotacji ekranów - przydatne po reconnect WiFi
+     * Zapewnia pełny 60s cykl przed sleep mode
+     */
+    void resetScreenTimer() {
+        lastScreenSwitch = millis();
+        Serial.println("📱 Screen timer RESET - full 60s cycle before sleep mode");
+    }
+    
     // --- BUSINESS LOGIC ---
     
     /**

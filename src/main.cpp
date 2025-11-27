@@ -4,6 +4,7 @@
 #include <SPI.h>
 #include <TFT_eSPI.h>
 #include <esp_sleep.h>
+#include <Preferences.h>
 
 // --- KONFIGURACJA ---
 #include "config/wifi_config.h"
@@ -27,6 +28,9 @@
 
 // --- SENSORY ---
 #include "sensors/motion_sensor.h"
+
+// --- WIFI TOUCH INTERFACE ---
+#include "wifi/wifi_touch_interface.h"
 
 // --- EXPLICIT FUNCTION DECLARATIONS (fix for compilation) ---
 extern void updateScreenManager();
@@ -64,6 +68,12 @@ void setup() {
   // --- Inicjalizacja TFT ---
   tft.init();
   tft.setRotation(1);
+  
+  // --- Kalibracja dotyku z test_wifi ---
+  uint16_t calData[5] = { 350, 3267, 523, 3020, 1 };
+  tft.setTouch(calData);
+  Serial.println("Touch calibration applied!");
+  
   tft.fillScreen(COLOR_BACKGROUND);
   tft.setTextColor(COLOR_TIME, COLOR_BACKGROUND);
   tft.setTextDatum(MC_DATUM);
@@ -72,11 +82,32 @@ void setup() {
   tft.drawString("WEATHER STATION", tft.width() / 2, tft.height() / 2 - 20);
   tft.drawString("Laczenie WiFi...", tft.width() / 2, tft.height() / 2 + 20);
   
-  Serial.print("Connecting to WiFi: ");
-  Serial.println(WIFI_SSID);
+  // --- AUTO-CONNECT: Spróbuj najpierw zapisanych danych z WiFi Touch Interface ---
+  String savedSSID = "";
+  String savedPassword = "";
+  
+  // Sprawdź czy są zapisane dane WiFi
+  Preferences prefs;
+  prefs.begin("wifi", true); // readonly
+  savedSSID = prefs.getString("ssid", "");
+  savedPassword = prefs.getString("password", "");
+  prefs.end();
+  
+  String connectSSID = WIFI_SSID;
+  String connectPassword = WIFI_PASSWORD;
+  
+  // Jeśli są zapisane dane, użyj ich zamiast domyślnych
+  if (savedSSID.length() > 0 && savedPassword.length() > 0) {
+    connectSSID = savedSSID;
+    connectPassword = savedPassword;
+    Serial.print("AUTO-CONNECT to saved WiFi: ");
+    Serial.println(connectSSID);
+  } else {
+    Serial.print("Using default WiFi from secrets.h: ");
+    Serial.println(connectSSID);
+  }
 
-  // --- Łączenie z WiFi (opcjonalne w trybie testowym) ---
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.begin(connectSSID.c_str(), connectPassword.c_str());
   int attempts = 0;
   while (WiFi.status() != WL_CONNECTED && attempts < 10) { // Tylko 10 prób
     delay(500);
@@ -110,6 +141,9 @@ void setup() {
   
   // --- Inicjalizacja czujnika ruchu PIR ---
   initMotionSensor();
+  
+  // --- Inicjalizacja WiFi Touch Interface ---
+  initWiFiTouchInterface();
   
   // Display już jest aktywny po initMotionSensor() - nie potrzeba podwójnej aktywacji
   
@@ -162,6 +196,29 @@ void setup() {
 }
 
 void loop() {
+  // --- OBSŁUGA WIFI TOUCH INTERFACE ---
+  // Sprawdź czy WiFi config jest aktywny (ma priorytet nad wszystkim)
+  if (isWiFiConfigActive()) {
+    handleWiFiTouchLoop(tft);
+    return; // Skip normal operation during WiFi config
+  }
+  
+  // --- AUTO-RECONNECT SYSTEM (z test_wifi) ---
+  // Wywołaj system auto-reconnect nawet gdy WiFi config nie jest aktywny
+  static unsigned long lastWiFiSystemCheck = 0;
+  if (millis() - lastWiFiSystemCheck > 2000) { // Co 2 sekundy jak w test_wifi
+    lastWiFiSystemCheck = millis();
+    
+    // Wywołaj funkcje z wifi_touch_interface.cpp które obsługują auto-reconnect
+    extern void checkWiFiConnection();
+    extern void handleWiFiLoss();
+    extern void handleBackgroundReconnect();
+    
+    checkWiFiConnection();
+    handleWiFiLoss();
+    handleBackgroundReconnect();
+  }
+  
   // --- OBSŁUGA CZUJNIKA RUCHU PIR ---
   updateDisplayPowerState(tft);
   
@@ -170,6 +227,17 @@ void loop() {
     delay(50); // Krótka pauza dla PIR check
     return;
   }
+  
+  // --- SPRAWDŹ TRIGGERY WIFI CONFIG ---
+  // Trigger 1: Long press 5 sekund
+  if (checkWiFiLongPress(tft)) {
+    Serial.println("🌐 LONG PRESS DETECTED - Entering WiFi config!");
+    enterWiFiConfigMode(tft);
+    return;
+  }
+  
+  // Trigger 2: WiFi connection lost - teraz obsługiwane przez handleWiFiLoss() 
+  // (usuń duplikujące sprawdzenie - auto-reconnect system jest lepszy)
   
   // --- OBSŁUGA KOMEND SERIAL ---
   if (Serial.available()) {
@@ -208,7 +276,7 @@ void loop() {
     }
   }
 
-  // --- ZARZĄDZANIE EKRANAMI (tylko gdy display aktywny) ---
+  // --- ZARZĄDZANIE EKRANAMI (tylko gdy display aktywny i nie ma WiFi config) ---
   updateScreenManager();
 
   // --- AUTOMATYCZNA AKTUALIZACJA POGODY (co 10 minut) ---

@@ -4,7 +4,7 @@
 // Te wartości są teraz w .cpp file żeby uniknąć multiple definition
 
 // --- KONFIGURACJA WIFI ---
-const char* WIFI_SSID = "zero";
+const char* WIFI_SSID = "zeroOOO";
 const char* WIFI_PASSWORD = "Qweqweqwe1";
 
 // --- KLUCZ API OPENWEATHERMAP ---
