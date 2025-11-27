@@ -139,11 +139,11 @@ void initWiFiTouchInterface() {
       scanNetworks();
       drawNetworkList(tft);
 
-      // Od razu pokaż żółty pasek informacyjny
-      tft.fillRect(10, 250, 300, 25, YELLOW);
+      // Od razu pokaż żółty pasek informacyjny - FIXED for landscape bounds
+      tft.fillRect(10, 180, 300, 25, YELLOW);
       tft.setTextColor(BLACK);
       tft.setTextSize(1);
-      tft.setCursor(15, 260);
+      tft.setCursor(15, 190);
       tft.println("WiFi lost - Reconnecting every 19s or select network");
     }
   }
@@ -310,11 +310,11 @@ void drawNetworkList(TFT_eSPI& tft) {
     yPos += 30;
   }
   
-  // Refresh button - MOVED UP to avoid conflicts
-  tft.fillRect(120, 280, 100, 30, BLUE);  // Moved right and changed to blue for visibility
+  // Refresh button - RIGHT SIDE MIDDLE, no overlap with WiFi names
+  tft.fillRect(240, 120, 75, 30, BLUE);  // Right side, middle Y position
   tft.setTextColor(WHITE);
   tft.setTextSize(1);
-  tft.setCursor(140, 290);
+  tft.setCursor(250, 130);
   tft.println("REFRESH");
 }
 
@@ -714,10 +714,10 @@ void handleBackgroundReconnect() {
       WiFi.begin(savedSSID.c_str(), savedPassword.c_str()); 
       
       // Zaktualizuj żółty pasek, aby pokazać, że próbujemy TERAZ
-      tft.fillRect(10, 250, 300, 25, YELLOW);
+      tft.fillRect(10, 180, 300, 25, YELLOW);
       tft.setTextColor(BLACK);
       tft.setTextSize(1);
-      tft.setCursor(15, 260);
+      tft.setCursor(15, 190);
       tft.printf("Trying saved WiFi... or select network");
       
     } else {
@@ -873,10 +873,10 @@ void handleWiFiLoss() {
       drawNetworkList(tft);
       
       // Pokaż żółty pasek na ekranie skanowania
-      tft.fillRect(10, 250, 300, 25, YELLOW);
+      tft.fillRect(10, 180, 300, 25, YELLOW);
       tft.setTextColor(BLACK);
       tft.setTextSize(1);
-      tft.setCursor(15, 260);
+      tft.setCursor(15, 190);
       tft.println("WiFi lost - Reconnecting every 19s or select network");
       
   } else {
@@ -897,8 +897,8 @@ void handleTouchInput(int16_t x, int16_t y) {
     tft.fillCircle(x, y, 5, YELLOW);
     delay(100);
     
-    // Check network list (expanded area) - ADJUSTED for 7 networks max
-    if (y >= 25 && y <= 240) {  // Reduced from 275 to 240 to make space for REFRESH
+    // Check network list (expanded area) - EXCLUDE REFRESH button area
+    if (y >= 25 && y <= 240 && !(y >= 120 && y <= 150 && x >= 240)) {  // Exclude REFRESH area
       int selectedIndex = (y - 30) / 30;
       if (selectedIndex >= 0 && selectedIndex < min(networkCount, 7)) {  // Changed from 8 to 7
         selectedNetworkIndex = selectedIndex;
@@ -919,15 +919,15 @@ void handleTouchInput(int16_t x, int16_t y) {
         }
       }
     }
-    // Refresh button with visual feedback - UPDATED COORDINATES
-    else if (y >= 275 && y <= 315 && x >= 120 && x <= 220) {
+    // Refresh button with visual feedback - RIGHT SIDE MIDDLE
+    else if (y >= 120 && y <= 150 && x >= 240 && x <= 315) {
       Serial.println("REFRESH BUTTON PRESSED - Rescanning networks...");
       
-      // Green highlight for refresh button - UPDATED POSITION
-      tft.fillRect(120, 280, 100, 30, GREEN);
+      // Green highlight for refresh button - RIGHT SIDE MIDDLE POSITION
+      tft.fillRect(240, 120, 75, 30, GREEN);
       tft.setTextColor(WHITE);
       tft.setTextSize(1);
-      tft.setCursor(135, 290);
+      tft.setCursor(250, 130);
       tft.println("SCANNING");
       delay(500);
       
