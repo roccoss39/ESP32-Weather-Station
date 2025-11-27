@@ -43,6 +43,14 @@ extern ScreenManager& getScreenManager();
 // --- GLOBALNE OBIEKTY ---
 TFT_eSPI tft = TFT_eSPI();
 
+// --- GLOBALNE FLAGI ERROR MODE ---
+bool weatherErrorModeGlobal = false;
+bool forecastErrorModeGlobal = false;
+
+// --- GLOBALNE TIMERY (żeby można je resetować z setup) ---
+unsigned long lastWeatherCheckGlobal = 0;
+unsigned long lastForecastCheckGlobal = 0;
+
 void setup() {
   Serial.begin(115200);
   delay(1000); // Stabilizacja po wake up
@@ -163,19 +171,32 @@ void setup() {
     
     getWeather();
     if (!weather.isValid) {
-      Serial.println("BLAD: Nie udalo sie pobrac danych pogodowych");
+      Serial.println("BLAD: Nie udalo sie pobrac danych pogodowych - AKTYWUJĘ ERROR MODE");
       tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
       tft.drawString("BLAD API POGODY", tft.width() / 2, tft.height() / 2 + 30);
       delay(2000);
+      
+      // AKTYWUJ ERROR MODE - natychmiastowy retry potem co 20s
+      weatherErrorModeGlobal = true;
+      lastWeatherCheckGlobal = millis();  // Reset na teraz - retry od razu w loop
+      Serial.println("Weather error mode AKTYWNY - natychmiastowy retry potem co 20s");
     }
     
     tft.drawString("Pobieranie prognozy...", tft.width() / 2, tft.height() / 2 + 10);
     getForecast();
     if (!forecast.isValid) {
-      Serial.println("BLAD: Nie udalo sie pobrac prognozy");
+      Serial.println("BLAD: Nie udalo sie pobrac prognozy - AKTYWUJĘ ERROR MODE");
       tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
       tft.drawString("BLAD API PROGNOZY", tft.width() / 2, tft.height() / 2 + 50);
       delay(2000);
+      
+      // AKTYWUJ ERROR MODE dla szybkich retry
+      forecastErrorModeGlobal = true;
+      
+      // Reset timer żeby pierwszy retry był za 20s (nie od razu)
+      lastForecastCheckGlobal = millis();
+      
+      Serial.println("Forecast error mode AKTYWNY - pierwszy retry za 20s");
     }
     
     if (weather.isValid && forecast.isValid) {
@@ -235,6 +256,8 @@ void loop() {
     return;
   }
   
+  // ZMIENIONO: PIR działa również podczas WiFi config (ale z 10 min timeout)
+  
   // --- SPRAWDŹ TRIGGERY WIFI CONFIG ---
   // Trigger 1: Long press 5 sekund
   if (checkWiFiLongPress(tft)) {
@@ -292,30 +315,76 @@ void loop() {
     Serial.println("🔴 WiFi LOST - Screen manager PAUSED");
   }
 
-  // --- AUTOMATYCZNA AKTUALIZACJA POGODY (co 10 minut) ---
-  static unsigned long lastWeatherCheck = 0;
-  if (millis() - lastWeatherCheck >= 600000) { // 10 minut
+  // --- AUTOMATYCZNA AKTUALIZACJA POGODY (10 min normalnie, 30s po błędzie) ---
+  // Używa globalnego timera (żeby można go resetować z setup)
+  
+  // Określ interwał w zależności od stanu (używa globalnej flagi)
+  unsigned long weatherInterval;
+  if (weatherErrorModeGlobal) {
+    weatherInterval = 20000;   // 20 sekund po błędzie
+  } else {
+    weatherInterval = 600000;  // 10 minut normalnie (oryginalne)
+  }
+  
+  if (millis() - lastWeatherCheckGlobal >= weatherInterval) {
     if (WiFi.status() == WL_CONNECTED) {
-      Serial.println("Automatyczna aktualizacja pogody...");
+      if (weatherErrorModeGlobal) {
+        Serial.println("Retry pogody po błędzie (20s)...");
+      } else {
+        Serial.println("Automatyczna aktualizacja pogody (10 min)...");
+      }
+      
       getWeather();
-      if (!weather.isValid) {
-        Serial.println("⚠️ Blad automatycznej aktualizacji pogody");
+      
+      if (weather.isValid) {
+        // Sukces - wyłącz error mode
+        if (weatherErrorModeGlobal) {
+          Serial.println("✓ Pogoda naprawiona - powrót do 10 min interwału");
+          weatherErrorModeGlobal = false;
+        }
+      } else {
+        // Błąd - włącz error mode
+        Serial.println("⚠️ Błąd pogody - przełączam na 20s retry");
+        weatherErrorModeGlobal = true;
       }
     }
-    lastWeatherCheck = millis();
+    lastWeatherCheckGlobal = millis();
   }
 
-  // --- AUTOMATYCZNA AKTUALIZACJA PROGNOZY (co 30 minut) ---
-  static unsigned long lastForecastCheck = 0;
-  if (millis() - lastForecastCheck >= 1800000) { // 30 minut
+  // --- AUTOMATYCZNA AKTUALIZACJA PROGNOZY (30 min normalnie, 20s po błędzie) ---
+  // Używa globalnego timera (żeby można go resetować z setup)
+  
+  // Określ interwał w zależności od stanu (używa globalnej flagi)
+  unsigned long forecastInterval;
+  if (forecastErrorModeGlobal) {
+    forecastInterval = 20000;   // 20 sekund po błędzie
+  } else {
+    forecastInterval = 1800000; // 30 minut normalnie (oryginalne)
+  }
+  
+  if (millis() - lastForecastCheckGlobal >= forecastInterval) {
     if (WiFi.status() == WL_CONNECTED) {
-      Serial.println("Automatyczna aktualizacja prognozy...");
+      if (forecastErrorModeGlobal) {
+        Serial.println("Retry prognozy po błędzie (20s)...");
+      } else {
+        Serial.println("Automatyczna aktualizacja prognozy (30 min)...");
+      }
+      
       getForecast();
-      if (!forecast.isValid) {
-        Serial.println("⚠️ Blad automatycznej aktualizacji prognozy");
+      
+      if (forecast.isValid) {
+        // Sukces - wyłącz error mode
+        if (forecastErrorModeGlobal) {
+          Serial.println("✓ Prognoza naprawiona - powrót do 30 min interwału");
+          forecastErrorModeGlobal = false;
+        }
+      } else {
+        // Błąd - włącz error mode
+        Serial.println("⚠️ Błąd prognozy - przełączam na 20s retry");
+        forecastErrorModeGlobal = true;
       }
     }
-    lastForecastCheck = millis();
+    lastForecastCheckGlobal = millis();
   }
 
   // --- WYŚWIETLANIE ODPOWIEDNIEGO EKRANU (tylko gdy WiFi OK) ---

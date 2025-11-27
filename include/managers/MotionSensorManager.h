@@ -133,15 +133,22 @@ public:
         // Forward declaration for WiFi check
         extern bool isWiFiConfigActive();
         
-        // Nie pozwalaj na sleep podczas WiFi config
+        // Podczas WiFi config: sleep po 10 min bez ruchu (nie po 1 min)
+        unsigned long wifiConfigTimeout = 600000; // 10 minut = 600000ms
+        
         if (isWiFiConfigActive()) {
-            // Reset motion time to keep display awake during WiFi setup
-            lastMotionTime = millis();
+            // Sprawdź czy minęło 10 min bez ruchu podczas WiFi config
+            if ((millis() - lastMotionTime) > wifiConfigTimeout) {
+                Serial.println("💤 WiFi config timeout (10 min) - przejście do sleep");
+                currentDisplayState = DISPLAY_TIMEOUT;
+                return;
+            }
+            
+            // Utrzymuj display active jeśli był ruch w ciągu 10 min
             if (currentDisplayState != DISPLAY_ACTIVE) {
                 currentDisplayState = DISPLAY_ACTIVE;
-                Serial.println("🌐 WiFi CONFIG ACTIVE - keeping display awake");
+                Serial.println("🌐 WiFi CONFIG ACTIVE - timeout 10 min");
             }
-            return;
         }
         
         switch (currentDisplayState) {
