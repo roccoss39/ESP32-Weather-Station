@@ -96,8 +96,8 @@ void setup() {
   String connectSSID = WIFI_SSID;
   String connectPassword = WIFI_PASSWORD;
   
-  // Jeśli są zapisane dane, użyj ich zamiast domyślnych
-  if (savedSSID.length() > 0 && savedPassword.length() > 0) {
+  // FIXED: Zapisane dane NADPISUJĄ defaults zawsze gdy są dostępne  
+  if (savedSSID.length() > 0) {  // Wystarczy tylko SSID, hasło może być puste dla open networks
     connectSSID = savedSSID;
     connectPassword = savedPassword;
     Serial.print("AUTO-CONNECT to saved WiFi: ");
@@ -213,10 +213,17 @@ void loop() {
     extern void checkWiFiConnection();
     extern void handleWiFiLoss();
     extern void handleBackgroundReconnect();
+    extern bool isWiFiLost();
     
     checkWiFiConnection();
     handleWiFiLoss();
     handleBackgroundReconnect();
+    
+    // STOP screen rotation during WiFi loss
+    if (isWiFiLost()) {
+      Serial.println("🔴 WiFi LOST - Screen rotation PAUSED until reconnect");
+      return; // Skip normal screen updates during WiFi loss
+    }
   }
   
   // --- OBSŁUGA CZUJNIKA RUCHU PIR ---
@@ -276,8 +283,14 @@ void loop() {
     }
   }
 
-  // --- ZARZĄDZANIE EKRANAMI (tylko gdy display aktywny i nie ma WiFi config) ---
-  updateScreenManager();
+  // --- ZARZĄDZANIE EKRANAMI (tylko gdy display aktywny i nie ma WiFi config i WiFi nie stracone) ---
+  // FIXED: Sprawdź czy WiFi nie zostało utracone przed zarządzaniem ekranami
+  extern bool isWiFiLost();
+  if (!isWiFiLost()) {
+    updateScreenManager();
+  } else {
+    Serial.println("🔴 WiFi LOST - Screen manager PAUSED");
+  }
 
   // --- AUTOMATYCZNA AKTUALIZACJA POGODY (co 10 minut) ---
   static unsigned long lastWeatherCheck = 0;
@@ -305,19 +318,21 @@ void loop() {
     lastForecastCheck = millis();
   }
 
-  // --- WYŚWIETLANIE ODPOWIEDNIEGO EKRANU ---
+  // --- WYŚWIETLANIE ODPOWIEDNIEGO EKRANU (tylko gdy WiFi OK) ---
   static ScreenType previousScreen = SCREEN_CURRENT_WEATHER;
   static unsigned long lastDisplayUpdate = 0;
   
-  // Sprawdź czy ekran się zmienił - wtedy wymuś pełne odświeżenie
-  ScreenType currentScreen = getScreenManager().getCurrentScreen();
-  if (currentScreen != previousScreen) {
-    switchToNextScreen(tft);
-    previousScreen = currentScreen;
-    lastDisplayUpdate = millis();
-  }
-  // Odświeżaj ekran aktualnej pogody (co sekundę)
-  else if (currentScreen == SCREEN_CURRENT_WEATHER && millis() - lastDisplayUpdate > 1000) {
+  // FIXED: Nie przełączaj ekranów i nie wyświetlaj normalnych gdy WiFi stracone
+  if (!isWiFiLost()) {
+    // Sprawdź czy ekran się zmienił - wtedy wymuś pełne odświeżenie
+    ScreenType currentScreen = getScreenManager().getCurrentScreen();
+    if (currentScreen != previousScreen) {
+      switchToNextScreen(tft);
+      previousScreen = currentScreen;
+      lastDisplayUpdate = millis();
+    }
+    // Odświeżaj ekran aktualnej pogody (co sekundę)
+    else if (currentScreen == SCREEN_CURRENT_WEATHER && millis() - lastDisplayUpdate > 1000) {
     // Aktualizuj czas (jeśli WiFi działa)
     if (WiFi.status() == WL_CONNECTED) {
       displayTime(tft);
@@ -341,7 +356,8 @@ void loop() {
     }
     
     lastDisplayUpdate = millis();
-  }
+    }
+  } // END if (!isWiFiLost()) - normal screen operations
 
   delay(50); // Optymalizowana pauza
 }

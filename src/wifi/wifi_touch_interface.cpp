@@ -11,6 +11,8 @@
 #define RED     0xF800
 #define GREEN   0x07E0
 #define DARK_GREEN 0x0340  // Professional dark green for connected screen
+#define ORANGE 0xFD20  // Professional orange for WiFi lost screen
+#define DARK_BLUE 0x001F  // Professional dark blue for WiFi lost screen
 #define CYAN    0x07FF
 #define MAGENTA 0xF81F
 #define YELLOW  0xFFE0
@@ -49,6 +51,10 @@ bool wifiWasConnected = false;
 bool wifiLostDetected = false;
 unsigned long lastReconnectAttempt = 0;
 bool backgroundReconnectActive = false;
+
+// NOWE ZMIENNE DO NIEBLOKUJĄCEGO AUTO-RECONNECT:
+static bool reconnectAttemptInProgress = false;
+static unsigned long reconnectStartTime = 0;
 
 // Network data
 int networkCount = 0;
@@ -194,7 +200,7 @@ void drawStatusMessage(TFT_eSPI& tft, String message) {
 }
 
 void drawConnectedScreen(TFT_eSPI& tft) {
-  tft.fillScreen(DARK_GREEN);  // Professional dark green instead of bright green
+  tft.fillScreen(DARK_BLUE);  // Professional dark blue for WiFi lost state
   tft.setTextColor(WHITE);
   tft.setTextSize(2);
   tft.setCursor(30, 50);
@@ -636,47 +642,82 @@ void drawConfigModeScreen() {
   Serial.printf("Config mode screen drawn with %d networks\n", maxNetworks);
 }
 
+// Function to check if WiFi is lost (for main.cpp screen rotation pause)
+bool isWiFiLost() {
+  return wifiLostDetected || (currentState == STATE_SCAN_NETWORKS && backgroundReconnectActive);
+}
+
 void handleBackgroundReconnect() {
-  // Only run background reconnect when in scan mode and flag is active
-  if (backgroundReconnectActive && currentState == STATE_SCAN_NETWORKS) {
+  // Wyjdź, jeśli nie powinniśmy teraz nic robić
+  if (!backgroundReconnectActive || currentState != STATE_SCAN_NETWORKS) {
+    return;
+  }
+
+  // --- CZĘŚĆ 1: Sprawdź, czy próba połączenia jest W TRAKCIE ---
+  if (reconnectAttemptInProgress) {
     
-    // Try reconnecting every 19 seconds even in scan mode
-    if (millis() - lastReconnectAttempt >= 19000) {
-      lastReconnectAttempt = millis();
+    // 1.1: Sprawdź, czy się udało
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("Background reconnect SUCCESS! Exiting scan mode.");
+      backgroundReconnectActive = false;
+      reconnectAttemptInProgress = false;
+      currentState = STATE_CONNECTED;
+      wifiLostDetected = false;
+      wifiLostTime = 0;
       
-      String savedSSID = preferences.getString("ssid", "");
-      String savedPassword = preferences.getString("password", "");
+      // RESETUJ timer ekranu po udanym połączeniu
+      extern ScreenManager& getScreenManager();
+      getScreenManager().resetScreenTimer();
       
-      if (savedSSID.length() > 0) {
-        Serial.printf("Background auto-reconnect to: %s (scan mode)\n", savedSSID.c_str());
-        
-        // Try reconnect without disrupting current scan display
-        WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
-        
-        // Quick check if connection succeeds
-        delay(3000);
-        if (WiFi.status() == WL_CONNECTED) {
-          Serial.println("Background reconnect SUCCESS! Exiting scan mode.");
-          backgroundReconnectActive = false;
-          currentState = STATE_CONNECTED;
-          drawConnectedScreen(tft);
-          return;
-        } else {
-          Serial.println("Background reconnect failed, staying in scan mode...");
-          
-          // Update the yellow message with next attempt time
-          tft.fillRect(10, 200, 300, 25, YELLOW);
-          tft.setTextColor(BLACK);
-          tft.setTextSize(1);
-          tft.setCursor(15, 210);
-          tft.printf("WiFi lost - Next reconnect in 19s or select network");
-        }
-      }
+      // Nie rysuj connected screen - pozwól normalnym ekranom
+      Serial.println("Reconnected! Resuming normal operation.");
+      return;
     }
     
-    // Show countdown for next attempt
+    // 1.2: Sprawdź, czy próba nie trwa zbyt długo (10 sekund timeout)
+    if (millis() - reconnectStartTime > 10000) { 
+      Serial.println("Background reconnect attempt timed out, will retry in 19s...");
+      reconnectAttemptInProgress = false; // Zezwól na nową próbę
+      lastReconnectAttempt = millis(); // Ustaw timer na NASTĘPNĄ próbę za 19s
+      WiFi.disconnect(); // Jawnie zatrzymaj nieudaną próbę
+    }
+    
+    // Jeśli próba nadal trwa, po prostu wyjdź i pozwól pętli działać
+    return;
+  }
+
+  // --- CZĘŚĆ 2: Sprawdź, czy czas rozpocząć NOWĄ próbę połączenia ---
+  if (millis() - lastReconnectAttempt >= 19000) {
+    
+    String savedSSID = preferences.getString("ssid", "");
+    String savedPassword = preferences.getString("password", "");
+    
+    if (savedSSID.length() > 0) {
+      Serial.printf("Background auto-reconnect to: %s (scan mode)\n", savedSSID.c_str());
+      
+      reconnectAttemptInProgress = true; // Ustaw flagę "próbuję"
+      reconnectStartTime = millis();     // Uruchom stoper dla timeoutu
+      
+      // Ta funkcja jest nieblokująca!
+      WiFi.begin(savedSSID.c_str(), savedPassword.c_str()); 
+      
+      // Zaktualizuj żółty pasek, aby pokazać, że próbujemy TERAZ
+      tft.fillRect(10, 250, 300, 25, YELLOW);
+      tft.setTextColor(BLACK);
+      tft.setTextSize(1);
+      tft.setCursor(15, 260);
+      tft.printf("Trying saved WiFi... or select network");
+      
+    } else {
+      Serial.println("No saved WiFi credentials, resetting timer");
+      lastReconnectAttempt = millis();
+    }
+  }
+
+  // --- CZĘŚĆ 3: Aktualizuj licznik (tylko jeśli NIE próbujemy się teraz łączyć) ---
+  if (!reconnectAttemptInProgress) {
     static unsigned long lastUpdateTime = 0;
-    if (millis() - lastUpdateTime > 5000) { // Update every 5 seconds
+    if (millis() - lastUpdateTime > 5000) { // Aktualizuj co 5 sekund
       lastUpdateTime = millis();
       unsigned long elapsed = millis() - lastReconnectAttempt;
       int nextAttempt = (19000 - elapsed) / 1000;
@@ -729,86 +770,109 @@ void checkWiFiConnection() {
 }
 
 void handleWiFiLoss() {
-  if (wifiLostDetected && currentState == STATE_CONNECTED) {
-    unsigned long elapsed = millis() - wifiLostTime;
+  // Wyjdź, jeśli nie powinniśmy nic robić
+  if (!wifiLostDetected || currentState != STATE_CONNECTED) {
+    return;
+  }
+
+  unsigned long elapsed = millis() - wifiLostTime;
+
+  // --- CZĘŚĆ 1: Sprawdź, czy próba połączenia jest W TRAKCIE ---
+  if (reconnectAttemptInProgress) {
     
-    // Update countdown every second
-    static unsigned long lastCountdownUpdate = 0;
-    if (millis() - lastCountdownUpdate > 1000) {
-      lastCountdownUpdate = millis();
-      drawConnectedScreen(tft); // Update countdown display
-    }
-    
-    // Try reconnecting every 19 seconds instead of 20
-    if (millis() - lastReconnectAttempt >= 19000) {
-      lastReconnectAttempt = millis();
-      String savedSSID = preferences.getString("ssid", "");
-      String savedPassword = preferences.getString("password", "");
-      
-      if (savedSSID.length() > 0) {
-        Serial.printf("Auto-reconnect attempt to: %s\n", savedSSID.c_str());
-        WiFi.disconnect();  // Clean disconnect first
-        delay(500);         // Wait for disconnect
-        WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
-        
-        // Wait a bit to see if connection succeeds
-        delay(2000);
-        if (WiFi.status() == WL_CONNECTED) {
-          Serial.println("Auto-reconnect SUCCESS!");
-          wifiLostDetected = false;
-          drawConnectedScreen(tft);
-          return; // Exit function early on success
-        } else {
-          Serial.println("Auto-reconnect failed, continuing countdown...");
-        }
-      }
-    }
-    
-    // After 60 seconds, try one final reconnect, then go to network scan
-    if (elapsed >= 60000) {
-      Serial.println("60 seconds elapsed - Final reconnect attempt...");
-      
-      // Final reconnect attempt before giving up
-      String savedSSID = preferences.getString("ssid", "");
-      String savedPassword = preferences.getString("password", "");
-      
-      if (savedSSID.length() > 0) {
-        Serial.printf("FINAL auto-reconnect attempt to: %s\n", savedSSID.c_str());
-        WiFi.disconnect();
-        delay(1000);
-        WiFi.begin(savedSSID.c_str(), savedPassword.c_str());
-        
-        // Wait longer for final attempt
-        for (int i = 0; i < 10; i++) {
-          delay(1000);
-          if (WiFi.status() == WL_CONNECTED) {
-            Serial.println("FINAL auto-reconnect SUCCESS!");
-            wifiLostDetected = false;
-            drawConnectedScreen(tft);
-            return;
-          }
-        }
-      }
-      
-      Serial.println("All reconnect attempts failed. Starting network scan...");
+    // 1.1: Sprawdź, czy się udało
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("Auto-reconnect SUCCESS!");
       wifiLostDetected = false;
-      backgroundReconnectActive = true; // Enable background reconnect in scan mode
-      lastReconnectAttempt = millis();  // Reset timer for background attempts
-      currentState = STATE_SCAN_NETWORKS;
+      reconnectAttemptInProgress = false;
+      drawConnectedScreen(tft); // Narysuj ekran "CONNECTED" bez banera "LOST"
       
-      // Disconnect from current WiFi and scan
-      WiFi.disconnect();
-      delay(100);
+      // RESETUJ timer ekranu po udanym połączeniu
+      extern ScreenManager& getScreenManager();
+      getScreenManager().resetScreenTimer();
+      return;
+    }
+    
+    // 1.2: Sprawdź, czy próba nie trwa zbyt długo (10 sekund timeout)
+    if (millis() - reconnectStartTime > 10000) { 
+      Serial.println("Auto-reconnect attempt timed out, will retry in 19s...");
+      reconnectAttemptInProgress = false; // Zezwól na nową próbę
+      lastReconnectAttempt = millis();    // Ustaw timer na NASTĘPNĄ próbę za 19s
+      WiFi.disconnect();                  // Jawnie zatrzymaj nieudaną próbę
+    }
+    
+    // Jeśli próba nadal trwa (i nie ma timeoutu), po prostu wyjdź i pozwól pętli działać
+    return;
+  }
+
+  // --- CZĘŚĆ 2: Sprawdź, czy czas rozpocząć NOWĄ próbę (co 19s) ---
+  // (Tylko jeśli nie minęło jeszcze 60 sekund)
+  if (elapsed < 60000 && millis() - lastReconnectAttempt >= 19000) {
+    
+    String savedSSID = preferences.getString("ssid", "");
+    String savedPassword = preferences.getString("password", "");
+    
+    if (savedSSID.length() > 0) {
+      Serial.printf("Auto-reconnect attempt to: %s (grace period)\n", savedSSID.c_str());
+      
+      reconnectAttemptInProgress = true; // Ustaw flagę "próbuję"
+      reconnectStartTime = millis();     // Uruchom stoper dla timeoutu
+      
+      // Ta funkcja jest nieblokująca!
+      WiFi.begin(savedSSID.c_str(), savedPassword.c_str()); 
+      
+    } else {
+      Serial.println("No saved WiFi credentials, resetting timer");
+      lastReconnectAttempt = millis();
+    }
+  }
+
+  // --- CZĘŚĆ 3: Sprawdź, czy minął 60-sekundowy "okres łaski" ---
+  if (elapsed >= 60000) {
+    Serial.println("60 seconds elapsed. Grace period over. Starting network scan...");
+
+    // Zanim przejdziemy dalej, sprawdź ostatni raz, czy próba w toku się nie powiodła
+    if (reconnectAttemptInProgress) {
+       unsigned long finalWaitStart = millis();
+       while(millis() - finalWaitStart < 3000 && WiFi.status() != WL_CONNECTED) { 
+         delay(100); // Małe blokujące opóźnienie jest OK *tylko* w momencie przejścia
+       }
+       
+       if (WiFi.status() == WL_CONNECTED) {
+          Serial.println("FINAL auto-reconnect SUCCESS!");
+          wifiLostDetected = false;
+          reconnectAttemptInProgress = false;
+          drawConnectedScreen(tft);
+          return;
+       }
+    }
+    
+    // OSTATECZNA PORAŻKA: Przejdź do trybu skanowania
+    Serial.println("All reconnect attempts failed. Starting network scan...");
+    wifiLostDetected = false;
+    reconnectAttemptInProgress = false;
+    backgroundReconnectActive = true; // Aktywuj logikę dla ekranu skanowania
+    lastReconnectAttempt = millis();  // Zresetuj timer dla logiki skanowania
+    currentState = STATE_SCAN_NETWORKS;
+    
+    WiFi.disconnect();
       
       scanNetworks();
       drawNetworkList(tft);
       
-      // Show WiFi lost message at the BOTTOM to not cover first network
-      tft.fillRect(10, 200, 300, 25, YELLOW);
+      // Pokaż żółty pasek na ekranie skanowania
+      tft.fillRect(10, 250, 300, 25, YELLOW);
       tft.setTextColor(BLACK);
       tft.setTextSize(1);
-      tft.setCursor(15, 210);
+      tft.setCursor(15, 260);
       tft.println("WiFi lost - Reconnecting every 19s or select network");
+      
+  } else {
+    // --- CZĘŚĆ 4: Aktualizuj licznik na ekranie "CONNECTED" ---
+    static unsigned long lastCountdownUpdate = 0;
+    if (millis() - lastCountdownUpdate > 1000) {
+      lastCountdownUpdate = millis();
+      drawConnectedScreen(tft); // Odśwież ekran, aby pokazać licznik
     }
   }
 }
