@@ -9,7 +9,7 @@
 
 // Hardware config
 #define PIR_PIN 27
-#define MOTION_TIMEOUT 10000    // 60 sekund (1 minuta) timeout bez ruchu
+#define MOTION_TIMEOUT 60000    // 60 sekund (1 minuta) timeout bez ruchu
 #define DEBOUNCE_TIME 500       // 500ms debounce dla stabilności
 
 /**
@@ -139,6 +139,11 @@ public:
  * Wywołuj w każdym loop()
  * @param isConfigModeActive - true gdy WiFi config aktywny (unika touch race condition)
  */
+/**
+ * Główna logika zarządzania mocą display
+ * Wywołuj w każdym loop()
+ * @param isConfigModeActive - true gdy WiFi config aktywny (unika touch race condition)
+ */
 void updateDisplayPowerState(TFT_eSPI& tft, bool isConfigModeActive = false) {
 
     // --- KROK 1: Sprawdź aktywność DOTYKU (tylko w trybie NORMALNYM) ---
@@ -171,23 +176,29 @@ void updateDisplayPowerState(TFT_eSPI& tft, bool isConfigModeActive = false) {
         // Timer został już zresetowany w handleMotionInterrupt
     }
 
-
-    // --- KROK 3: Główna logika stanów (teraz wspólna dla obu trybów) ---
+    // --- KROK 3: Główna logika stanów (Z DWOMA RÓŻNYMI TIMEOUTAMI) ---
     
-    // Używamy MOTION_TIMEOUT (Twoje 10s) jako uniwersalnego timeoutu.
-    // lastMotionTime jest teraz resetowany przez:
-    // 1. Przerwanie PIR (w handleMotionInterrupt)
-    // 2. Dotyk w menu WiFi (w handleWiFiTouchLoop -> handleMotionInterrupt)
-    // 3. Dotyk w trybie normalnym (w Kroku 1 powyżej)
+    // Używamy lastMotionTime jako uniwersalnego timera "ostatniej aktywności"
+    // (resetowanego przez PIR, dotyk WiFi lub dotyk normalny)
+    
+    // Ustal, którego timeoutu użyć na podstawie trybu
+    unsigned long currentTimeout;
+    if (isConfigModeActive) {
+        // Jesteśmy w menu WiFi
+        currentTimeout = 600000; // 10 minut (600,000 ms)
+    } else {
+        // Jesteśmy w trybie normalnym (pogoda)
+        currentTimeout = MOTION_TIMEOUT; // 60 sekund (60,000 ms) z pliku .h
+    }
     
     unsigned long timeSinceLastActivity = millis() - lastMotionTime;
 
     switch (currentDisplayState) {
         case DISPLAY_ACTIVE: {
             // Sprawdź, czy minął czas bezczynności
-            if (timeSinceLastActivity > MOTION_TIMEOUT) {
-                Serial.printf("💤 Timeout - przejście do DISPLAY_TIMEOUT (waited %lu ms) [Config: %s]\n", 
-                              timeSinceLastActivity, isConfigModeActive ? "YES" : "NO");
+            if (timeSinceLastActivity > currentTimeout) { // <-- Użyj dynamicznego timeoutu
+                Serial.printf("💤 Timeout - przejście do DISPLAY_TIMEOUT (waited %lu ms) [Config: %s, Timeout: %lu ms]\n", 
+                              timeSinceLastActivity, isConfigModeActive ? "YES" : "NO", currentTimeout);
                 currentDisplayState = DISPLAY_TIMEOUT;
             }
             break;
