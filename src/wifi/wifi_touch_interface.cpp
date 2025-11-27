@@ -240,7 +240,7 @@ void drawConnectedScreen(TFT_eSPI& tft) {
   // WiFi monitoring status
   if (wifiLostDetected) {
     unsigned long elapsed = millis() - wifiLostTime;
-    int remaining = (60000 - elapsed) / 1000;  // Changed to 60 seconds
+    int remaining = (WIFI_LOSS_TIMEOUT - elapsed) / 1000;
     if (remaining > 0) {
       tft.fillRect(10, 160, 300, 20, RED);
       tft.setTextColor(WHITE);
@@ -770,7 +770,7 @@ void checkWiFiConnection() {
           wifiLostDetected = true;
           wifiLostTime = millis();
           lastReconnectAttempt = millis();
-          Serial.println("WiFi LOST! Starting 60-second countdown...");
+          Serial.printf("WiFi LOST! Starting %d-second countdown...\n", WIFI_LOSS_TIMEOUT/1000);
           drawConnectedScreen(tft); // Update display with countdown
         }
       } else if (isConnected && wifiLostDetected) {
@@ -830,7 +830,7 @@ void handleWiFiLoss() {
 
   // --- CZĘŚĆ 2: Sprawdź, czy czas rozpocząć NOWĄ próbę (co 19s) ---
   // (Tylko jeśli nie minęło jeszcze 60 sekund)
-  if (elapsed < 60000 && millis() - lastReconnectAttempt >= 19000) {
+  if (elapsed < WIFI_LOSS_TIMEOUT && millis() - lastReconnectAttempt >= 19000) {
     
     String savedSSID = preferences.getString("ssid", "");
     String savedPassword = preferences.getString("password", "");
@@ -851,8 +851,8 @@ void handleWiFiLoss() {
   }
 
   // --- CZĘŚĆ 3: Sprawdź, czy minął 60-sekundowy "okres łaski" ---
-  if (elapsed >= 60000) {
-    Serial.println("60 seconds elapsed. Grace period over. Starting network scan...");
+  if (elapsed >= WIFI_LOSS_TIMEOUT) {
+    Serial.printf("%d seconds elapsed. Grace period over. Starting network scan...\n", WIFI_LOSS_TIMEOUT/1000);
 
     // Zanim przejdziemy dalej, sprawdź ostatni raz, czy próba w toku się nie powiodła
     if (reconnectAttemptInProgress) {

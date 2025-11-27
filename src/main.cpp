@@ -123,14 +123,38 @@ void setup() {
     attempts++;
   }
   
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nWiFi connected!");
-    Serial.print("IP: ");
-    Serial.println(WiFi.localIP());
-    
-    // --- Konfiguracja czasu ---
-    Serial.println("Configuring time...");
-    configTzTime(TIMEZONE_INFO, NTP_SERVER);
+if (WiFi.status() == WL_CONNECTED) {
+  Serial.println("\nWiFi connected!");
+  Serial.print("IP: ");
+  Serial.println(WiFi.localIP());
+
+  // --- Konfiguracja czasu ---
+  Serial.println("Configuring time from NTP server...");
+  configTzTime(TIMEZONE_INFO, NTP_SERVER);
+
+  // --- POPRAWKA: POCZEKAJ NA SYNCHRONIZACJĘ CZASU ---
+  // Wywołania API (HTTPS) nie powiodą się, jeśli czas nie jest ustawiony.
+  Serial.print("Waiting for time synchronization...");
+
+  struct tm timeinfo;
+  int retry = 0;
+  const int retry_count = 15; // 15 sekund timeout
+
+  // Sprawdź, czy czas jest poprawny (rok > 2023)
+  while (!getLocalTime(&timeinfo, 5000) || timeinfo.tm_year < (2023 - 1900)) {
+      Serial.print(".");
+      delay(1000);
+      retry++;
+      if (retry > retry_count) {
+          Serial.println("\nFailed to synchronize time!");
+          // Możesz tu obsłużyć błąd, ale na razie idziemy dalej
+          break; 
+      }
+  }
+
+  if (retry <= retry_count) {
+    Serial.println("\nTime synchronized successfully!");
+  }
   } else {
     Serial.println("\nWiFi failed - funkcje API niedostępne");
     
@@ -178,7 +202,7 @@ void setup() {
       
       // AKTYWUJ ERROR MODE - natychmiastowy retry potem co 20s
       weatherErrorModeGlobal = true;
-      lastWeatherCheckGlobal = millis();  // Reset na teraz - retry od razu w loop
+      lastWeatherCheckGlobal = millis() - 20000;  // <-- POPRAWKA
       Serial.println("Weather error mode AKTYWNY - natychmiastowy retry potem co 20s");
     }
     
@@ -194,7 +218,7 @@ void setup() {
       forecastErrorModeGlobal = true;
       
       // Reset timer żeby pierwszy retry był za 20s (nie od razu)
-      lastForecastCheckGlobal = millis();
+      lastForecastCheckGlobal = millis() - 20000;
       
       Serial.println("Forecast error mode AKTYWNY - pierwszy retry za 20s");
     }
@@ -344,19 +368,24 @@ void loop() {
       getWeather();
       
       if (weather.isValid) {
-        // Sukces - wyłącz error mode
-        if (weatherErrorModeGlobal) {
-          Serial.println("✓ Pogoda naprawiona - powrót do 10 min interwału");
-          weatherErrorModeGlobal = false;
-        }
-      } else {
-        // Błąd - włącz error mode
-        Serial.println("⚠️ Błąd pogody - przełączam na 20s retry");
-        weatherErrorModeGlobal = true;
-      }
+  // Sukces - wyłącz error mode
+  if (weatherErrorModeGlobal) {
+    Serial.println("✓ Pogoda naprawiona - powrót do 10 min interwału");
+    weatherErrorModeGlobal = false;
+
+    // POPRAWKA: Wymuś odświeżenie EKRANU POGODY, jeśli go oglądamy
+    if (getScreenManager().getCurrentScreen() == SCREEN_CURRENT_WEATHER) {
+      switchToNextScreen(tft);
     }
-    lastWeatherCheckGlobal = millis();
   }
+  } else {
+          // Błąd - włącz error mode
+          Serial.println("⚠️ Błąd pogody - przełączam na 20s retry");
+          weatherErrorModeGlobal = true;
+        }
+      }
+      lastWeatherCheckGlobal = millis();
+    }
 
   // --- AUTOMATYCZNA AKTUALIZACJA PROGNOZY (30 min normalnie, 20s po błędzie) ---
   // Używa globalnego timera (żeby można go resetować z setup)
@@ -384,6 +413,11 @@ void loop() {
         if (forecastErrorModeGlobal) {
           Serial.println("✓ Prognoza naprawiona - powrót do 30 min interwału");
           forecastErrorModeGlobal = false;
+
+          // POPRAWKA: Wymuś odświeżenie EKRANU PROGNOZY, jeśli go oglądamy
+          if (getScreenManager().getCurrentScreen() == SCREEN_FORECAST) {
+            switchToNextScreen(tft);
+          }
         }
       } else {
         // Błąd - włącz error mode

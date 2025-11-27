@@ -11,6 +11,8 @@
 #define PIR_PIN 27
 #define MOTION_TIMEOUT 60000    // 60 sekund (1 minuta) timeout bez ruchu
 #define DEBOUNCE_TIME 500       // 500ms debounce dla stabilności
+#define LED_BUILTIN 2           // Wbudowana niebieska dioda ESP32
+#define LED_FLASH_DURATION 1000 // 1 sekunda świecenia diody
 
 /**
  * 🔍 MotionSensorManager - Smart PIR sensor + state management
@@ -35,6 +37,8 @@ private:
     unsigned long lastMotionTime = 0;
     unsigned long lastDisplayUpdate = 0;
     unsigned long lastDebounce = 0;
+    unsigned long ledFlashStartTime = 0;
+    bool ledFlashActive = false;
 
 public:
     // --- CONSTRUCTOR ---
@@ -55,6 +59,10 @@ public:
         }
         
         lastDisplayUpdate = millis();
+        
+        // Inicjalizuj GPIO dla wbudowanej diody
+        pinMode(LED_BUILTIN, OUTPUT);
+        digitalWrite(LED_BUILTIN, LOW); // Początkowy stan wyłączony
     }
     
     // --- GETTERS ---
@@ -116,6 +124,11 @@ public:
         motionDetected = true;
         lastMotionTime = currentTime;
         
+        // 💙 ZAPAL NIEBIESKĄ DIODĘ na chwilę
+        digitalWrite(LED_BUILTIN, HIGH);
+        ledFlashActive = true;
+        ledFlashStartTime = currentTime;
+        
         // DEBUG: Log motion detection z więcej szczegółów
         Serial.printf("🔥 PIR MOTION DETECTED! Timer reset to %lu ms (was %lu ms since last motion)\n", 
                       currentTime, currentTime - lastMotionTime);
@@ -145,6 +158,13 @@ public:
  * @param isConfigModeActive - true gdy WiFi config aktywny (unika touch race condition)
  */
 void updateDisplayPowerState(TFT_eSPI& tft, bool isConfigModeActive = false) {
+
+    // --- KROK 0: Sprawdź czy wyłączyć diodę po wykryciu ruchu ---
+    if (ledFlashActive && (millis() - ledFlashStartTime) > LED_FLASH_DURATION) {
+        digitalWrite(LED_BUILTIN, LOW); // Wyłącz diodę
+        ledFlashActive = false;
+        Serial.println("💙 LED wyłączona po flash");
+    }
 
     // --- KROK 1: Sprawdź aktywność DOTYKU (tylko w trybie NORMALNYM) ---
     // (W trybie WiFi dotyk jest sprawdzany w wifi_touch_interface.cpp,
@@ -281,7 +301,12 @@ void updateDisplayPowerState(TFT_eSPI& tft, bool isConfigModeActive = false) {
         // Konfiguruj pin PIR jako input z pull-down
         pinMode(PIR_PIN, INPUT);
         
+        // Konfiguruj wbudowaną diodę
+        pinMode(LED_BUILTIN, OUTPUT);
+        digitalWrite(LED_BUILTIN, LOW);
+        
         Serial.println("✅ PIR Sensor na GPIO " + String(PIR_PIN) + " gotowy!");
+        Serial.println("💙 Wbudowana dioda na GPIO " + String(LED_BUILTIN) + " gotowa!");
         Serial.println("🕐 Timeout: " + String(MOTION_TIMEOUT/1000) + " sekund (1 minuta)");
     }
     

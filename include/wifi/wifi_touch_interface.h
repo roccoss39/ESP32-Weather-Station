@@ -1,6 +1,9 @@
 #ifndef WIFI_TOUCH_INTERFACE_H
 #define WIFI_TOUCH_INTERFACE_H
 
+// WiFi Loss Timeout Configuration
+#define WIFI_LOSS_TIMEOUT 5000    // 60 sekund (60,000 ms) - czas po którym przejdzie do scan mode
+
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 #include <WiFi.h>
