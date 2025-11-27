@@ -63,8 +63,7 @@ int networkRSSI[20];
 bool networkSecure[20];
 
 // Touch functions
-uint16_t readTouch(uint8_t command);
-bool getTouchPoint(int16_t &x, int16_t &y);
+// Old touch function declarations removed - using tft.getTouch() instead
 void handleTouchInput(int16_t x, int16_t y);
 void handleKeyboardTouch(int16_t x, int16_t y);
 
@@ -130,9 +129,22 @@ void initWiFiTouchInterface() {
       Serial.println("Connected to saved WiFi!");
     } else {
       Serial.println("Saved WiFi failed, scanning networks...");
+
+      // --- POPRAWKA SLEEP MODE - AKTYWUJ BACKGROUND RECONNECT ---
+      backgroundReconnectActive = true; 
+      lastReconnectAttempt = millis();  // Zresetuj timer, aby pierwsza próba była za 19s
+      Serial.println("Background reconnect activated after sleep mode failure");
+      
       currentState = STATE_SCAN_NETWORKS;
       scanNetworks();
       drawNetworkList(tft);
+
+      // Od razu pokaż żółty pasek informacyjny
+      tft.fillRect(10, 250, 300, 25, YELLOW);
+      tft.setTextColor(BLACK);
+      tft.setTextSize(1);
+      tft.setCursor(15, 260);
+      tft.println("WiFi lost - Reconnecting every 19s or select network");
     }
   }
 }
@@ -1106,42 +1118,5 @@ void handleKeyboardTouch(int16_t x, int16_t y) {
   }
 }
 
-uint16_t readTouch(uint8_t command) {
-  digitalWrite(TOUCH_CS, LOW);
-  delayMicroseconds(1);
-  
-  SPI.transfer(command);
-  delayMicroseconds(1);
-  
-  uint16_t result = SPI.transfer(0) << 8;
-  result |= SPI.transfer(0);
-  result >>= 3;
-  
-  delayMicroseconds(1);
-  digitalWrite(TOUCH_CS, HIGH);
-  delayMicroseconds(1);
-  
-  return result & 0x0FFF;
-}
-
-bool getTouchPoint(int16_t &x, int16_t &y) {
-  uint16_t x_raw = readTouch(0x90);   // X axis  
-  uint16_t y_raw = readTouch(0x91);   // Y axis
-  
-  // Much wider calibration range - current values X=9,Y=12 are too small
-  if ((x_raw != 128 || y_raw != 128) && x_raw > 50 && y_raw > 50) {
-    
-    // RESTORED WORKING MAPPING from test_wifi
-    x = map(x_raw, 50, 1000, 0, 240);  // Original working mapping
-    y = map(y_raw, 50, 1000, 0, 320);  // Original working mapping
-    
-    x = constrain(x, 0, 239);  // Original constraints
-    y = constrain(y, 0, 319);  // Original constraints
-    
-    Serial.printf("Raw: X=%d,Y=%d -> Mapped: X=%d,Y=%d\n", x_raw, y_raw, x, y);
-    
-    return true;
-  }
-  
-  return false;
-}
+// OLD TOUCH FUNCTIONS REMOVED - kod używa teraz tft.getTouch() z kalibracją
+// Lepsze dla kompatybilności i używa skalibrowanej macierzy dotyku
