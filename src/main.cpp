@@ -37,6 +37,7 @@
 extern void updateScreenManager();
 extern void switchToNextScreen(TFT_eSPI& tft);
 extern ScreenManager& getScreenManager();
+void onWiFiConnectedTasks();
 
 // Testy zostały usunięte
 
@@ -471,4 +472,37 @@ void loop() {
   } // END if (!isWiFiLost()) - normal screen operations
 
   delay(50); // Optymalizowana pauza
+}
+
+void onWiFiConnectedTasks() {
+    Serial.println("onWiFiConnectedTasks: WiFi is connected, forcing NTP sync and data fetch...");
+
+    // 1. ZMUŚ SYNCHRONIZACJĘ CZASU (skopiowane z setup())
+    Serial.println("Configuring time from NTP server...");
+    configTzTime(TIMEZONE_INFO, NTP_SERVER);
+
+    Serial.print("Waiting for time synchronization...");
+    struct tm timeinfo;
+    int retry = 0;
+    const int retry_count = 15; // 15s timeout
+    while (!getLocalTime(&timeinfo, 5000) || timeinfo.tm_year < (2023 - 1900)) {
+        Serial.print(".");
+        delay(1000);
+        retry++;
+        if (retry > retry_count) {
+            Serial.println("\nFailed to synchronize time! API calls may fail.");
+            break; 
+        }
+    }
+    if (retry <= retry_count) {
+      Serial.println("\nTime synchronized successfully!");
+    }
+
+    // 2. ZMUŚ PIERWSZE POBRANIE DANYCH
+    // (Ustaw flagi błędu i zresetuj timery, aby loop() pobrał dane natychmiast)
+    Serial.println("Forcing immediate API fetch in next loop...");
+    weatherErrorModeGlobal = true;
+    forecastErrorModeGlobal = true;
+    lastWeatherCheckGlobal = millis() - WEATHER_FORCE_REFRESH;
+    lastForecastCheckGlobal = millis() - WEATHER_FORCE_REFRESH;
 }

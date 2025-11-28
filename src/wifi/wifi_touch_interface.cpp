@@ -27,6 +27,8 @@
 extern TFT_eSPI tft;
 Preferences preferences;
 
+extern void onWiFiConnectedTasks();
+
 // WiFi management
 String defaultSSID = "YourDefaultWiFi";
 String defaultPassword = "YourDefaultPassword";
@@ -141,11 +143,11 @@ void initWiFiTouchInterface() {
       scanNetworks();
       drawNetworkList(tft);
 
-      // Od razu pokaż żółty pasek informacyjny - FIXED for landscape bounds
-      tft.fillRect(10, 180, 300, 25, YELLOW);
+      // Żółty pasek na samym dole ekranu - FIXED for landscape 320x240
+      tft.fillRect(10, 210, 300, 25, YELLOW);
       tft.setTextColor(BLACK);
       tft.setTextSize(1);
-      tft.setCursor(15, 190);
+      tft.setCursor(15, 220);
       tft.println("WiFi lost - Reconnecting every 19s or select network");
     }
   }
@@ -487,6 +489,8 @@ void connectToWiFi() {
     extern ScreenManager& getScreenManager();
     getScreenManager().resetScreenTimer();
     
+    onWiFiConnectedTasks();
+
     currentState = STATE_CONNECTED;
     drawConnectedScreen(tft);
     Serial.println("\nConnected successfully! Screen timer reset for 60s cycle.");
@@ -692,6 +696,8 @@ void handleBackgroundReconnect() {
       extern ScreenManager& getScreenManager();
       getScreenManager().resetScreenTimer();
       
+      onWiFiConnectedTasks();
+      
       // Nie rysuj connected screen - pozwól normalnym ekranom
       Serial.println("Reconnected! Resuming normal operation.");
       return;
@@ -724,11 +730,11 @@ void handleBackgroundReconnect() {
       // Ta funkcja jest nieblokująca!
       WiFi.begin(savedSSID.c_str(), savedPassword.c_str()); 
       
-      // Zaktualizuj żółty pasek, aby pokazać, że próbujemy TERAZ
-      tft.fillRect(10, 180, 300, 25, YELLOW);
+      // Żółty pasek na samym dole ekranu - FIXED for landscape 320x240
+      tft.fillRect(10, 210, 300, 25, YELLOW);
       tft.setTextColor(BLACK);
       tft.setTextSize(1);
-      tft.setCursor(15, 190);
+      tft.setCursor(15, 220);
       tft.printf("Trying saved WiFi... or select network");
       
     } else {
@@ -746,10 +752,12 @@ void handleBackgroundReconnect() {
       int nextAttempt = (WIFI_RECONNECT_INTERVAL - elapsed) / 1000;
       
       if (nextAttempt > 0 && nextAttempt <= 19) {
-        tft.fillRect(250, 200, 65, 25, BLUE);
+        // Rysuj na tej samej pozycji X co REFRESH (240) i tej samej szerokości (75)
+        // Ustaw Y tuż pod przyciskiem REFRESH (120 + 30 + 5 odstępu = 155)
+        tft.fillRect(240, 155, 75, 30, BLUE); // Dopasowano X, Y, W, H
         tft.setTextColor(WHITE);
         tft.setTextSize(1);
-        tft.setCursor(255, 210);
+        tft.setCursor(250, 165); // Wyśrodkuj tekst
         tft.printf("Next: %ds", nextAttempt);
       }
     }
@@ -883,11 +891,11 @@ void handleWiFiLoss() {
       scanNetworks();
       drawNetworkList(tft);
       
-      // Pokaż żółty pasek na ekranie skanowania
-      tft.fillRect(10, 180, 300, 25, YELLOW);
+      // Żółty pasek na samym dole ekranu - FIXED for landscape 320x240
+      tft.fillRect(10, 210, 300, 25, YELLOW);
       tft.setTextColor(BLACK);
       tft.setTextSize(1);
-      tft.setCursor(15, 190);
+      tft.setCursor(15, 220);
       tft.println("WiFi lost - Reconnecting every 19s or select network");
       
   } else {
