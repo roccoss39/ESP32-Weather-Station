@@ -1,17 +1,16 @@
 # 🚀 ESP32 NASA Image Display Project
 
-Automatyczny wyświetlacz 401 obrazków NASA na ESP32 z TFT ekranem. Projekt pobiera obrazy z GitHub Pages i wyświetla je z automatyczną rotacją co 10 sekund.
+Automatyczny wyświetlacz obrazków NASA na ESP32 z TFT ekranem. Projekt pobiera obrazy z GitHub Pages i wyświetla je z automatyczną rotacją co 10 sekund.
 
 ## 📱 Funkcjonalności
 
 ### ✨ Główne cechy:
-- **401 obrazków NASA** z lat 2024-2025 (cały archiwum!)
 - **Automatyczna rotacja** co 10 sekund
 - **WiFi connection** z automatycznym reconnect
 - **HTTP download** obrazków w czasie rzeczywistym
 - **JPEG dekoding** i skalowanie do 320x240
 - **Wyświetlanie tytułów** każdego obrazka
-- **Licznik postępu** (1/401, 2/401, etc.)
+- **Licznik postępu** (1/1359, 2/1359, etc.)
 - **Serial monitor** z informacjami o pobieraniu
 - **Endless loop** - po ostatnim obrazku wraca do pierwszego
 
@@ -53,7 +52,7 @@ TFT_BL    = 21   // Backlight (opcjonalne)
 ├── 📄 README.md                    ← Ten plik
 ├── 📄 platformio.ini               ← Konfiguracja PlatformIO
 ├── 📄 wifi_config.h                ← Template WiFi credentials
-├── 📄 esp32_nasa_ultimate.h        ← Array z 401 obrazkami NASA
+├── 📄 esp32_nasa_ultimate.h        
 ├── 📄 .gitignore                   ← Git exclusions
 └── 📁 src/
     ├── 📄 main.cpp                 ← Główny kod ESP32
@@ -127,10 +126,9 @@ NASAImage nasa_ultimate_collection[] = {
   {"https://roccoss39.github.io/nasa.github.io-/nasa-images/nasa_2024-01-01_NGC_1232_spiral_galaxy.jpg", 
    "nasa_2024-01-01_NGC_1232_spiral_galaxy.jpg", 
    "2024-01-01 NGC 1232 A Grand Design Spiral Galaxy"},
-  // ... 400 więcej obrazków
+  // ... 
 };
 
-const int num_nasa_images = 401;
 ```
 
 ## 🔄 Działanie programu
@@ -148,7 +146,7 @@ void loop() {
   static unsigned long lastImageChange = 0;
   
   if (millis() - lastImageChange >= 10000) {  // 10 sekund
-    current_image_index = (current_image_index + 1) % 401;
+    current_image_index = (current_image_index + 1) % 1359;
     downloadAndDisplayImage(current_image_index);
     lastImageChange = millis();
   }
@@ -160,9 +158,9 @@ void loop() {
 ### Serial Output przykład:
 ```
 === ESP32 NASA SEQUENTIAL DISPLAY ===
-📸 Total NASA images: 401
+📸 Total NASA images: 1359
 🔄 Advancing to image 1
-=== Image 1/401 ===
+=== Image 1/1359 ===
 URL: https://roccoss39.github.io/nasa.github.io-/...
 Filename: nasa_2024-01-01_NGC_1232_spiral_galaxy.jpg
 📱 Connecting to WiFi: TWOJA_SIEC
@@ -253,7 +251,7 @@ const char* WIFI_PASSWORD = "poprawne_haslo";
 
 ### v1.0 (2024-11-04):
 - ✅ Implementacja podstawowego wyświetlania
-- ✅ 401 obrazków NASA z GitHub Pages
+- ✅ 1359 obrazków NASA z GitHub Pages
 - ✅ Automatyczna rotacja co 10 sekund
 - ✅ WiFi auto-reconnect
 - ✅ Serial monitoring

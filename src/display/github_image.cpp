@@ -6,15 +6,24 @@
 // --- ZMIENNE GLOBALNE ---
 CurrentImageData currentImage;
 
-// --- INCLUDE ULTIMATE NASA COLLECTION (401 obrazków) ---
+// --- INCLUDE ULTIMATE NASA COLLECTION (1359 obrazków) ---
 #include "photo_display/esp32_nasa_ultimate.h"
 
 // --- RANDOM CONFIG: wszystkie obrazki ---
 const unsigned long IMAGE_CHANGE_INTERVAL = 3000;  // 3 sekundy
 
-// Callback dla TJpg_Decoder (z photo_display)
+// Callback dla TJpg_Decoder (z photo_display) - Z DEBUG
 bool tft_output_nasa(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) {
   extern TFT_eSPI tft;
+  
+  static int callbackCount = 0;
+  callbackCount++;
+  
+  // Debug pierwszych 5 wywołań
+  if (callbackCount <= 5) {
+    Serial.printf("🎨 NASA Callback #%d: x=%d, y=%d, w=%d, h=%d\n", callbackCount, x, y, w, h);
+  }
+  
   if (y >= 240) return 0;
   tft.pushImage(x, y, w, h, bitmap);
   return 1;
@@ -43,8 +52,8 @@ bool getRandomNASAImage() {
     return false;
   }
   
-  // LOSOWY WYBÓR ze wszystkich 401 obrazków
-  currentImage.imageNumber = random(0, num_nasa_images); // 0-400 (losowy)
+  // LOSOWY WYBÓR ze wszystkich 1359 obrazków
+  currentImage.imageNumber = random(0, num_nasa_images); // 0-1358 (losowy)
   
   currentImage.url = String(nasa_ultimate_collection[currentImage.imageNumber].url);
   currentImage.title = String(nasa_ultimate_collection[currentImage.imageNumber].title);
@@ -106,6 +115,7 @@ void displayGitHubImage(TFT_eSPI& tft) {
       
       if (!retrySuccess) {
         Serial.println("❌ Wszystkie RETRY nieudane - pokazuję fallback");
+      }
       
       // Pokaż błąd
       tft.fillScreen(COLOR_BACKGROUND);
