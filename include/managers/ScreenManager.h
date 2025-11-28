@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 
+#define TEST_MODE 1
 // ScreenType enum definition - musi być tutaj dla ScreenManager
 enum ScreenType {
   SCREEN_CURRENT_WEATHER = 0,
@@ -30,7 +31,7 @@ private:
     // --- PRIVATE STATE ---
     ScreenType currentScreen = SCREEN_CURRENT_WEATHER;
     unsigned long lastScreenSwitch = 0;
-    static const unsigned long SCREEN_SWITCH_INTERVAL = 10000; // 10 sekund
+    static const unsigned long SCREEN_SWITCH_INTERVAL = 3000; // 10 sekund
 
 public:
     // --- CONSTRUCTOR ---
@@ -122,6 +123,9 @@ public:
         resetCacheForScreen(currentScreen);
         
         // Renderuj odpowiedni ekran
+        if (TEST_MODE == 1)
+        currentScreen == SCREEN_IMAGE;
+
         switch(currentScreen) {
             case SCREEN_CURRENT_WEATHER:
                 renderWeatherScreen(tft);

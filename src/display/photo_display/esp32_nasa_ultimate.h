@@ -1380,6 +1380,6 @@ const int NASA_TOTAL_IMAGES = 1359;
 // Perfect for ESP32 TFT displays
 
 // Usage in ESP32:
-// int index = random(num_nasa_actual_images);
-// const char* url = nasa_actual_collection[index].url;
-// const char* title = nasa_actual_collection[index].title;
+// int index = random(num_nasa_images);
+// const char* url = nasa_ultimate_collection[index].url;
+// const char* title = nasa_ultimate_collection[index].title;

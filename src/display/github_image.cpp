@@ -3,6 +3,8 @@
 #include <TJpg_Decoder.h>
 #include <HTTPClient.h>
 
+#define TEST_IMG 1
+
 // --- ZMIENNE GLOBALNE ---
 CurrentImageData currentImage;
 
@@ -55,7 +57,11 @@ bool getRandomNASAImage() {
   // LOSOWY WYBÓR ze wszystkich 1359 obrazków
   currentImage.imageNumber = random(0, num_nasa_images); // 0-1358 (losowy)
   
+  if (TEST_IMG == 1)
+  currentImage.url = "https://roccoss39.github.io/nasa.github.io-/nasa-images/Colorful_Airglow_Bands_Surround_Milky_Way.jpg";
+  else
   currentImage.url = String(nasa_ultimate_collection[currentImage.imageNumber].url);
+  
   currentImage.title = String(nasa_ultimate_collection[currentImage.imageNumber].title);
   currentImage.date = String(nasa_ultimate_collection[currentImage.imageNumber].filename); // filename as date
   currentImage.lastUpdate = millis();
