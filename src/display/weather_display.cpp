@@ -305,9 +305,15 @@ void displayWeather(TFT_eSPI& tft) {
   if (forecast.isValid && forecast.count > 0) {
     precipChance = forecast.items[0].precipitationChance; // Najbliższa prognoza
   }
+// Użyj operatora trójargumentowego dla koloru
+uint16_t precipColor = (precipChance == 0) ? TFT_WHITE : TFT_BLUE;
+
+// Użyj operatora trójargumentowego dla etykiety (zachowując Twoją logikę oszczędzania miejsca)
+String precipLabel = (precipChance == 100) ? "Op.:" : "Opad:";
+
+// Zbuduj string końcowy
+String precipStr = precipLabel + String(precipChance) + "%";
   
-  String precipStr = "Opad:" + String(precipChance) + "%";
-  uint16_t precipColor = TFT_BLUE; // Zawsze niebieski
   
   tft.setTextColor(precipColor, COLOR_BACKGROUND);
   tft.drawString(precipStr, x + HUMIDITY_X_OFFSET + 160, y + HUMIDITY_Y_OFFSET);

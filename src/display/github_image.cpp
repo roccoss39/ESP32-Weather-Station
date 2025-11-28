@@ -87,7 +87,25 @@ void displayGitHubImage(TFT_eSPI& tft) {
       lastImageChange = millis();
       firstRun = false;
     } else {
-      Serial.println("❌ Nie udało się wyświetlić NASA obrazka");
+      Serial.println("❌ Nie udało się wyświetlić NASA obrazka - próbuję inny...");
+      
+      // RETRY: Spróbuj 2 razy z różnymi obrazkami
+      bool retrySuccess = false;
+      for (int retry = 0; retry < 2 && !retrySuccess; retry++) {
+        int retryImage = random(0, min(50, num_nasa_images)); // Pierwsze 50 obrazków (najbardziej stabilne)
+        Serial.println("🔄 RETRY " + String(retry + 1) + "/2: NASA #" + String(retryImage + 1));
+        
+        if (downloadAndDisplayImage(tft, retryImage)) {
+          Serial.println("✅ RETRY sukces!");
+          currentImage.imageNumber = retryImage;
+          lastImageChange = millis();
+          firstRun = false;
+          retrySuccess = true;
+        }
+      }
+      
+      if (!retrySuccess) {
+        Serial.println("❌ Wszystkie RETRY nieudane - pokazuję fallback");
       
       // Pokaż błąd
       tft.fillScreen(COLOR_BACKGROUND);
@@ -169,6 +187,19 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
   TJpgDec.setSwapBytes(true);  // Fix purple/violet colors
   TJpgDec.setCallback(tft_output_nasa);
   
+  // DODAJ DEBUGOWANIE PRZED DEKODOWANIEM
+  Serial.printf("📊 Buffer info: %d bytes, first 4 bytes: %02X %02X %02X %02X\n", 
+                contentLength, buffer[0], buffer[1], buffer[2], buffer[3]);
+  
+  // Sprawdź czy to prawdziwy JPEG (powinien zaczynać się od FF D8)
+  if (contentLength < 4 || buffer[0] != 0xFF || buffer[1] != 0xD8) {
+    Serial.println("❌ BŁĄD: To nie jest poprawny JPEG!");
+    Serial.printf("Expected FF D8, got %02X %02X\n", buffer[0], buffer[1]);
+    free(buffer);
+    http.end();
+    return false;
+  }
+  
   int result = TJpgDec.drawJpg(0, 0, buffer, contentLength);
   
   if (result == 0) {
@@ -194,7 +225,34 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
     http.end();
     return true;
   } else {
-    Serial.println("✗ JPEG decode error: " + String(result));
+    // LEPSZE DEBUGOWANIE BŁĘDÓW JPEG
+    String errorMsg;
+    switch(result) {
+      case 1: errorMsg = "Interrupted by output function"; break;
+      case 2: errorMsg = "Device error or wrong termination"; break;
+      case 3: errorMsg = "Insufficient memory pool"; break;
+      case 4: errorMsg = "Insufficient stream input buffer"; break;
+      case 5: errorMsg = "Parameter error"; break;
+      case 6: errorMsg = "Data format error (not JPEG file)"; break;
+      case 7: errorMsg = "Right format but not supported"; break;
+      case 8: errorMsg = "Not supported JPEG standard"; break;
+      default: errorMsg = "Unknown error"; break;
+    }
+    
+    Serial.println("✗ JPEG decode error: " + String(result) + " - " + errorMsg);
+    Serial.println("📄 URL: " + String(selectedImage.url));
+    Serial.println("📦 Content-Length: " + String(contentLength));
+    
+    // FALLBACK: Pokaż error screen z detalami
+    tft.fillScreen(TFT_RED);
+    tft.setTextColor(TFT_WHITE, TFT_RED);
+    tft.setTextSize(1);
+    tft.setTextDatum(TL_DATUM);
+    tft.drawString("JPEG ERROR " + String(result), 10, 10);
+    tft.drawString(errorMsg, 10, 30);
+    tft.drawString("Size: " + String(contentLength) + " bytes", 10, 50);
+    tft.drawString("NASA #" + String(imageIndex + 1), 10, 70);
+    
     free(buffer);
     http.end();
     return false;
