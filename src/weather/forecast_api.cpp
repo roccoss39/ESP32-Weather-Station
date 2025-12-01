@@ -21,8 +21,14 @@ bool getForecast() {
   HTTPClient http;
   
   // Używaj LocationManager dla dynamicznej lokalizacji z coordinates
+  WeatherLocation currentLoc = locationManager.getCurrentLocation();
+  Serial.printf("🔮 Forecast API - Using location: %s (%.2f, %.2f)\n", 
+                currentLoc.displayName, currentLoc.latitude, currentLoc.longitude);
+  
   String urlString = locationManager.buildForecastURL(WEATHER_API_KEY);
   const char* url = urlString.c_str();
+  
+  Serial.printf("📡 Forecast API URL: %s\n", url);
   
   Serial.println("Getting forecast...");
   

@@ -75,6 +75,10 @@ int currentLocationCategory = 0; // 0=Szczecin Districts, 1=Custom GPS
 int currentLocationIndex = 0;
 const char* locationCategories[] = {"Szczecin", "Custom GPS"};
 
+// Deferred location saving (ROZWIĄZANIE PROBLEMU ROZŁĄCZENIA WiFi)
+static bool pendingLocationSave = false;
+static WeatherLocation pendingSaveLocation;
+
 // Custom coordinates variables
 String customLatitude = "53.44";
 String customLongitude = "14.56";
@@ -87,6 +91,8 @@ void handleTouchInput(int16_t x, int16_t y);
 void handleKeyboardTouch(int16_t x, int16_t y);
 
 // Forward declarations - most moved to header file
+void scheduleLocationSave(const WeatherLocation& location);
+void executePendingLocationSave();
 
 // === INTEGRATION WRAPPER FUNCTIONS ===
 
@@ -230,6 +236,9 @@ bool isWiFiConfigActive() {
 
 void exitWiFiConfigMode() {
   currentState = STATE_CONNECTED;
+  
+  // Execute deferred location save (ROZWIĄZANIE PROBLEMU ROZŁĄCZENIA WiFi)
+  executePendingLocationSave();
 }
   // End of handleWiFiTouchLoop
 
@@ -611,6 +620,10 @@ void handleConfigModeTimeout() {
     if (elapsed >= WIFI_CONFIG_MODE_TIMEOUT) { // 120 seconds = 2 minutes
       Serial.println("Config mode timeout - returning to normal operation");
       currentState = STATE_CONNECTED;
+      
+      // Execute deferred location save before timeout exit
+      executePendingLocationSave();
+      
       // Clear screen and let main.cpp take over
       tft.fillScreen(COLOR_BACKGROUND);
     }
@@ -1094,6 +1107,10 @@ void handleTouchInput(int16_t x, int16_t y) {
     else if (y >= 200 && y <= 240 && x >= 250 && x <= 315) {
       Serial.println("EXIT CONFIG MODE - Button pressed");
       currentState = STATE_CONNECTED;
+      
+      // Execute deferred location save before manual exit
+      executePendingLocationSave();
+      
       // Clear screen and let main.cpp take over
       tft.fillScreen(COLOR_BACKGROUND);
     }
@@ -1210,6 +1227,31 @@ void handleKeyboardTouch(int16_t x, int16_t y) {
       scanNetworks();
       drawNetworkList(tft);
     }
+  }
+}
+
+// === DEFERRED LOCATION SAVING IMPLEMENTATION ===
+
+void scheduleLocationSave(const WeatherLocation& location) {
+  pendingSaveLocation = location;
+  pendingLocationSave = true;
+  Serial.printf("🔄 Location save SCHEDULED: %s (%.6f, %.6f)\n", 
+                location.displayName, location.latitude, location.longitude);
+  Serial.println("⏰ Will execute when WiFi config mode is closed");
+}
+
+void executePendingLocationSave() {
+  if (pendingLocationSave) {
+    Serial.println("🔄 Executing DEFERRED location save...");
+    delay(1000); // Give WiFi time to stabilize after config mode
+    
+    // Safe to save now - WiFi config is closed
+    locationManager.saveLocationToPreferences();
+    
+    pendingLocationSave = false;
+    Serial.printf("✅ DEFERRED location save completed: %s\n", pendingSaveLocation.displayName);
+  } else {
+    Serial.println("ℹ️ No pending location save to execute");
   }
 }
 
@@ -1384,6 +1426,7 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       
       WeatherLocation selectedLocation = cityList[currentLocationIndex];
       locationManager.setLocation(selectedLocation);
+      scheduleLocationSave(selectedLocation);
       
       Serial.printf("Location set to: %s\n", selectedLocation.displayName);
       
@@ -1392,6 +1435,22 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       tft.setTextColor(BLACK);
       tft.setCursor(145, 218);
       tft.print("SET!");
+      delay(1000);
+      
+      // SAFE WEATHER REFRESH for districts - Prevents WiFi disconnect  
+      tft.fillRect(130, 210, 60, 25, PURPLE);
+      tft.setTextColor(WHITE);
+      tft.setCursor(140, 218);
+      tft.print("SAFE");
+      
+      // SAFE: Delayed refresh instead of immediate (prevents WiFi crash)
+      extern unsigned long lastWeatherCheckGlobal;
+      extern unsigned long lastForecastCheckGlobal;
+      lastWeatherCheckGlobal = millis() - 590000;  // 10 seconds from now
+      lastForecastCheckGlobal = millis() - 1790000; // 10 seconds from now
+      
+      Serial.println("⏰ SAFE: Delayed weather refresh to prevent WiFi disconnect");
+      
       delay(1000);
       
       drawLocationScreen(tft);
@@ -1404,7 +1463,7 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
     }
     // SAVE button
     else if (x >= 260 && x <= 315) {
-      locationManager.saveLocationToPreferences();
+      // Location save will be executed when exiting WiFi config mode
       
       // Visual feedback
       tft.fillRect(260, 210, 55, 25, YELLOW);
@@ -1514,62 +1573,88 @@ void drawCoordinatesScreen(TFT_eSPI& tft) {
   tft.setCursor(265, 105);
   tft.print(editingLatitude ? "TO LON" : "TO LAT");
   
-  // Numeric keypad (simplified)
-  int keypad[12] = {1,2,3, 4,5,6, 7,8,9, 0,-1,-2}; // -1=dot, -2=minus
-  for (int i = 0; i < 12; i++) {
-    int row = i / 3;
-    int col = i % 3;
-    int x = 10 + col * 35;
-    int y = 140 + row * 30;
-    
+  // Numeric keypad (better layout)
+  // Row 1: 1 2 3
+  int row1[3] = {1, 2, 3};
+  for (int i = 0; i < 3; i++) {
+    int x = 10 + i * 35;
+    int y = 140;
     tft.fillRect(x, y, 30, 25, DARKGRAY);
     tft.setTextColor(WHITE);
-    tft.setCursor(x + 10, y + 8);
-    
-    if (keypad[i] >= 0) {
-      tft.print(keypad[i]);
-    } else if (keypad[i] == -1) {
-      tft.print(".");
-    } else if (keypad[i] == -2) {
-      tft.print("-");
-    }
+    tft.setCursor(x + 12, y + 8);
+    tft.print(row1[i]);
   }
   
-  // Clear button
-  tft.fillRect(115, 140, 50, 25, RED);
+  // Row 2: 4 5 6 0
+  int row2[4] = {4, 5, 6, 0};
+  for (int i = 0; i < 4; i++) {
+    int x = 10 + i * 35;
+    int y = 170;
+    tft.fillRect(x, y, 30, 25, DARKGRAY);
+    tft.setTextColor(WHITE);
+    tft.setCursor(x + 12, y + 8);
+    tft.print(row2[i]);
+  }
+  
+  // Row 3: 7 8 9
+  int row3[3] = {7, 8, 9};
+  for (int i = 0; i < 3; i++) {
+    int x = 10 + i * 35;
+    int y = 200;
+    tft.fillRect(x, y, 30, 25, DARKGRAY);
+    tft.setTextColor(WHITE);
+    tft.setCursor(x + 12, y + 8);
+    tft.print(row3[i]);
+  }
+  
+  // Special buttons: . and -
+  // Dot button
+  tft.fillRect(115, 200, 30, 25, DARKGRAY);
   tft.setTextColor(WHITE);
-  tft.setCursor(125, 148);
+  tft.setCursor(125, 208);
+  tft.print(".");
+  
+  // Minus button  
+  tft.fillRect(150, 200, 30, 25, DARKGRAY);
+  tft.setCursor(160, 208);
+  tft.print("-");
+  
+  // Right side control buttons (moved away from numbers)
+  // Clear button
+  tft.fillRect(220, 140, 90, 25, RED);
+  tft.setTextColor(WHITE);
+  tft.setCursor(245, 148);
   tft.print("CLEAR");
   
   // Backspace button
-  tft.fillRect(170, 140, 50, 25, ORANGE);
-  tft.setCursor(180, 148);
-  tft.print("<--");
+  tft.fillRect(220, 170, 90, 25, ORANGE);
+  tft.setCursor(240, 178);
+  tft.print("BACK<-");
   
-  // Action buttons
-  tft.fillRect(10, 260, 70, 25, GREEN);
-  tft.setCursor(25, 268);
+  // SET GPS button (main action)
+  tft.fillRect(220, 200, 90, 25, GREEN);
+  tft.setCursor(235, 208);
   tft.print("SET GPS");
   
-  tft.fillRect(90, 260, 50, 25, RED);
-  tft.setCursor(105, 268);
-  tft.print("BACK");
+  // BACK button (return to location)
+  tft.fillRect(160, 170, 55, 25, GRAY);
+  tft.setCursor(175, 178);
+  tft.print("EXIT");
   
-  tft.fillRect(150, 260, 50, 25, YELLOW);
-  tft.setCursor(165, 268);
+  // TEST button (validate coordinates)
+  tft.fillRect(160, 200, 55, 25, YELLOW);
+  tft.setCursor(175, 208);
   tft.print("TEST");
   
-  // Example coordinates help
+  // Help text (bottom)
   tft.setTextColor(GREEN);
   tft.setTextSize(1);
-  tft.setCursor(10, 290);
-  tft.print("Example: 53.44, 14.56 (Szczecin)");
-  tft.setCursor(10, 305);
-  tft.print("Range: -90 to 90 (lat), -180 to 180 (lon)");
+  tft.setCursor(10, 230);
+  tft.print("Range: Lat ±90, Lon ±180");
 }
 
 void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
-  Serial.printf("Coordinates Touch: X=%d, Y=%d\n", x, y);
+  Serial.printf("🎯 Coordinates Touch: X=%d, Y=%d\n", x, y);
   
   // Field selection
   if (y >= 75 && y <= 95 && x >= 130 && x <= 230) {
@@ -1595,114 +1680,239 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
     return;
   }
   
-  // Numeric keypad
-  if (y >= 140 && y <= 230) {
-    int row = (y - 140) / 30;
-    int col = (x - 10) / 35;
-    
-    if (row >= 0 && row < 4 && col >= 0 && col < 3) {
-      int keyIndex = row * 3 + col;
-      if (keyIndex < 12) {
-        String& currentField = editingLatitude ? customLatitude : customLongitude;
-        
-        int keypad[12] = {1,2,3, 4,5,6, 7,8,9, 0,-1,-2};
-        int key = keypad[keyIndex];
-        
-        if (key >= 0) {
-          currentField += String(key);
-        } else if (key == -1 && currentField.indexOf('.') == -1) {
-          currentField += ".";
-        } else if (key == -2 && currentField.length() == 0) {
-          currentField += "-";
-        }
-        
-        coordinatesCursorPos = currentField.length();
-        drawCoordinatesScreen(tft);
-      }
+  // Numeric keypad - new layout
+  String& currentField = editingLatitude ? customLatitude : customLongitude;
+  
+  // Row 1: 1 2 3 (y=140-165)
+  if (y >= 140 && y <= 165) {
+    if (x >= 10 && x <= 40) {
+      currentField += "1";
+      coordinatesCursorPos = currentField.length();
+      drawCoordinatesScreen(tft);
+    } else if (x >= 45 && x <= 75) {
+      currentField += "2";
+      coordinatesCursorPos = currentField.length();
+      drawCoordinatesScreen(tft);
+    } else if (x >= 80 && x <= 110) {
+      currentField += "3";
+      coordinatesCursorPos = currentField.length();
+      drawCoordinatesScreen(tft);
     }
   }
   
-  // Clear button
-  if (y >= 140 && y <= 165 && x >= 115 && x <= 165) {
+  // Row 2: 4 5 6 0 (y=170-195)
+  else if (y >= 170 && y <= 195) {
+    if (x >= 10 && x <= 40) {
+      currentField += "4";
+    } else if (x >= 45 && x <= 75) {
+      currentField += "5";
+    } else if (x >= 80 && x <= 110) {
+      currentField += "6";
+    } else if (x >= 115 && x <= 145) {
+      currentField += "0"; // Zero on the right
+    }
+    coordinatesCursorPos = currentField.length();
+    drawCoordinatesScreen(tft);
+  }
+  
+  // Row 3: 7 8 9 . - (y=200-225)
+  else if (y >= 200 && y <= 225) {
+    if (x >= 10 && x <= 40) {
+      currentField += "7";
+      coordinatesCursorPos = currentField.length();
+      drawCoordinatesScreen(tft);
+    } else if (x >= 45 && x <= 75) {
+      currentField += "8";
+      coordinatesCursorPos = currentField.length();
+      drawCoordinatesScreen(tft);
+    } else if (x >= 80 && x <= 110) {
+      currentField += "9";
+      coordinatesCursorPos = currentField.length();
+      drawCoordinatesScreen(tft);
+    } else if (x >= 115 && x <= 145 && currentField.indexOf('.') == -1) {
+      currentField += "."; // Dot - only if not already present
+      coordinatesCursorPos = currentField.length();
+      drawCoordinatesScreen(tft);
+    } else if (x >= 150 && x <= 180 && currentField.length() == 0) {
+      currentField += "-"; // Minus - only at start
+      coordinatesCursorPos = currentField.length();
+      drawCoordinatesScreen(tft);
+    }
+  }
+  
+  // Clear button (right side)
+  if (y >= 140 && y <= 165 && x >= 220 && x <= 310) {
     String& currentField = editingLatitude ? customLatitude : customLongitude;
     currentField = "";
     coordinatesCursorPos = 0;
     drawCoordinatesScreen(tft);
+    return;
   }
   
-  // Backspace button
-  if (y >= 140 && y <= 165 && x >= 170 && x <= 220) {
+  // Backspace button (right side)
+  if (y >= 170 && y <= 195 && x >= 220 && x <= 310) {
     String& currentField = editingLatitude ? customLatitude : customLongitude;
     if (currentField.length() > 0) {
       currentField.remove(currentField.length() - 1);
       coordinatesCursorPos = currentField.length();
     }
     drawCoordinatesScreen(tft);
+    return;
   }
   
-  // Action buttons
-  if (y >= 260 && y <= 285) {
+  // EXIT button (middle right)
+  if (y >= 170 && y <= 195 && x >= 160 && x <= 215) {
+    Serial.println("🚪 EXIT button pressed in Custom GPS");
+    
+    // Visual feedback
+    tft.fillRect(160, 170, 55, 25, YELLOW);
+    tft.setTextColor(BLACK);
+    tft.setCursor(175, 178);
+    tft.print("EXITING");
+    delay(500);
+    
+    // Proper state transition
+    currentState = STATE_SELECT_LOCATION;
+    currentLocationCategory = 0;  // Reset to Szczecin districts
+    currentLocationIndex = 0;      // Reset selection
+    
+    // Clear screen and return
+    tft.fillScreen(BLACK);
+    drawLocationScreen(tft);
+    
+    Serial.println("✅ Exited to Location Selection");
+    return;
+  }
+  
+  // TEST button (middle right)  
+  if (y >= 200 && y <= 225 && x >= 160 && x <= 215) {
+    float lat = customLatitude.toFloat();
+    float lon = customLongitude.toFloat();
+    
+    // Visual feedback
+    tft.fillRect(160, 200, 55, 25, CYAN);
+    tft.setTextColor(WHITE);
+    tft.setCursor(175, 208);
+    
+    if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+      tft.print("VALID");
+    } else {
+      tft.print("ERROR");
+    }
+    delay(1000);
+    drawCoordinatesScreen(tft);
+    return;
+  }
+  
+  // SET GPS button (main action, right side)
+  if (y >= 200 && y <= 225 && x >= 220 && x <= 310) {
+    Serial.println("🟢 SET GPS BUTTON PRESSED!");
+    Serial.printf("📍 Touch area: Y=%d (200-225), X=%d (220-310)\n", y, x);
+    Serial.printf("📊 Current values: Lat='%s', Lon='%s'\n", customLatitude.c_str(), customLongitude.c_str());
+    
+    // IMMEDIATE VISUAL FEEDBACK - Button pressed effect
+    tft.fillRect(220, 200, 90, 25, YELLOW);
+    tft.setTextColor(BLACK);
+    tft.setCursor(235, 208);
+    tft.print("PRESSED");
+    delay(300);
+    
     // SET GPS button
-    if (x >= 10 && x <= 80) {
+    if (true) {
       float lat = customLatitude.toFloat();
       float lon = customLongitude.toFloat();
       
+      Serial.printf("🧮 Parsed coordinates: Lat=%.6f, Lon=%.6f\n", lat, lon);
+      
       // Validate coordinates
       if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        Serial.println("❌ COORDINATES INVALID!");
+        Serial.printf("❌ Lat=%.6f (must be ±90), Lon=%.6f (must be ±180)\n", lat, lon);
+        
         // Show error
-        tft.fillRect(10, 260, 70, 25, RED);
+        tft.fillRect(220, 200, 90, 25, RED);
         tft.setTextColor(WHITE);
-        tft.setCursor(15, 268);
+        tft.setCursor(235, 208);
         tft.print("INVALID");
         delay(1500);
         drawCoordinatesScreen(tft);
         return;
       }
       
-      // Create custom location
+      Serial.printf("✅ Coordinates VALID: Lat=%.6f, Lon=%.6f\n", lat, lon);
+      
+      // Show processing feedback
+      tft.fillRect(220, 200, 90, 25, CYAN);
+      tft.setTextColor(WHITE);
+      tft.setCursor(225, 208);
+      tft.print("CREATING");
+      delay(500);
+      
+      // Create custom location - SAFE MEMORY ALLOCATION
       WeatherLocation customLocation;
       customLocation.cityName = "Custom";
       customLocation.countryCode = "XX";
-      snprintf((char*)customLocation.displayName, sizeof(customLocation.displayName), "GPS %.2f,%.2f", lat, lon);
+      
+      // SAFE: Use static buffer instead of direct access
+      static char tempDisplayName[64];  // Safe buffer
+      snprintf(tempDisplayName, sizeof(tempDisplayName), "GPS %.2f,%.2f", lat, lon);
+      customLocation.displayName = tempDisplayName;
+      
       customLocation.latitude = lat;
       customLocation.longitude = lon;
-      strcpy((char*)customLocation.timezone, "UTC0");
+      
+      // SAFE: Use static buffer for timezone  
+      static char tempTimezone[32] = "UTC0";
+      customLocation.timezone = tempTimezone;
       
       locationManager.setLocation(customLocation);
+      scheduleLocationSave(customLocation);
       
-      // Visual feedback
-      tft.fillRect(10, 260, 70, 25, GREEN);
+      // NVRAM SAVE COMPLETELY DISABLED - Prevents WiFi corruption
+      // Location save will be executed when exiting WiFi config mode
+      Serial.println("⚠️ NVRAM save DISABLED - location change without persistence");
+      
+      // Show success feedback
+      tft.fillRect(220, 200, 90, 25, GREEN);
       tft.setTextColor(WHITE);
-      tft.setCursor(15, 268);
+      tft.setCursor(240, 208);
       tft.print("SET!");
-      delay(1500);
+      delay(800);
       
-      // Return to location screen
-      currentState = STATE_SELECT_LOCATION;
-      drawLocationScreen(tft);
-    }
-    // BACK button
-    else if (x >= 90 && x <= 140) {
-      currentState = STATE_SELECT_LOCATION;
-      drawLocationScreen(tft);
-    }
-    // TEST button
-    else if (x >= 150 && x <= 200) {
-      // Show coordinates validation
-      float lat = customLatitude.toFloat();
-      float lon = customLongitude.toFloat();
+      // SAFE WEATHER REFRESH - Prevents WiFi disconnect
+      tft.fillRect(220, 200, 90, 25, PURPLE);
+      tft.setTextColor(WHITE);
+      tft.setCursor(225, 208);
+      tft.print("SAFE");
       
-      tft.fillRect(150, 260, 50, 25, YELLOW);
+      // SAFE: Delayed refresh instead of immediate (prevents WiFi crash)
+      extern unsigned long lastWeatherCheckGlobal;
+      extern unsigned long lastForecastCheckGlobal;
+      lastWeatherCheckGlobal = millis() - 590000;  // 10 seconds from now
+      lastForecastCheckGlobal = millis() - 1790000; // 10 seconds from now
+      
+      Serial.println("⏰ SAFE: Delayed weather refresh to prevent WiFi disconnect");
+      
+      delay(800);
+      
+      // Final confirmation
+      tft.fillRect(220, 200, 90, 25, WHITE);
       tft.setTextColor(BLACK);
-      tft.setCursor(165, 268);
+      tft.setCursor(240, 208);
+      tft.print("DONE");
+      delay(500);
       
-      if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-        tft.print("VALID");
-      } else {
-        tft.print("ERROR");
-      }
-      delay(1000);
-      drawCoordinatesScreen(tft);
+      // Ensure proper state transition
+      Serial.println("🔙 Returning to Location Selection...");
+      currentState = STATE_SELECT_LOCATION;
+      currentLocationCategory = 0;  // Reset to Szczecin districts
+      currentLocationIndex = 0;      // Reset selection
+      
+      // Clear screen before drawing location screen
+      tft.fillScreen(BLACK);
+      drawLocationScreen(tft);
+      
+      Serial.println("✅ Successfully returned to Location Selection");
     }
   }
 }

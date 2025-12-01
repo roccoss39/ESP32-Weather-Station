@@ -10,7 +10,7 @@
 
 // === WIFI TOUCH INTERFACE TIMEOUTS ===
 #define WIFI_LOSS_TIMEOUT           60000   // 60s - czas po którym przejdzie do scan mode
-#define WIFI_CONFIG_MODE_TIMEOUT    120000  // 120s (2 min) - timeout config mode
+#define WIFI_CONFIG_MODE_TIMEOUT    180000  // 180s (3 min) - timeout config mode
 #define WIFI_LONG_PRESS_TIME        5000    // 5s - czas długiego naciśnięcia
 #define WIFI_RECONNECT_INTERVAL     19000   // 19s - interval między próbami reconnect
 #define WIFI_CONNECTION_TIMEOUT     10000   // 10s - timeout pojedynczej próby połączenia

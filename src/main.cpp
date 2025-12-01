@@ -49,6 +49,8 @@ TFT_eSPI tft = TFT_eSPI();
 // --- GLOBALNE FLAGI ERROR MODE ---
 bool weatherErrorModeGlobal = false;
 bool forecastErrorModeGlobal = false;
+bool isNtpSyncPending = false;       // <-- DODAJ TĘ LINIĘ
+bool isLocationSavePending = false;  // <-- DODAJ TĘ LINIĘ
 
 // --- GLOBALNE TIMERY (żeby można je resetować z setup) ---
 unsigned long lastWeatherCheckGlobal = 0;

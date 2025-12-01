@@ -5,9 +5,18 @@
 LocationManager locationManager;
 
 void LocationManager::setLocation(const WeatherLocation& location) {
+    Serial.println("🔄 LocationManager::setLocation() called");
+    Serial.printf("📍 OLD Location: %s (%.6f, %.6f)\n", 
+                  locationSet ? currentLocation.displayName : "NONE", 
+                  locationSet ? currentLocation.latitude : 0.0, 
+                  locationSet ? currentLocation.longitude : 0.0);
+    
     currentLocation = location;
     locationSet = true;
-    Serial.println("Location set to: " + String(location.displayName));
+    
+    Serial.printf("📍 NEW Location: %s (%.6f, %.6f)\n", 
+                  location.displayName, location.latitude, location.longitude);
+    Serial.println("✅ Location successfully changed!");
 }
 
 WeatherLocation LocationManager::getCurrentLocation() const {
@@ -24,6 +33,25 @@ void LocationManager::loadLocationFromPreferences() {
     if (prefs.isKey("city")) {
         String savedCity = prefs.getString("city", "Warsaw");
         String savedCountry = prefs.getString("country", "PL");
+        
+        // LOAD CUSTOM COORDINATES if available
+        if (prefs.isKey("latitude") && prefs.isKey("longitude")) {
+            Serial.println("📍 Loading saved CUSTOM coordinates...");
+            
+            WeatherLocation customSaved;
+            customSaved.cityName = savedCity.c_str();
+            customSaved.countryCode = savedCountry.c_str(); 
+            customSaved.latitude = prefs.getFloat("latitude", 53.44);
+            customSaved.longitude = prefs.getFloat("longitude", 14.56);
+            customSaved.displayName = prefs.getString("displayName", "Custom GPS").c_str();
+            customSaved.timezone = "UTC0";
+            
+            setLocation(customSaved);
+            Serial.printf("✅ Custom coordinates loaded: %s (%.6f, %.6f)\n",
+                         customSaved.displayName, customSaved.latitude, customSaved.longitude);
+            prefs.end();
+            return;
+        }
         
         Serial.println("Loading saved location: " + savedCity + ", " + savedCountry);
         
@@ -94,8 +122,14 @@ void LocationManager::saveLocationToPreferences() {
     prefs.putString("city", currentLocation.cityName);
     prefs.putString("country", currentLocation.countryCode);
     
+    // SAVE COORDINATES for custom locations
+    prefs.putFloat("latitude", currentLocation.latitude);
+    prefs.putFloat("longitude", currentLocation.longitude);
+    prefs.putString("displayName", currentLocation.displayName);
+    
     prefs.end();
-    Serial.println("Location saved: " + String(currentLocation.displayName));
+    Serial.printf("💾 Location saved: %s (%.6f, %.6f)\n", 
+                  currentLocation.displayName, currentLocation.latitude, currentLocation.longitude);
 }
 
 String LocationManager::buildWeatherURL(const char* apiKey) const {
