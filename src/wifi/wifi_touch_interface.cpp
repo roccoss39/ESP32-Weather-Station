@@ -66,6 +66,9 @@ String networkNames[20];
 int networkRSSI[20];
 bool networkSecure[20];
 
+// Password visibility toggle
+bool showPassword = false;
+
 // Touch functions
 // Old touch function declarations removed - using tft.getTouch() instead
 void handleTouchInput(int16_t x, int16_t y);
@@ -345,12 +348,27 @@ void drawPasswordScreen() {
   tft.fillRect(11, 51, 218, 23, BLACK);
   tft.setCursor(15, 58);
   
-  // Show password with asterisks
+  // Show password with asterisks OR plain text based on toggle
   String displayPassword = "";
-  for (int i = 0; i < enteredPassword.length(); i++) {
-    displayPassword += "*";
+  if (showPassword) {
+    displayPassword = enteredPassword; // Show actual password
+  } else {
+    for (int i = 0; i < enteredPassword.length(); i++) {
+      displayPassword += "*"; // Show asterisks
+    }
   }
   tft.print(displayPassword);
+  
+  // Show/Hide password toggle button
+  tft.fillRect(240, 50, 75, 25, showPassword ? GREEN : GRAY);
+  tft.setTextColor(WHITE);
+  tft.setTextSize(1);
+  tft.setCursor(250, 58);
+  if (showPassword) {
+    tft.print("HIDE");
+  } else {
+    tft.print("SHOW");
+  }
   
   drawKeyboard();
 }
@@ -1048,6 +1066,22 @@ void handleKeyboardTouch(int16_t x, int16_t y) {
   int keyWidth = 25;
   int keyHeight = 28;
   int startY = 85;
+  
+  // Check SHOW/HIDE password button
+  if (y >= 50 && y <= 75 && x >= 240 && x <= 315) {
+    showPassword = !showPassword;
+    Serial.printf("Password visibility toggled: %s\n", showPassword ? "SHOW" : "HIDE");
+    
+    // Visual feedback
+    tft.fillRect(240, 50, 75, 25, YELLOW);
+    tft.setTextColor(BLACK);
+    tft.setCursor(255, 58);
+    tft.print("TOGGLE");
+    delay(200);
+    
+    drawPasswordScreen();
+    return;
+  }
   
   // Check main keyboard area
   if (y >= startY && y <= startY + 4 * (keyHeight + 1)) {

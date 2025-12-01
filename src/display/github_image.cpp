@@ -4,7 +4,7 @@
 #include <HTTPClient.h>
 #include "SPIFFS.h"
 
-#define TEST_IMG 1
+#define TEST_IMG 0
 
 // --- ZMIENNE GLOBALNE ---
 CurrentImageData currentImage;

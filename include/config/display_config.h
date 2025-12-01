@@ -3,6 +3,15 @@
 
 #include <TFT_eSPI.h>
 
+// Helper function to fix -0.0 temperature display
+inline String formatTemperature(float temp, int decimals = 1) {
+  // Fix floating point -0.0 issue
+  if (temp > -0.05 && temp < 0.05) {
+    temp = 0.0; // Force exactly 0.0 for values close to zero
+  }
+  return String(temp, decimals);
+}
+
 // --- KOLORY ---
 #define COLOR_BACKGROUND    TFT_BLACK
 #define COLOR_TEMPERATURE   TFT_ORANGE

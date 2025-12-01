@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 
-#define TEST_MODE 1
+#define TEST_MODE 0
 // ScreenType enum definition - musi być tutaj dla ScreenManager
 enum ScreenType {
   SCREEN_CURRENT_WEATHER = 0,
@@ -12,26 +12,12 @@ enum ScreenType {
   SCREEN_IMAGE = 2
 };
 
-/**
- * 📱 ScreenManager - Smart screen rotation + cache coordination
- * 
- * Zastępuje 3 extern variables + screen logic lepszą enkapsulacją:
- * - ScreenType currentScreen
- * - unsigned long lastScreenSwitch
- * - const unsigned long SCREEN_SWITCH_INTERVAL
- * 
- * Plus zarządza całą logiką ekranów:
- * - Screen rotation (weather → forecast → image → repeat)
- * - Timing control (10 second intervals)
- * - Cache coordination (resets WeatherCache + TimeDisplayCache)
- * - Display rendering coordination
- */
 class ScreenManager {
 private:
     // --- PRIVATE STATE ---
     ScreenType currentScreen = SCREEN_CURRENT_WEATHER;
     unsigned long lastScreenSwitch = 0;
-    static const unsigned long SCREEN_SWITCH_INTERVAL = 3000; // 10 sekund
+    static const unsigned long SCREEN_SWITCH_INTERVAL = 10000; // 10 sekund
 
 public:
     // --- CONSTRUCTOR ---

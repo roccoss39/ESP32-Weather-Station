@@ -4,6 +4,8 @@
 #include "weather/forecast_data.h"
 #include "weather/weather_data.h"
 
+// formatTemperature moved to display_config.h
+
 void displayForecast(TFT_eSPI& tft) {
   if (!forecast.isValid || forecast.count == 0) {
     // Brak danych prognozy - wyświetl komunikat
@@ -77,10 +79,10 @@ void drawTemperatureGraph(TFT_eSPI& tft, int x, int y, int width, int height) {
     String tempStr;
     if (forecast.items[i].temperature <= -5.0) {
       // Bez 'C dla bardzo niskich temperatur
-      tempStr = String(forecast.items[i].temperature, 0);
+      tempStr = formatTemperature(forecast.items[i].temperature, 0);
     } else {
       // Normalny format z 'C
-      tempStr = String(forecast.items[i].temperature, 0) + "'C";
+      tempStr = formatTemperature(forecast.items[i].temperature, 0) + "'C";
     }
     
     tft.drawString(tempStr, pointX[i], pointY[i] - 15);
@@ -154,11 +156,11 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
   // Sprawdź czy temperatura jest bardzo niska (≤ -5°C)
   if (minTemp <= -5.0 || maxTemp <= -5.0) {
     // Bez 'C dla bardzo niskich temperatur (oszczędność miejsca)
-    tempValues = String(minTemp, 0) + "/" + String(maxTemp, 0);
+    tempValues = formatTemperature(minTemp, 0) + "/" + formatTemperature(maxTemp, 0);
     Serial.println("Uzywam skroconego formatu temperatury dla niskich wartosci: " + tempValues);
   } else {
     // Normalny format z 'C
-    tempValues = String(minTemp, 0) + "'C/" + String(maxTemp, 0) + "'C";
+    tempValues = formatTemperature(minTemp, 0) + "'C/" + formatTemperature(maxTemp, 0) + "'C";
   }
   
   tft.drawString(tempValues, 45, y - 10);

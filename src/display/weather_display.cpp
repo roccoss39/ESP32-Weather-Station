@@ -72,6 +72,8 @@ uint16_t getHumidityColor(float humidity) {
   }
 }
 
+// formatTemperature moved to display_config.h
+
 String shortenDescription(String description) {
   // DEBUG - wypisz oryginalny opis w Serial
   Serial.println("Description API: '" + description + "'");
@@ -253,10 +255,10 @@ void displayWeather(TFT_eSPI& tft) {
   // Skrócony format dla bardzo niskich temperatur (bez 'C)
   String tempStr;
   if (weather.temperature <= -5.0 || weather.feelsLike <= -5.0) {
-    tempStr = String(weather.temperature, 1) + "(" + String(weather.feelsLike, 1) + ")";  // Bez 'C
-    Serial.println("Uzywam skroconego formatu dla niskiej temperatury: " + String(weather.temperature, 1) + "°C");
+    tempStr = formatTemperature(weather.temperature, 1) + "(" + formatTemperature(weather.feelsLike, 1) + ")";  // Bez 'C
+    Serial.println("Uzywam skroconego formatu dla niskiej temperatury: " + formatTemperature(weather.temperature, 1) + "°C");
   } else {
-    tempStr = String(weather.temperature, 1) + "'C(" + String(weather.feelsLike, 1) + "'C)";  // Z 'C
+    tempStr = formatTemperature(weather.temperature, 1) + "'C(" + formatTemperature(weather.feelsLike, 1) + "'C)";  // Z 'C
   }
   
   tft.setTextSize(FONT_SIZE_LARGE);   // Zawsze duża czcionka
