@@ -77,7 +77,10 @@ public:
     ScreenType switchToNext() {
         ScreenType previousScreen = currentScreen;
         lastScreenSwitch = millis();
-        
+
+        if (TEST_MODE == 1)
+        currentScreen = SCREEN_FORECAST;
+
         switch(currentScreen) {
             case SCREEN_CURRENT_WEATHER:
                 currentScreen = SCREEN_FORECAST;
@@ -124,7 +127,7 @@ public:
         
         // Renderuj odpowiedni ekran
         if (TEST_MODE == 1)
-        currentScreen == SCREEN_IMAGE;
+        currentScreen = SCREEN_IMAGE;
 
         switch(currentScreen) {
             case SCREEN_CURRENT_WEATHER:

@@ -2,6 +2,7 @@
 #include "config/display_config.h"
 #include <TJpg_Decoder.h>
 #include <HTTPClient.h>
+#include "SPIFFS.h"
 
 #define TEST_IMG 1
 
@@ -31,6 +32,76 @@ bool tft_output_nasa(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bit
   return 1;
 }
 
+// Funkcja ładowania fallback image z SPIFFS
+bool loadFallbackImageFromSPIFFS() {
+  extern TFT_eSPI tft;
+  
+  Serial.println("🛡️ Ładuję fallback image z SPIFFS...");
+  
+  // Sprawdź czy SPIFFS jest zamountowany
+  if (!SPIFFS.begin()) {
+    Serial.println("❌ SPIFFS mount failed");
+    return false;
+  }
+  
+  // Sprawdź czy plik istnieje
+  if (!SPIFFS.exists("/fallback_error_img.jpg")) {
+    Serial.println("❌ Fallback image nie istnieje w SPIFFS");
+    return false;
+  }
+  
+  // Otwórz plik
+  File file = SPIFFS.open("/fallback_error_img.jpg", "r");
+  if (!file) {
+    Serial.println("❌ Nie można otworzyć fallback image");
+    return false;
+  }
+  
+  size_t fileSize = file.size();
+  Serial.println("📦 Fallback image size: " + String(fileSize) + " bytes");
+  
+  // Alokuj buffer
+  uint8_t* buffer = (uint8_t*)malloc(fileSize);
+  if (!buffer) {
+    Serial.println("❌ Brak pamięci dla fallback image");
+    file.close();
+    return false;
+  }
+  
+  // Czytaj plik
+  file.read(buffer, fileSize);
+  file.close();
+  
+  // Wyczyść ekran
+  tft.fillScreen(TFT_BLACK);
+  
+  // Setup TJpg_Decoder
+  TJpgDec.setJpgScale(1);
+  TJpgDec.setSwapBytes(true);
+  TJpgDec.setCallback(tft_output_nasa);
+  
+  // Dekoduj fallback image
+  int result = TJpgDec.drawJpg(0, 0, buffer, fileSize);
+  
+  if (result == 0) {
+    Serial.println("✅ Fallback image załadowany pomyślnie!");
+    
+    // Dodaj napis "FALLBACK IMAGE"
+    tft.fillRect(0, 220, 320, 20, TFT_BLACK);
+    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+    tft.setTextSize(1);
+    tft.setTextDatum(MC_DATUM);
+    tft.drawString("FALLBACK IMAGE - NASA CONNECTION ERROR", tft.width() / 2, 230);
+    
+    free(buffer);
+    return true;
+  } else {
+    Serial.println("❌ Fallback image decode error: " + String(result));
+    free(buffer);
+    return false;
+  }
+}
+
 void initNASAImageSystem() {
   Serial.println("=== INICJALIZACJA NASA ULTIMATE SYSTEM ===");
   Serial.println("Calkowita kolekcja: " + String(num_nasa_images) + " obrazków");
@@ -58,7 +129,10 @@ bool getRandomNASAImage() {
   currentImage.imageNumber = random(0, num_nasa_images); // 0-1358 (losowy)
   
   if (TEST_IMG == 1)
-  currentImage.url = "https://roccoss39.github.io/nasa.github.io-/nasa-images/Colorful_Airglow_Bands_Surround_Milky_Way.jpg";
+  {
+   Serial.println("podmieniam");
+   currentImage.url = "https://roccoss39.github.io/nasa.github.io-/nasa-images/Colorful_Airglow_Bands_Surround_Milky_Way.jpg";
+  }
   else
   currentImage.url = String(nasa_ultimate_collection[currentImage.imageNumber].url);
   
@@ -120,24 +194,36 @@ void displayGitHubImage(TFT_eSPI& tft) {
       }
       
       if (!retrySuccess) {
-        Serial.println("❌ Wszystkie RETRY nieudane - pokazuję fallback");
+        Serial.println("❌ Wszystkie RETRY nieudane - próbuję fallback image");
+        
+        // Spróbuj załadować fallback image z SPIFFS
+        if (loadFallbackImageFromSPIFFS()) {
+          Serial.println("✅ Fallback image załadowany - problem rozwiązany!");
+          firstRun = false;
+          lastImageChange = millis();
+          return; // Sukces - zakończ funkcję
+        }
+        
+        Serial.println("❌ Fallback image też nie działa - pokazuję error screen");
       }
       
-      // Pokaż błąd
+      // Jeśli wszystko zawiedzie, pokaż tekstowy error
       tft.fillScreen(COLOR_BACKGROUND);
       tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
       tft.setTextSize(2);
       tft.setTextDatum(MC_DATUM);
-      tft.drawString("BLAD POBIERANIA", tft.width() / 2, tft.height() / 2 - 20);
+      tft.drawString("CRITICAL ERROR", tft.width() / 2, tft.height() / 2 - 30);
       tft.setTextSize(1);
-      tft.drawString("NASA Connection Error", tft.width() / 2, tft.height() / 2 + 10);
-      tft.drawString("GitHub connection failed", tft.width() / 2, tft.height() / 2 + 30);
+      tft.drawString("NASA Connection Failed", tft.width() / 2, tft.height() / 2 - 10);
+      tft.drawString("Fallback Image Failed", tft.width() / 2, tft.height() / 2 + 10);
+      tft.drawString("Check SPIFFS & Internet", tft.width() / 2, tft.height() / 2 + 30);
     }
   }
 }
 
 bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
   if (imageIndex >= num_nasa_images || imageIndex < 0) return false;
+  
   
   NASAImage selectedImage = nasa_ultimate_collection[imageIndex];
   
@@ -162,6 +248,14 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
   
   // HTTP download przez HTTPClient (prostsze niż WiFiClientSecure)
   HTTPClient http;
+
+    if (TEST_IMG == 1)
+  {
+   Serial.println("podmieniam");
+   selectedImage.url = "https://roccoss39.github.io/nasa.github.io-/nasa-images/Colorful_Airglow_Bands_Surround_Milky_Way@@@@@.jpg";
+  }
+
+
   http.begin(selectedImage.url);
   int httpCode = http.GET();
   
