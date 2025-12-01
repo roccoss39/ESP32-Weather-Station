@@ -12,6 +12,7 @@
 #include "config/display_config.h"
 #include "config/secrets.h"
 #include "config/timing_config.h"
+#include "config/location_config.h"
 
 // --- DANE I API ---
 #include "weather/weather_data.h"
@@ -175,6 +176,9 @@ if (WiFi.status() == WL_CONNECTED) {
   
   // --- Inicjalizacja czujnika ruchu PIR ---
   initMotionSensor();
+  
+  // --- Inicjalizacja lokalizacji ---
+  locationManager.loadLocationFromPreferences();
   
   // --- Inicjalizacja WiFi Touch Interface ---
   initWiFiTouchInterface();

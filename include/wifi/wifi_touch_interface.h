@@ -16,7 +16,9 @@ enum WiFiState {
   STATE_CONNECTING = 2,
   STATE_CONNECTED = 3,
   STATE_FAILED = 4,
-  STATE_CONFIG_MODE = 5
+  STATE_CONFIG_MODE = 5,
+  STATE_SELECT_LOCATION = 6,
+  STATE_ENTER_COORDINATES = 7
 };
 
 // --- COLORS ---
@@ -57,6 +59,16 @@ void drawFailedScreen();
 void drawStatusMessage(TFT_eSPI& tft, String message);
 void drawKeyboard();
 void enterConfigMode();
+
+// --- LOCATION SELECTION FUNCTIONS ---
+void drawLocationScreen(TFT_eSPI& tft);
+void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft);
+void enterLocationSelectionMode(TFT_eSPI& tft);
+
+// --- CUSTOM COORDINATES FUNCTIONS ---
+void drawCoordinatesScreen(TFT_eSPI& tft);
+void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft);
+void enterCoordinatesMode(TFT_eSPI& tft);
 
 // --- TOUCH FUNCTIONS ---
 void handleTouchInput(int16_t x, int16_t y);

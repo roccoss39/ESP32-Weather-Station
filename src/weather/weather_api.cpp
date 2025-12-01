@@ -1,6 +1,7 @@
 #include "weather/weather_data.h"
 #include "config/weather_config.h"
 #include "config/secrets.h"
+#include "config/location_config.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
@@ -17,11 +18,9 @@ bool getWeather() {
 
   HTTPClient http;
   
-  // Optymalizowane URL building - bez String concatenation hell
-  char url[256];
-  snprintf(url, sizeof(url), 
-    "http://api.openweathermap.org/data/2.5/weather?q=%s,%s&appid=%s&units=metric&lang=%s",
-    WEATHER_CITY, WEATHER_COUNTRY, WEATHER_API_KEY, WEATHER_LANGUAGE);
+  // Używaj LocationManager dla dynamicznej lokalizacji z coordinates
+  String urlString = locationManager.buildWeatherURL(WEATHER_API_KEY);
+  const char* url = urlString.c_str();
   
   Serial.println("Getting weather...");
   

@@ -11,6 +11,13 @@ Phase 3: MotionSensorManager (4 extern variables → 1 class + state machine)
 Phase 4: ScreenManager       (3 extern variables → 1 class + coordination)
 ═══════════════════════════════════════════════════════════════════════
 TOTAL:   18 extern variables → 4 clean OOP manager classes ✨
+
+**🔥 LATEST 2025 UPDATE:**
+- ✅ NASA Collection: **1359 images** (up from 401) 
+- ✅ Emergency WiFi: Touch interface with show/hide password
+- ✅ Zero -0.0°C bug: Advanced floating point temperature fixes
+- ✅ Fallback system: SPIFFS error recovery with automatic retry
+- ✅ Advanced timing: Centralized timeout configuration
 ```
 
 ---

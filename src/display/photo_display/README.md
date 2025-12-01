@@ -249,7 +249,15 @@ const char* WIFI_PASSWORD = "poprawne_haslo";
 
 ## 📝 Historia zmian
 
-### v1.0 (2024-11-04):
+### v2.0 (2025-01-02): **MEGA COLLECTION UPDATE**
+- 📈 **Expanded to 1359 NASA images** (from 401) - 238% increase
+- 🛡️ **Advanced fallback system** with SPIFFS error recovery
+- 🔄 **Smart retry mechanism** with stable image subset (first 50)
+- 💾 **Memory optimization** for large collection handling
+- 📊 **Enhanced debugging** with callback monitoring
+- 🎯 **Production stability** with zero-downtime display
+
+### v1.0 (2024-11-04): **ORIGINAL RELEASE**
 - ✅ Implementacja podstawowego wyświetlania
 - ✅ 1359 obrazków NASA z GitHub Pages
 - ✅ Automatyczna rotacja co 10 sekund

@@ -3,6 +3,7 @@
 #include "managers/ScreenManager.h"
 #include "sensors/motion_sensor.h"
 #include "managers/MotionSensorManager.h" // Upewnij się, że masz ten include
+#include "config/location_config.h"
 
 // Hardware pins - moved from header
 #define TFT_BL   25  // Backlight
@@ -68,6 +69,17 @@ bool networkSecure[20];
 
 // Password visibility toggle
 bool showPassword = false;
+
+// Location selection variables
+int currentLocationCategory = 0; // 0=Szczecin Districts, 1=Custom GPS
+int currentLocationIndex = 0;
+const char* locationCategories[] = {"Szczecin", "Custom GPS"};
+
+// Custom coordinates variables
+String customLatitude = "53.44";
+String customLongitude = "14.56";
+bool editingLatitude = true; // true=lat, false=lon
+int coordinatesCursorPos = 0;
 
 // Touch functions
 // Old touch function declarations removed - using tft.getTouch() instead
@@ -211,7 +223,9 @@ bool isWiFiConfigActive() {
   return (currentState == STATE_CONFIG_MODE || 
           currentState == STATE_SCAN_NETWORKS || 
           currentState == STATE_ENTER_PASSWORD ||
-          currentState == STATE_CONNECTING);
+          currentState == STATE_CONNECTING ||
+          currentState == STATE_SELECT_LOCATION ||
+          currentState == STATE_ENTER_COORDINATES);
 }
 
 void exitWiFiConfigMode() {
@@ -644,10 +658,16 @@ void drawConfigModeScreen() {
   tft.println("(120 sec timeout)");
   
   // Draw refresh button
-  tft.fillRect(170, 200, 65, 40, BLUE);
+  tft.fillRect(10, 200, 65, 40, BLUE);
   tft.setTextColor(WHITE);
-  tft.setCursor(180, 215);
+  tft.setCursor(20, 215);
   tft.println("REFRESH");
+  
+  // Draw location button
+  tft.fillRect(85, 200, 75, 40, GREEN);
+  tft.setTextColor(WHITE);
+  tft.setCursor(95, 215);
+  tft.println("LOCATION");
   
   // Draw exit button
   tft.fillRect(250, 200, 65, 40, RED);
@@ -1005,6 +1025,14 @@ void handleTouchInput(int16_t x, int16_t y) {
     drawNetworkList(tft);
   }
   
+  else if (currentState == STATE_SELECT_LOCATION) {
+    handleLocationTouch(x, y, tft);
+  }
+  
+  else if (currentState == STATE_ENTER_COORDINATES) {
+    handleCoordinatesTouch(x, y, tft);
+  }
+  
   else if (currentState == STATE_CONFIG_MODE) {
     Serial.printf("CONFIG MODE TOUCH: X=%d, Y=%d\n", x, y);
     
@@ -1031,13 +1059,13 @@ void handleTouchInput(int16_t x, int16_t y) {
       }
     }
     // Refresh button in config mode
-    else if (y >= 200 && y <= 240 && x >= 170 && x <= 235) {
+    else if (y >= 200 && y <= 240 && x >= 10 && x <= 75) {
       Serial.println("CONFIG MODE - REFRESH BUTTON PRESSED");
       
       // Visual feedback
-      tft.fillRect(170, 200, 65, 40, GREEN);
+      tft.fillRect(10, 200, 65, 40, YELLOW);
       tft.setTextColor(WHITE);
-      tft.setCursor(180, 215);
+      tft.setCursor(20, 215);
       tft.println("SCANNING");
       delay(500);
       
@@ -1047,6 +1075,20 @@ void handleTouchInput(int16_t x, int16_t y) {
       drawConfigModeScreen();
       
       Serial.printf("CONFIG MODE - Network list refreshed - found %d networks\n", networkCount);
+    }
+    // Location selection button
+    else if (y >= 200 && y <= 240 && x >= 85 && x <= 160) {
+      Serial.println("CONFIG MODE - LOCATION BUTTON PRESSED");
+      
+      // Visual feedback
+      tft.fillRect(85, 200, 75, 40, YELLOW);
+      tft.setTextColor(WHITE);
+      tft.setCursor(95, 215);
+      tft.println("OPENING");
+      delay(500);
+      
+      // Enter location selection mode
+      enterLocationSelectionMode(tft);
     }
     // Exit config mode button (adjusted coordinates for landscape)
     else if (y >= 200 && y <= 240 && x >= 250 && x <= 315) {
@@ -1167,6 +1209,500 @@ void handleKeyboardTouch(int16_t x, int16_t y) {
       currentState = STATE_SCAN_NETWORKS;
       scanNetworks();
       drawNetworkList(tft);
+    }
+  }
+}
+
+// === LOCATION SELECTION IMPLEMENTATION ===
+
+void enterLocationSelectionMode(TFT_eSPI& tft) {
+  Serial.println("Entering LOCATION SELECTION MODE");
+  currentState = STATE_SELECT_LOCATION;
+  currentLocationCategory = 0; // Start with Poland
+  currentLocationIndex = 0;
+  drawLocationScreen(tft);
+}
+
+void drawLocationScreen(TFT_eSPI& tft) {
+  tft.fillScreen(BLACK);
+  tft.setTextColor(WHITE);
+  tft.setTextSize(2);
+  tft.setCursor(10, 5);
+  tft.println("SELECT LOCATION");
+  
+  // Category buttons
+  for (int i = 0; i < 2; i++) {
+    uint16_t color = (i == currentLocationCategory) ? CYAN : DARKGRAY;
+    tft.fillRect(10 + i * 150, 35, 140, 25, color);
+    tft.setTextColor(WHITE);
+    tft.setTextSize(1);
+    tft.setCursor(15 + i * 150, 43);
+    tft.println(locationCategories[i]);
+  }
+  
+  // Get current city list based on category
+  const WeatherLocation* cityList;
+  int cityCount;
+  
+  if (currentLocationCategory == 0) {
+    cityList = SZCZECIN_DISTRICTS;
+    cityCount = SZCZECIN_DISTRICTS_COUNT;
+  } else {
+    // Category 1 = Custom GPS - redirect to coordinates mode
+    if (currentLocationCategory == 1) {
+      enterCoordinatesMode(tft);
+      return;
+    }
+    cityList = SZCZECIN_DISTRICTS;
+    cityCount = SZCZECIN_DISTRICTS_COUNT;
+  }
+  
+  // Display current location
+  WeatherLocation currentLoc = locationManager.getCurrentLocation();
+  tft.setTextColor(YELLOW);
+  tft.setTextSize(1);
+  tft.setCursor(10, 70);
+  tft.printf("Current: %s", currentLoc.displayName);
+  
+  // City list
+  tft.setTextColor(WHITE);
+  int yPos = 90;
+  int maxCities = min(cityCount, 5); // Show max 5 cities
+  
+  for (int i = 0; i < maxCities; i++) {
+    bool isSelected = (i == currentLocationIndex);
+    bool isCurrent = (strcmp(cityList[i].cityName, currentLoc.cityName) == 0 && 
+                     strcmp(cityList[i].countryCode, currentLoc.countryCode) == 0);
+    
+    uint16_t bgColor = BLACK;
+    if (isSelected) bgColor = BLUE;
+    else if (isCurrent) bgColor = GREEN;
+    
+    tft.fillRect(10, yPos - 2, 300, 22, bgColor);
+    
+    tft.setTextColor(WHITE);
+    tft.setCursor(15, yPos + 2);
+    
+    if (isCurrent) tft.print("● ");
+    else if (isSelected) tft.print("→ ");
+    else tft.print("  ");
+    
+    tft.printf("%s", cityList[i].displayName);
+    
+    // Coordinates (rounded to 2 decimal places)
+    tft.setCursor(200, yPos + 2);
+    tft.printf("%.2f,%.2f", cityList[i].latitude, cityList[i].longitude);
+    
+    yPos += 25;
+  }
+  
+  // Navigation buttons
+  tft.fillRect(10, 210, 50, 25, DARKGRAY);
+  tft.setTextColor(WHITE);
+  tft.setCursor(25, 218);
+  tft.print("UP");
+  
+  tft.fillRect(70, 210, 50, 25, DARKGRAY);
+  tft.setCursor(80, 218);
+  tft.print("DOWN");
+  
+  // Action buttons
+  tft.fillRect(130, 210, 60, 25, GREEN);
+  tft.setCursor(145, 218);
+  tft.print("SELECT");
+  
+  tft.fillRect(200, 210, 50, 25, RED);
+  tft.setCursor(215, 218);
+  tft.print("BACK");
+  
+  tft.fillRect(260, 210, 55, 25, ORANGE);
+  tft.setCursor(270, 218);
+  tft.print("SAVE");
+  
+  // Custom coordinates button
+  tft.fillRect(10, 240, 100, 25, PURPLE);
+  tft.setCursor(25, 248);
+  tft.print("CUSTOM GPS");
+}
+
+void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
+  Serial.printf("Location Touch: X=%d, Y=%d\n", x, y);
+  
+  // Category selection
+  if (y >= 35 && y <= 60) {
+    int newCategory = (x - 10) / 150;
+    if (newCategory >= 0 && newCategory < 2 && newCategory != currentLocationCategory) {
+      currentLocationCategory = newCategory;
+      currentLocationIndex = 0; // Reset city index
+      Serial.printf("Category changed to: %s\n", locationCategories[currentLocationCategory]);
+      
+      if (newCategory == 1) {
+        // Direct jump to Custom GPS mode
+        enterCoordinatesMode(tft);
+        return;
+      }
+      
+      drawLocationScreen(tft);
+      return;
+    }
+  }
+  
+  // City selection
+  if (y >= 90 && y <= 210) {
+    int cityIndex = (y - 90) / 25;
+    int maxCities = min((int)SZCZECIN_DISTRICTS_COUNT, 5);
+    
+    if (cityIndex >= 0 && cityIndex < maxCities) {
+      currentLocationIndex = cityIndex;
+      Serial.printf("City selected: %d\n", cityIndex);
+      drawLocationScreen(tft);
+      return;
+    }
+  }
+  
+  // Navigation buttons
+  if (y >= 210 && y <= 235) {
+    // UP button
+    if (x >= 10 && x <= 60) {
+      if (currentLocationIndex > 0) {
+        currentLocationIndex--;
+        drawLocationScreen(tft);
+      }
+    }
+    // DOWN button
+    else if (x >= 70 && x <= 120) {
+      int maxCities = SZCZECIN_DISTRICTS_COUNT;
+      
+      if (currentLocationIndex < min(maxCities - 1, 4)) {
+        currentLocationIndex++;
+        drawLocationScreen(tft);
+      }
+    }
+    // SELECT button
+    else if (x >= 130 && x <= 190) {
+      const WeatherLocation* cityList = SZCZECIN_DISTRICTS;
+      
+      WeatherLocation selectedLocation = cityList[currentLocationIndex];
+      locationManager.setLocation(selectedLocation);
+      
+      Serial.printf("Location set to: %s\n", selectedLocation.displayName);
+      
+      // Visual feedback
+      tft.fillRect(130, 210, 60, 25, YELLOW);
+      tft.setTextColor(BLACK);
+      tft.setCursor(145, 218);
+      tft.print("SET!");
+      delay(1000);
+      
+      drawLocationScreen(tft);
+    }
+    // BACK button
+    else if (x >= 200 && x <= 250) {
+      Serial.println("Returning to CONFIG MODE");
+      currentState = STATE_CONFIG_MODE;
+      drawConfigModeScreen();
+    }
+    // SAVE button
+    else if (x >= 260 && x <= 315) {
+      locationManager.saveLocationToPreferences();
+      
+      // Visual feedback
+      tft.fillRect(260, 210, 55, 25, YELLOW);
+      tft.setTextColor(BLACK);
+      tft.setCursor(270, 218);
+      tft.print("SAVED");
+      delay(1000);
+      
+      // Return to config mode
+      currentState = STATE_CONFIG_MODE;
+      drawConfigModeScreen();
+    }
+  }
+  
+  // Custom GPS coordinates button
+  if (y >= 240 && y <= 265 && x >= 10 && x <= 110) {
+    Serial.println("CUSTOM GPS button pressed");
+    
+    // Visual feedback
+    tft.fillRect(10, 240, 100, 25, YELLOW);
+    tft.setTextColor(BLACK);
+    tft.setCursor(25, 248);
+    tft.print("OPENING");
+    delay(500);
+    
+    enterCoordinatesMode(tft);
+  }
+}
+
+// === CUSTOM COORDINATES IMPLEMENTATION ===
+
+void enterCoordinatesMode(TFT_eSPI& tft) {
+  Serial.println("Entering CUSTOM COORDINATES MODE");
+  currentState = STATE_ENTER_COORDINATES;
+  
+  // Initialize with current location coordinates
+  WeatherLocation currentLoc = locationManager.getCurrentLocation();
+  customLatitude = String(currentLoc.latitude, 2);
+  customLongitude = String(currentLoc.longitude, 2);
+  editingLatitude = true;
+  coordinatesCursorPos = 0;
+  
+  drawCoordinatesScreen(tft);
+}
+
+void drawCoordinatesScreen(TFT_eSPI& tft) {
+  tft.fillScreen(BLACK);
+  tft.setTextColor(WHITE);
+  tft.setTextSize(2);
+  tft.setCursor(10, 5);
+  tft.println("CUSTOM COORDINATES");
+  
+  // Instructions
+  tft.setTextColor(YELLOW);
+  tft.setTextSize(1);
+  tft.setCursor(10, 35);
+  tft.println("Enter GPS coordinates (decimal degrees):");
+  
+  // Current location for reference
+  WeatherLocation currentLoc = locationManager.getCurrentLocation();
+  tft.setTextColor(GRAY);
+  tft.setCursor(10, 50);
+  tft.printf("Current: %s (%.2f, %.2f)", currentLoc.displayName, currentLoc.latitude, currentLoc.longitude);
+  
+  // Latitude input field
+  uint16_t latColor = editingLatitude ? CYAN : WHITE;
+  tft.setTextColor(latColor);
+  tft.setTextSize(1);
+  tft.setCursor(10, 80);
+  tft.print("Latitude  (N/S): ");
+  
+  // Latitude input box
+  tft.fillRect(130, 75, 100, 20, editingLatitude ? BLUE : DARKGRAY);
+  tft.setTextColor(WHITE);
+  tft.setCursor(135, 80);
+  tft.print(customLatitude);
+  
+  // Show cursor for latitude
+  if (editingLatitude && (millis() / 500) % 2) {
+    int cursorX = 135 + coordinatesCursorPos * 6;
+    tft.drawLine(cursorX, 95, cursorX + 5, 95, WHITE);
+  }
+  
+  // Longitude input field
+  uint16_t lonColor = !editingLatitude ? CYAN : WHITE;
+  tft.setTextColor(lonColor);
+  tft.setCursor(10, 110);
+  tft.print("Longitude (E/W): ");
+  
+  // Longitude input box
+  tft.fillRect(130, 105, 100, 20, !editingLatitude ? BLUE : DARKGRAY);
+  tft.setTextColor(WHITE);
+  tft.setCursor(135, 110);
+  tft.print(customLongitude);
+  
+  // Show cursor for longitude
+  if (!editingLatitude && (millis() / 500) % 2) {
+    int cursorX = 135 + coordinatesCursorPos * 6;
+    tft.drawLine(cursorX, 125, cursorX + 5, 125, WHITE);
+  }
+  
+  // Switch field button
+  tft.fillRect(250, 80, 60, 45, PURPLE);
+  tft.setTextColor(WHITE);
+  tft.setCursor(260, 90);
+  tft.print("SWITCH");
+  tft.setCursor(265, 105);
+  tft.print(editingLatitude ? "TO LON" : "TO LAT");
+  
+  // Numeric keypad (simplified)
+  int keypad[12] = {1,2,3, 4,5,6, 7,8,9, 0,-1,-2}; // -1=dot, -2=minus
+  for (int i = 0; i < 12; i++) {
+    int row = i / 3;
+    int col = i % 3;
+    int x = 10 + col * 35;
+    int y = 140 + row * 30;
+    
+    tft.fillRect(x, y, 30, 25, DARKGRAY);
+    tft.setTextColor(WHITE);
+    tft.setCursor(x + 10, y + 8);
+    
+    if (keypad[i] >= 0) {
+      tft.print(keypad[i]);
+    } else if (keypad[i] == -1) {
+      tft.print(".");
+    } else if (keypad[i] == -2) {
+      tft.print("-");
+    }
+  }
+  
+  // Clear button
+  tft.fillRect(115, 140, 50, 25, RED);
+  tft.setTextColor(WHITE);
+  tft.setCursor(125, 148);
+  tft.print("CLEAR");
+  
+  // Backspace button
+  tft.fillRect(170, 140, 50, 25, ORANGE);
+  tft.setCursor(180, 148);
+  tft.print("<--");
+  
+  // Action buttons
+  tft.fillRect(10, 260, 70, 25, GREEN);
+  tft.setCursor(25, 268);
+  tft.print("SET GPS");
+  
+  tft.fillRect(90, 260, 50, 25, RED);
+  tft.setCursor(105, 268);
+  tft.print("BACK");
+  
+  tft.fillRect(150, 260, 50, 25, YELLOW);
+  tft.setCursor(165, 268);
+  tft.print("TEST");
+  
+  // Example coordinates help
+  tft.setTextColor(GREEN);
+  tft.setTextSize(1);
+  tft.setCursor(10, 290);
+  tft.print("Example: 53.44, 14.56 (Szczecin)");
+  tft.setCursor(10, 305);
+  tft.print("Range: -90 to 90 (lat), -180 to 180 (lon)");
+}
+
+void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
+  Serial.printf("Coordinates Touch: X=%d, Y=%d\n", x, y);
+  
+  // Field selection
+  if (y >= 75 && y <= 95 && x >= 130 && x <= 230) {
+    editingLatitude = true;
+    coordinatesCursorPos = customLatitude.length();
+    drawCoordinatesScreen(tft);
+    return;
+  }
+  
+  if (y >= 105 && y <= 125 && x >= 130 && x <= 230) {
+    editingLatitude = false;
+    coordinatesCursorPos = customLongitude.length();
+    drawCoordinatesScreen(tft);
+    return;
+  }
+  
+  // Switch button
+  if (y >= 80 && y <= 125 && x >= 250 && x <= 310) {
+    editingLatitude = !editingLatitude;
+    String& currentField = editingLatitude ? customLatitude : customLongitude;
+    coordinatesCursorPos = currentField.length();
+    drawCoordinatesScreen(tft);
+    return;
+  }
+  
+  // Numeric keypad
+  if (y >= 140 && y <= 230) {
+    int row = (y - 140) / 30;
+    int col = (x - 10) / 35;
+    
+    if (row >= 0 && row < 4 && col >= 0 && col < 3) {
+      int keyIndex = row * 3 + col;
+      if (keyIndex < 12) {
+        String& currentField = editingLatitude ? customLatitude : customLongitude;
+        
+        int keypad[12] = {1,2,3, 4,5,6, 7,8,9, 0,-1,-2};
+        int key = keypad[keyIndex];
+        
+        if (key >= 0) {
+          currentField += String(key);
+        } else if (key == -1 && currentField.indexOf('.') == -1) {
+          currentField += ".";
+        } else if (key == -2 && currentField.length() == 0) {
+          currentField += "-";
+        }
+        
+        coordinatesCursorPos = currentField.length();
+        drawCoordinatesScreen(tft);
+      }
+    }
+  }
+  
+  // Clear button
+  if (y >= 140 && y <= 165 && x >= 115 && x <= 165) {
+    String& currentField = editingLatitude ? customLatitude : customLongitude;
+    currentField = "";
+    coordinatesCursorPos = 0;
+    drawCoordinatesScreen(tft);
+  }
+  
+  // Backspace button
+  if (y >= 140 && y <= 165 && x >= 170 && x <= 220) {
+    String& currentField = editingLatitude ? customLatitude : customLongitude;
+    if (currentField.length() > 0) {
+      currentField.remove(currentField.length() - 1);
+      coordinatesCursorPos = currentField.length();
+    }
+    drawCoordinatesScreen(tft);
+  }
+  
+  // Action buttons
+  if (y >= 260 && y <= 285) {
+    // SET GPS button
+    if (x >= 10 && x <= 80) {
+      float lat = customLatitude.toFloat();
+      float lon = customLongitude.toFloat();
+      
+      // Validate coordinates
+      if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+        // Show error
+        tft.fillRect(10, 260, 70, 25, RED);
+        tft.setTextColor(WHITE);
+        tft.setCursor(15, 268);
+        tft.print("INVALID");
+        delay(1500);
+        drawCoordinatesScreen(tft);
+        return;
+      }
+      
+      // Create custom location
+      WeatherLocation customLocation;
+      customLocation.cityName = "Custom";
+      customLocation.countryCode = "XX";
+      snprintf((char*)customLocation.displayName, sizeof(customLocation.displayName), "GPS %.2f,%.2f", lat, lon);
+      customLocation.latitude = lat;
+      customLocation.longitude = lon;
+      strcpy((char*)customLocation.timezone, "UTC0");
+      
+      locationManager.setLocation(customLocation);
+      
+      // Visual feedback
+      tft.fillRect(10, 260, 70, 25, GREEN);
+      tft.setTextColor(WHITE);
+      tft.setCursor(15, 268);
+      tft.print("SET!");
+      delay(1500);
+      
+      // Return to location screen
+      currentState = STATE_SELECT_LOCATION;
+      drawLocationScreen(tft);
+    }
+    // BACK button
+    else if (x >= 90 && x <= 140) {
+      currentState = STATE_SELECT_LOCATION;
+      drawLocationScreen(tft);
+    }
+    // TEST button
+    else if (x >= 150 && x <= 200) {
+      // Show coordinates validation
+      float lat = customLatitude.toFloat();
+      float lon = customLongitude.toFloat();
+      
+      tft.fillRect(150, 260, 50, 25, YELLOW);
+      tft.setTextColor(BLACK);
+      tft.setCursor(165, 268);
+      
+      if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+        tft.print("VALID");
+      } else {
+        tft.print("ERROR");
+      }
+      delay(1000);
+      drawCoordinatesScreen(tft);
     }
   }
 }

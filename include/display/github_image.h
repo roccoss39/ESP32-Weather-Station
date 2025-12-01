@@ -10,7 +10,7 @@ struct CurrentImageData {
   String url = "";              // URL do zdjęcia
   String title = "";            // Tytuł obrazka
   String date = "";             // Data obrazka
-  int imageNumber = 0;          // Numer zdjęcia (0-401)
+  int imageNumber = 0;          // Numer zdjęcia (0-1358)
   bool isValid = false;         // Czy dane są ważne
   unsigned long lastUpdate = 0; // Kiedy ostatnio zaktualizowano
 };

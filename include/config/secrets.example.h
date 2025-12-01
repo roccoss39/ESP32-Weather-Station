@@ -12,7 +12,7 @@ const char* WIFI_PASSWORD = "your_wifi_password";      // Hasło do WiFi
 const char* WEATHER_API_KEY = "your_openweathermap_api_key";
 
 // --- LOKALIZACJA ---
-const char* WEATHER_CITY = "Warsaw";       // Twoje miasto
+const char* WEATHER_CITY = "Szczecin";       // Twoje miasto
 const char* WEATHER_COUNTRY = "PL";        // Kod kraju (PL, US, DE, etc.)
 const char* WEATHER_LANGUAGE = "en";       // Język (en, pl, de, etc.)
 
