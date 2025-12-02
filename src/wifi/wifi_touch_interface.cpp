@@ -212,7 +212,12 @@ void handleWiFiTouchLoop(TFT_eSPI& tft) {
 bool checkWiFiLongPress(TFT_eSPI& tft) {
   // Check for long press to enter WiFi config
   handleLongPress(tft);
-  return longPressDetected;
+  
+  if (longPressDetected) {
+    longPressDetected = false; // <-- POPRAWKA: Zużyj flagę po odczytaniu
+    return true;
+  }
+  return false;
 }
 
 void enterWiFiConfigMode(TFT_eSPI& tft) {
@@ -573,10 +578,6 @@ void handleLongPress(TFT_eSPI& tft) {
       longPressDetected = true;
       Serial.println("LONG PRESS DETECTED - Entering config mode!");
       
-      // Only enter config mode from connected state
-      if (currentState == STATE_CONNECTED) {
-        enterConfigMode();
-      }
     }
     else {
       // Show progress indicator for long press
@@ -1098,6 +1099,11 @@ void handleTouchInput(int16_t x, int16_t y) {
       Serial.println("EXIT CONFIG MODE - Button pressed");
       currentState = STATE_CONNECTED;
       
+      // 2. RĘCZNIE WŁĄCZ logikę "utraty WiFi", aby wymusić ponowne połączenie
+      wifiLostDetected = true;      // Powiedz systemowi, że "straciliśmy" WiFi
+      wifiLostTime = millis();      // Rozpocznij 60-sekundowy okres łaski
+      lastReconnectAttempt = millis(); // Pozwól na natychmiastową próbę ponownego połączenia
+      wifiWasConnected = true;      // Oszukaj system, że "przed chwilą" byliśmy połączeni
       
       // Clear screen and let main.cpp take over
       tft.fillScreen(COLOR_BACKGROUND);
@@ -1408,10 +1414,11 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       // SAFE: Delayed refresh instead of immediate (prevents WiFi crash)
       extern unsigned long lastWeatherCheckGlobal;
       extern unsigned long lastForecastCheckGlobal;
-      lastWeatherCheckGlobal = millis() - 590000;  // 10 seconds from now
-      lastForecastCheckGlobal = millis() - 1790000; // 10 seconds from now
-      
-      Serial.println("⏰ SAFE: Delayed weather refresh to prevent WiFi disconnect");
+      // Ustawiamy timery tak, jakby właśnie wygasły (używając wartości z configu, np. 20000)
+      lastWeatherCheckGlobal = millis() - 20000; 
+      lastForecastCheckGlobal = millis() - 20000;
+
+      Serial.println("⏰ FORCING immediate weather refresh in main loop...");
       
       delay(150);
       
@@ -1850,10 +1857,11 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       // SAFE: Delayed refresh instead of immediate (prevents WiFi crash)
       extern unsigned long lastWeatherCheckGlobal;
       extern unsigned long lastForecastCheckGlobal;
-      lastWeatherCheckGlobal = millis() - 590000;  // 10 seconds from now
-      lastForecastCheckGlobal = millis() - 1790000; // 10 seconds from now
-      
-      Serial.println("⏰ SAFE: Delayed weather refresh to prevent WiFi disconnect");
+      // Ustawiamy timery tak, jakby właśnie wygasły
+      lastWeatherCheckGlobal = millis() - 20000; 
+      lastForecastCheckGlobal = millis() - 20000;
+
+      Serial.println("⏰ FORCING immediate weather refresh in main loop...");
       
       delay(150);
       

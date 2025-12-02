@@ -13,18 +13,18 @@ struct WeatherLocation {
     const char* timezone;
 };
 
-// Dzielnice i obszary Szczecina
+// Dzielnice i obszary Szczecina + lokalizacje testowe
 const WeatherLocation SZCZECIN_DISTRICTS[] = {
     {"Szczecin", "PL", "Centrum", 53.44, 14.56, "CET-1CEST,M3.5.0/2,M10.5.0/3"},        // Centrum miasta
-    {"Szczecin", "PL", "Stare Miasto", 53.43, 14.55, "CET-1CEST,M3.5.0/2,M10.5.0/3"},   // Stare Miasto
-    {"Szczecin", "PL", "Śródmieście", 53.42, 14.57, "CET-1CEST,M3.5.0/2,M10.5.0/3"},    // Śródmieście
+    {"Cairo", "EG", "Kair (TEST)", 30.0444, 31.2357, "EET-2EEST,M4.5.5/0,M10.5.4/24"},  // Kair, Egipt - lokalizacja testowa
+    {"Szczecin", "PL", "Srodmiescie", 53.42, 14.57, "CET-1CEST,M3.5.0/2,M10.5.0/3"},    // Srodmiescie
     {"Szczecin", "PL", "Pogodno", 53.40, 14.61, "CET-1CEST,M3.5.0/2,M10.5.0/3"},        // Pogodno
-    {"Szczecin", "PL", "Gumieńce", 53.47, 14.60, "CET-1CEST,M3.5.0/2,M10.5.0/3"},       // Gumieńce
-    {"Szczecin", "PL", "Dąbie", 53.38, 14.69, "CET-1CEST,M3.5.0/2,M10.5.0/3"},          // Dąbie
+    {"Szczecin", "PL", "Gumience", 53.47, 14.60, "CET-1CEST,M3.5.0/2,M10.5.0/3"},       // Gumience
+    {"Szczecin", "PL", "Dabie", 53.38, 14.69, "CET-1CEST,M3.5.0/2,M10.5.0/3"},          // Dabie
     {"Szczecin", "PL", "Niebuszewo", 53.48, 14.52, "CET-1CEST,M3.5.0/2,M10.5.0/3"},     // Niebuszewo
-    {"Szczecin", "PL", "Prawobrzeże", 53.46, 14.64, "CET-1CEST,M3.5.0/2,M10.5.0/3"},    // Prawobrzeże
-    {"Szczecin", "PL", "Żelechowa", 53.36, 14.60, "CET-1CEST,M3.5.0/2,M10.5.0/3"},      // Żelechowa
-    {"Szczecin", "PL", "Port/Nabrzeże", 53.41, 14.58, "CET-1CEST,M3.5.0/2,M10.5.0/3"}  // Port i nabrzeże
+    {"Szczecin", "PL", "Prawobreze", 53.46, 14.64, "CET-1CEST,M3.5.0/2,M10.5.0/3"},     // Prawobreze
+    {"Szczecin", "PL", "Zelechowa", 53.36, 14.60, "CET-1CEST,M3.5.0/2,M10.5.0/3"},      // Zelechowa
+    {"Szczecin", "PL", "Port/Nabreze", 53.41, 14.58, "CET-1CEST,M3.5.0/2,M10.5.0/3"}   // Port i nabreze
 };
 
 // Placeholder dla zachowania kompatybilności
