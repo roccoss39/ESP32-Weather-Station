@@ -7,6 +7,8 @@
 
 extern bool isNtpSyncPending;
 extern bool isLocationSavePending;
+extern bool weatherErrorModeGlobal;  // <-- DODAJ TĘ LINIĘ
+extern bool forecastErrorModeGlobal; // <-- DODAJ TĘ LINIĘ
 
 // Hardware pins - moved from header
 #define TFT_BL   25  // Backlight
@@ -1414,6 +1416,11 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       // SAFE: Delayed refresh instead of immediate (prevents WiFi crash)
       extern unsigned long lastWeatherCheckGlobal;
       extern unsigned long lastForecastCheckGlobal;
+      
+      // (1) Włącz tryb błędu, aby wymusić szybki interwał (20s)
+      weatherErrorModeGlobal = true; 
+      forecastErrorModeGlobal = true;
+
       // Ustawiamy timery tak, jakby właśnie wygasły (używając wartości z configu, np. 20000)
       lastWeatherCheckGlobal = millis() - 20000; 
       lastForecastCheckGlobal = millis() - 20000;
