@@ -32,7 +32,7 @@ enum WiFiState {
 #define CYAN    0x07FF
 
 // --- TOUCH CALIBRATION PINS ---
-#define TOUCH_CS   21
+// TOUCH_CS defined in platformio.ini as build flag
 #define T_IRQ  -1  // Not used
 
 // --- MAIN FUNCTIONS ---

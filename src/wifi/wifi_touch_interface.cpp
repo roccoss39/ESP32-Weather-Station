@@ -5,6 +5,9 @@
 #include "managers/MotionSensorManager.h" // Upewnij się, że masz ten include
 #include "config/location_config.h"
 
+extern bool isNtpSyncPending;
+extern bool isLocationSavePending;
+
 // Hardware pins - moved from header
 #define TFT_BL   25  // Backlight
 
@@ -75,9 +78,6 @@ int currentLocationCategory = 0; // 0=Szczecin Districts, 1=Custom GPS
 int currentLocationIndex = 0;
 const char* locationCategories[] = {"Szczecin", "Custom GPS"};
 
-// Deferred location saving (ROZWIĄZANIE PROBLEMU ROZŁĄCZENIA WiFi)
-static bool pendingLocationSave = false;
-static WeatherLocation pendingSaveLocation;
 
 // Custom coordinates variables
 String customLatitude = "53.44";
@@ -89,12 +89,6 @@ int coordinatesCursorPos = 0;
 // Old touch function declarations removed - using tft.getTouch() instead
 void handleTouchInput(int16_t x, int16_t y);
 void handleKeyboardTouch(int16_t x, int16_t y);
-
-// Forward declarations - most moved to header file
-void scheduleLocationSave(const WeatherLocation& location);
-void executePendingLocationSave();
-
-// === INTEGRATION WRAPPER FUNCTIONS ===
 
 void initWiFiTouchInterface() {
   Serial.println("=== Initializing WiFi Touch Interface ===");
@@ -238,7 +232,6 @@ void exitWiFiConfigMode() {
   currentState = STATE_CONNECTED;
   
   // Execute deferred location save (ROZWIĄZANIE PROBLEMU ROZŁĄCZENIA WiFi)
-  executePendingLocationSave();
 }
   // End of handleWiFiTouchLoop
 
@@ -620,9 +613,6 @@ void handleConfigModeTimeout() {
     if (elapsed >= WIFI_CONFIG_MODE_TIMEOUT) { // 120 seconds = 2 minutes
       Serial.println("Config mode timeout - returning to normal operation");
       currentState = STATE_CONNECTED;
-      
-      // Execute deferred location save before timeout exit
-      executePendingLocationSave();
       
       // Clear screen and let main.cpp take over
       tft.fillScreen(COLOR_BACKGROUND);
@@ -1108,8 +1098,6 @@ void handleTouchInput(int16_t x, int16_t y) {
       Serial.println("EXIT CONFIG MODE - Button pressed");
       currentState = STATE_CONNECTED;
       
-      // Execute deferred location save before manual exit
-      executePendingLocationSave();
       
       // Clear screen and let main.cpp take over
       tft.fillScreen(COLOR_BACKGROUND);
@@ -1227,31 +1215,6 @@ void handleKeyboardTouch(int16_t x, int16_t y) {
       scanNetworks();
       drawNetworkList(tft);
     }
-  }
-}
-
-// === DEFERRED LOCATION SAVING IMPLEMENTATION ===
-
-void scheduleLocationSave(const WeatherLocation& location) {
-  pendingSaveLocation = location;
-  pendingLocationSave = true;
-  Serial.printf("🔄 Location save SCHEDULED: %s (%.6f, %.6f)\n", 
-                location.displayName, location.latitude, location.longitude);
-  Serial.println("⏰ Will execute when WiFi config mode is closed");
-}
-
-void executePendingLocationSave() {
-  if (pendingLocationSave) {
-    Serial.println("🔄 Executing DEFERRED location save...");
-    delay(1000); // Give WiFi time to stabilize after config mode
-    
-    // Safe to save now - WiFi config is closed
-    locationManager.saveLocationToPreferences();
-    
-    pendingLocationSave = false;
-    Serial.printf("✅ DEFERRED location save completed: %s\n", pendingSaveLocation.displayName);
-  } else {
-    Serial.println("ℹ️ No pending location save to execute");
   }
 }
 
@@ -1426,8 +1389,7 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       
       WeatherLocation selectedLocation = cityList[currentLocationIndex];
       locationManager.setLocation(selectedLocation);
-      scheduleLocationSave(selectedLocation);
-      
+      isLocationSavePending = true;
       Serial.printf("Location set to: %s\n", selectedLocation.displayName);
       
       // Visual feedback
@@ -1435,7 +1397,7 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       tft.setTextColor(BLACK);
       tft.setCursor(145, 218);
       tft.print("SET!");
-      delay(1000);
+      delay(100);
       
       // SAFE WEATHER REFRESH for districts - Prevents WiFi disconnect  
       tft.fillRect(130, 210, 60, 25, PURPLE);
@@ -1451,9 +1413,9 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       
       Serial.println("⏰ SAFE: Delayed weather refresh to prevent WiFi disconnect");
       
-      delay(1000);
+      delay(150);
       
-      drawLocationScreen(tft);
+     drawLocationScreen(tft);
     }
     // BACK button
     else if (x >= 200 && x <= 250) {
@@ -1470,7 +1432,7 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       tft.setTextColor(BLACK);
       tft.setCursor(270, 218);
       tft.print("SAVED");
-      delay(1000);
+      delay(100);
       
       // Return to config mode
       currentState = STATE_CONFIG_MODE;
@@ -1487,7 +1449,7 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
     tft.setTextColor(BLACK);
     tft.setCursor(25, 248);
     tft.print("OPENING");
-    delay(500);
+    delay(100);
     
     enterCoordinatesMode(tft);
   }
@@ -1815,7 +1777,7 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
     tft.setTextColor(BLACK);
     tft.setCursor(235, 208);
     tft.print("PRESSED");
-    delay(300);
+    delay(100);
     
     // SET GPS button
     if (true) {
@@ -1846,7 +1808,7 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       tft.setTextColor(WHITE);
       tft.setCursor(225, 208);
       tft.print("CREATING");
-      delay(500);
+      delay(100);
       
       // Create custom location - SAFE MEMORY ALLOCATION
       WeatherLocation customLocation;
@@ -1866,18 +1828,18 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       customLocation.timezone = tempTimezone;
       
       locationManager.setLocation(customLocation);
-      scheduleLocationSave(customLocation);
+      isLocationSavePending = true;
       
       // NVRAM SAVE COMPLETELY DISABLED - Prevents WiFi corruption
       // Location save will be executed when exiting WiFi config mode
-      Serial.println("⚠️ NVRAM save DISABLED - location change without persistence");
+      Serial.println("⚠️ NVRAM save SCHEDULED for main loop");
       
       // Show success feedback
       tft.fillRect(220, 200, 90, 25, GREEN);
       tft.setTextColor(WHITE);
       tft.setCursor(240, 208);
       tft.print("SET!");
-      delay(800);
+      delay(100);
       
       // SAFE WEATHER REFRESH - Prevents WiFi disconnect
       tft.fillRect(220, 200, 90, 25, PURPLE);
@@ -1893,14 +1855,14 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       
       Serial.println("⏰ SAFE: Delayed weather refresh to prevent WiFi disconnect");
       
-      delay(800);
+      delay(150);
       
       // Final confirmation
       tft.fillRect(220, 200, 90, 25, WHITE);
       tft.setTextColor(BLACK);
       tft.setCursor(240, 208);
       tft.print("DONE");
-      delay(500);
+      delay(100);
       
       // Ensure proper state transition
       Serial.println("🔙 Returning to Location Selection...");

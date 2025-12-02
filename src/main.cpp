@@ -45,12 +45,11 @@ void onWiFiConnectedTasks();
 
 // --- GLOBALNE OBIEKTY ---
 TFT_eSPI tft = TFT_eSPI();
-
 // --- GLOBALNE FLAGI ERROR MODE ---
 bool weatherErrorModeGlobal = false;
 bool forecastErrorModeGlobal = false;
-bool isNtpSyncPending = false;       // <-- DODAJ TĘ LINIĘ
-bool isLocationSavePending = false;  // <-- DODAJ TĘ LINIĘ
+bool isNtpSyncPending = false;      
+bool isLocationSavePending = false; 
 
 // --- GLOBALNE TIMERY (żeby można je resetować z setup) ---
 unsigned long lastWeatherCheckGlobal = 0;
@@ -266,6 +265,32 @@ void loop() {
     handleWiFiTouchLoop(tft);
     return; // Skip normal operation during WiFi config
   }
+
+  if (isNtpSyncPending) {
+    struct tm timeinfo;
+    // Sprawdź, czy czas jest już poprawny (rok > 2023)
+    if (getLocalTime(&timeinfo, 10) && timeinfo.tm_year > (2023 - 1900)) {
+        // Sukces! Czas zsynchronizowany.
+        Serial.println("\nTime synchronized successfully! (from loop)");
+        isNtpSyncPending = false; // Wyłącz sprawdzanie
+    } else {
+        // Czas nie jest jeszcze gotowy. 
+        Serial.print("t"); // Drukuj 't' (jak time) w konsoli
+        // Pomiń resztę pętli (API i tak by padło bez czasu)
+        delay(500); // Mała pauza, aby nie zajechać CPU
+        return; // Wróć na początek loop()
+    }
+  }
+
+  if (isLocationSavePending) {
+    Serial.println("LOOP: Wykryto flagę zapisu lokalizacji. Zapisywanie do Preferences...");
+    // Wywołaj funkcję zapisu (teraz jest to bezpieczne)
+    locationManager.saveLocationToPreferences();
+    
+    isLocationSavePending = false; // Wyzeruj flagę
+    Serial.println("LOOP: Zapis lokalizacji zakończony.");
+  }
+  
   
   // --- AUTO-RECONNECT SYSTEM (z test_wifi) ---
   // Wywołaj system auto-reconnect nawet gdy WiFi config nie jest aktywny
@@ -481,32 +506,15 @@ void loop() {
 }
 
 void onWiFiConnectedTasks() {
-    Serial.println("onWiFiConnectedTasks: WiFi is connected, forcing NTP sync and data fetch...");
+    Serial.println("onWiFiConnectedTasks: WiFi connected. Triggering NON-BLOCKING NTP sync...");
 
-    // 1. ZMUŚ SYNCHRONIZACJĘ CZASU (skopiowane z setup())
-    Serial.println("Configuring time from NTP server...");
+    // 1. ROZPOCZNIJ synchronizację NTP (nie czekaj)
     configTzTime(TIMEZONE_INFO, NTP_SERVER);
-
-    Serial.print("Waiting for time synchronization...");
-    struct tm timeinfo;
-    int retry = 0;
-    const int retry_count = 15; // 15s timeout
-    while (!getLocalTime(&timeinfo, 5000) || timeinfo.tm_year < (2023 - 1900)) {
-        Serial.print(".");
-        delay(1000);
-        retry++;
-        if (retry > retry_count) {
-            Serial.println("\nFailed to synchronize time! API calls may fail.");
-            break; 
-        }
-    }
-    if (retry <= retry_count) {
-      Serial.println("\nTime synchronized successfully!");
-    }
+    isNtpSyncPending = true; // Ustaw flagę, że musimy poczekać na czas
 
     // 2. ZMUŚ PIERWSZE POBRANIE DANYCH
-    // (Ustaw flagi błędu i zresetuj timery, aby loop() pobrał dane natychmiast)
-    Serial.println("Forcing immediate API fetch in next loop...");
+    // (loop() spróbuje je pobrać, gdy tylko isNtpSyncPending będzie false)
+    Serial.println("Forcing immediate API fetch (pending NTP sync)...");
     weatherErrorModeGlobal = true;
     forecastErrorModeGlobal = true;
     lastWeatherCheckGlobal = millis() - WEATHER_FORCE_REFRESH;
