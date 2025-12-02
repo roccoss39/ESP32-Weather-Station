@@ -1099,16 +1099,21 @@ void handleTouchInput(int16_t x, int16_t y) {
     // Exit config mode button (adjusted coordinates for landscape)
     else if (y >= 200 && y <= 240 && x >= 250 && x <= 315) {
       Serial.println("EXIT CONFIG MODE - Button pressed");
-      currentState = STATE_CONNECTED;
+      currentState = STATE_CONNECTED; // (1) Wyjdź z menu
       
-      // 2. RĘCZNIE WŁĄCZ logikę "utraty WiFi", aby wymusić ponowne połączenie
-      wifiLostDetected = true;      // Powiedz systemowi, że "straciliśmy" WiFi
-      wifiLostTime = millis();      // Rozpocznij 60-sekundowy okres łaski
-      lastReconnectAttempt = millis(); // Pozwól na natychmiastową próbę ponownego połączenia
-      wifiWasConnected = true;      // Oszukaj system, że "przed chwilą" byliśmy połączeni
-      
-      // Clear screen and let main.cpp take over
+      // (2) Wyczyść ekran, aby pokazać, że coś się dzieje
       tft.fillScreen(COLOR_BACKGROUND);
+      tft.setTextColor(TFT_YELLOW, COLOR_BACKGROUND);
+      tft.setTextSize(2);
+      tft.setTextDatum(MC_DATUM);
+      tft.drawString("Ponowne laczenie...", tft.width() / 2, tft.height() / 2);
+      
+      // (3) Aktywuj logikę auto-reconnect i OMIŃ timer
+      wifiLostDetected = true;
+      wifiLostTime = millis();
+      // Ustaw timer tak, jakby właśnie minęło 19 sekund
+      lastReconnectAttempt = millis() - 19000; // <-- POPRAWKA: Wymuś natychmiastowe działanie
+      wifiWasConnected = true;
     }
     // Debug: show all touch attempts in config mode
     else {
@@ -1416,7 +1421,7 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       // SAFE: Delayed refresh instead of immediate (prevents WiFi crash)
       extern unsigned long lastWeatherCheckGlobal;
       extern unsigned long lastForecastCheckGlobal;
-      
+
       // (1) Włącz tryb błędu, aby wymusić szybki interwał (20s)
       weatherErrorModeGlobal = true; 
       forecastErrorModeGlobal = true;
