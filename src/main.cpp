@@ -6,6 +6,9 @@
 #include <esp_sleep.h>
 #include <Preferences.h>
 
+// === FLAGA BLOKADY WiFi PODCZAS POBIERANIA OBRAZKA ===
+bool isImageDownloadInProgress = false;
+
 // --- KONFIGURACJA ---
 #include "config/wifi_config.h"
 #include "config/weather_config.h"

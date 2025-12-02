@@ -760,6 +760,13 @@ void handleBackgroundReconnect() {
   }
 
   // --- CZĘŚĆ 2: Sprawdź, czy czas rozpocząć NOWĄ próbę połączenia ---
+  // === SPRAWDŹ CZY NIE TRWA POBIERANIE OBRAZKA ===
+  extern bool isImageDownloadInProgress;
+  if (isImageDownloadInProgress) {
+    Serial.println("⏸️ WiFi auto-reconnect SKIPPED - image download in progress");
+    return; // Pomiń auto-reconnect podczas pobierania
+  }
+  
   if (millis() - lastReconnectAttempt >= WIFI_RECONNECT_INTERVAL) {
     
     String savedSSID = preferences.getString("ssid", "");
@@ -882,6 +889,13 @@ void handleWiFiLoss() {
 
   // --- CZĘŚĆ 2: Sprawdź, czy czas rozpocząć NOWĄ próbę (co 19s) ---
   // (Tylko jeśli nie minęło jeszcze 60 sekund)
+  // === SPRAWDŹ CZY NIE TRWA POBIERANIE OBRAZKA ===
+  extern bool isImageDownloadInProgress;
+  if (isImageDownloadInProgress) {
+    Serial.println("⏸️ WiFi loss reconnect SKIPPED - image download in progress");
+    return; // Pomiń reconnect podczas pobierania
+  }
+  
   if (elapsed < WIFI_LOSS_TIMEOUT && millis() - lastReconnectAttempt >= 19000) {
     
     String savedSSID = preferences.getString("ssid", "");

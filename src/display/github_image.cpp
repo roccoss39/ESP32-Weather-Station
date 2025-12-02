@@ -13,7 +13,7 @@ CurrentImageData currentImage;
 #include "photo_display/esp32_nasa_ultimate.h"
 
 // --- RANDOM CONFIG: wszystkie obrazki ---
-const unsigned long IMAGE_CHANGE_INTERVAL = 3000;  // 3 sekundy
+const unsigned long IMAGE_CHANGE_INTERVAL = 10000;  // 3 sekundy
 
 // Callback dla TJpg_Decoder (z photo_display) - Z DEBUG
 bool tft_output_nasa(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) {
@@ -248,6 +248,10 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
   
   // HTTP download przez HTTPClient (prostsze niż WiFiClientSecure)
   HTTPClient http;
+  
+  // === KONFIGURACJA TIMEOUTS ===
+  http.setTimeout(10000); // 10 sekund timeout
+  http.setConnectTimeout(5000); // 5 sekund na połączenie
 
     if (TEST_IMG == 1)
   {
@@ -255,9 +259,15 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
    selectedImage.url = "https://roccoss39.github.io/nasa.github.io-/nasa-images/Colorful_Airglow_Bands_Surround_Milky_Way@@@@@.jpg";
   }
 
-
+  Serial.printf("🌐 Connecting to: %s\n", selectedImage.url);
   http.begin(selectedImage.url);
+  
+  Serial.println("🌐 Sending HTTP GET request...");
+  unsigned long startTime = millis();
   int httpCode = http.GET();
+  unsigned long requestTime = millis() - startTime;
+  
+  Serial.printf("🌐 HTTP response: %d (took %lu ms)\n", httpCode, requestTime);
   
   if (httpCode != HTTP_CODE_OK) {
     Serial.println("❌ HTTP Error: " + String(httpCode));
@@ -272,6 +282,15 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
   int contentLength = http.getSize();
   Serial.println("File size: " + String(contentLength) + " bytes");
   
+  // === SPRAWDŹ WSZYSTKIE HEADERS ===
+  String contentType = http.header("Content-Type");
+  String server = http.header("Server");
+  String lastModified = http.header("Last-Modified");
+  
+  Serial.printf("🔍 Content-Type: '%s'\n", contentType.c_str());
+  Serial.printf("🔍 Server: '%s'\n", server.c_str());
+  Serial.printf("🔍 Last-Modified: '%s'\n", lastModified.c_str());
+  
   WiFiClient* stream = http.getStreamPtr();
   if (!stream) {
     Serial.println("❌ No stream available");
@@ -279,7 +298,34 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
     return false;
   }
   
-  // Download to buffer
+  // Pobierz pierwsze 20 bajtów do sprawdzenia
+  uint8_t testBuffer[20];
+  size_t testRead = stream->readBytes(testBuffer, min(20, contentLength));
+  
+  Serial.print("🔍 First 20 bytes HEX: ");
+  for(int i = 0; i < testRead; i++) {
+    Serial.printf("%02X ", testBuffer[i]);
+  }
+  Serial.println();
+  
+  Serial.print("🔍 First 20 bytes ASCII: ");
+  for(int i = 0; i < testRead; i++) {
+    char c = testBuffer[i];
+    Serial.print((c >= 32 && c <= 126) ? c : '?');
+  }
+  Serial.println();
+  
+  // Sprawdź czy to JPEG (FF D8) w pierwszych bajtach
+  bool looksLikeJPEG = (testRead >= 2 && testBuffer[0] == 0xFF && testBuffer[1] == 0xD8);
+  Serial.printf("🔍 Looks like JPEG: %s\n", looksLikeJPEG ? "YES" : "NO");
+  
+  if (!looksLikeJPEG) {
+    Serial.println("❌ ERROR: Data doesn't look like JPEG!");
+    http.end();
+    return false;
+  }
+  
+  // Download to buffer (już mamy pierwsze 20 bajtów w testBuffer)
   uint8_t* buffer = (uint8_t*)malloc(contentLength);
   if (!buffer) {
     Serial.println("❌ Memory allocation failed");
@@ -287,7 +333,194 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
     return false;
   }
   
-  stream->readBytes(buffer, contentLength);
+  // === BLOKADA WiFi AUTO-RECONNECT PODCZAS POBIERANIA ===
+  extern bool isImageDownloadInProgress; // Flaga z main.cpp
+  isImageDownloadInProgress = true;
+  Serial.println("🔒 WiFi auto-reconnect BLOCKED during image download");
+  
+  // === SPRAWDZENIE KOMPLETNOŚCI TRANSFERU ===
+  Serial.println("🔄 Starting download...");
+  
+  // Skopiuj już przeczytane 20 bajtów na początek bufora
+  memcpy(buffer, testBuffer, testRead);
+  
+  // Pobierz resztę danych (contentLength - testRead)
+  size_t remainingBytes = contentLength - testRead;
+  size_t bytesRead = testRead; // Już mamy pierwsze 20 bajtów
+  
+  if (remainingBytes > 0) {
+    Serial.printf("🔍 About to read %d remaining bytes...\n", remainingBytes);
+    Serial.printf("🔍 Free heap before read: %d bytes\n", ESP.getFreeHeap());
+    Serial.printf("🔍 Stream available: %d bytes\n", stream->available());
+    
+    unsigned long readStartTime = millis();
+    
+    // === BEZPIECZNY readBytes() z timeout monitoring ===
+    size_t additionalRead = 0;
+    size_t chunkSize = min(remainingBytes, (size_t)1024); // Czytaj po 1KB chunks
+    
+    while (additionalRead < remainingBytes) {
+      // Sprawdź timeout
+      if (millis() - readStartTime > 8000) { // 8s timeout
+        Serial.printf("⚠️ readBytes() TIMEOUT after %lu ms\n", millis() - readStartTime);
+        break;
+      }
+      
+      // Sprawdź czy stream ma dane
+      if (stream->available() == 0) {
+        Serial.printf("⚠️ Stream empty - server stopped sending (got %d/%d bytes)\n", 
+                      additionalRead, remainingBytes);
+        delay(100); // Krótka pauza
+        if (stream->available() == 0) break; // Jeśli nadal puste, kończymy
+      }
+      
+      // Czytaj kolejny chunk
+      size_t toRead = min(chunkSize, remainingBytes - additionalRead);
+      size_t chunkRead = stream->readBytes(buffer + testRead + additionalRead, toRead);
+      additionalRead += chunkRead;
+      
+      // Debug co 2KB
+      if (additionalRead % 2048 == 0 || chunkRead == 0) {
+        Serial.printf("🔄 Chunk progress: %d/%d bytes\n", additionalRead, remainingBytes);
+        if (chunkRead == 0) break; // Jeśli chunk pusty, kończymy
+      }
+    }
+    
+    unsigned long readDuration = millis() - readStartTime;
+    
+    bytesRead += additionalRead;
+    Serial.printf("🔄 Downloaded: %d + %d = %d bytes (took %lu ms)\n", 
+                  testRead, additionalRead, bytesRead, readDuration);
+    
+    Serial.printf("🔍 Stream available after read: %d bytes\n", stream->available());
+    Serial.printf("🔍 Free heap after read: %d bytes\n", ESP.getFreeHeap());
+    
+    // Sprawdź czy stream nadal ma dane ale readBytes() przestał
+    if (additionalRead < remainingBytes && stream->available() > 0) {
+      Serial.printf("⚠️ SUSPECT: readBytes() stopped early! Stream still has %d bytes\n", 
+                    stream->available());
+    }
+  }
+  
+  // === ODBLOKOWANIE WiFi AUTO-RECONNECT ===
+  isImageDownloadInProgress = false;
+  Serial.println("🔓 WiFi auto-reconnect UNBLOCKED after download");
+  
+  Serial.printf("🔍 Transfer complete: %d/%d bytes (%.1f%%)\n", 
+                bytesRead, contentLength, (bytesRead * 100.0) / contentLength);
+  
+  if (bytesRead != contentLength) {
+    Serial.printf("❌ INCOMPLETE TRANSFER! Missing %d bytes\n", contentLength - bytesRead);
+    
+    // === RETRY MECHANISM dla niekompletnych transferów ===
+    Serial.println("🔄 Attempting transfer retry...");
+    free(buffer);
+    http.end();
+    
+    // Krótka pauza przed retry
+    delay(500);
+    
+    // Drugi próba z nowym połączeniem
+    Serial.printf("🔄 RETRY: Reconnecting to %s\n", selectedImage.url);
+    http.setTimeout(15000); // Dłuższy timeout dla retry
+    http.setConnectTimeout(8000);
+    http.begin(selectedImage.url);
+    
+    int retryCode = http.GET();
+    if (retryCode != HTTP_CODE_OK) {
+      Serial.printf("❌ RETRY failed: HTTP %d\n", retryCode);
+      http.end();
+      return false;
+    }
+    
+    int retryContentLength = http.getSize();
+    Serial.printf("🔄 RETRY: File size: %d bytes\n", retryContentLength);
+    
+    WiFiClient* retryStream = http.getStreamPtr();
+    if (!retryStream) {
+      Serial.println("❌ RETRY: No stream available");
+      http.end();
+      return false;
+    }
+    
+    // Nowy buffer dla retry
+    buffer = (uint8_t*)malloc(retryContentLength);
+    if (!buffer) {
+      Serial.println("❌ RETRY: Memory allocation failed");
+      http.end();
+      return false;
+    }
+    
+    // Pełne pobieranie w retry (bez pre-check)
+    Serial.println("🔄 RETRY: Starting full download...");
+    Serial.printf("🔍 RETRY: Free heap before read: %d bytes\n", ESP.getFreeHeap());
+    Serial.printf("🔍 RETRY: Stream available: %d bytes\n", retryStream->available());
+    
+    isImageDownloadInProgress = true;
+    
+    unsigned long retryStartTime = millis();
+    
+    // === BEZPIECZNY RETRY readBytes() z timeout monitoring ===
+    size_t retryBytesRead = 0;
+    size_t retryChunkSize = min((size_t)retryContentLength, (size_t)1024);
+    
+    while (retryBytesRead < retryContentLength) {
+      // Sprawdź timeout (dłuższy dla retry)
+      if (millis() - retryStartTime > 12000) { // 12s timeout dla retry
+        Serial.printf("⚠️ RETRY readBytes() TIMEOUT after %lu ms\n", millis() - retryStartTime);
+        break;
+      }
+      
+      // Sprawdź czy stream ma dane
+      if (retryStream->available() == 0) {
+        Serial.printf("⚠️ RETRY: Stream empty - server stopped sending (got %d/%d bytes)\n", 
+                      retryBytesRead, retryContentLength);
+        delay(100);
+        if (retryStream->available() == 0) break;
+      }
+      
+      // Czytaj kolejny chunk
+      size_t retryToRead = min(retryChunkSize, (size_t)(retryContentLength - retryBytesRead));
+      size_t retryChunkRead = retryStream->readBytes(buffer + retryBytesRead, retryToRead);
+      retryBytesRead += retryChunkRead;
+      
+      // Debug co 2KB
+      if (retryBytesRead % 2048 == 0 || retryChunkRead == 0) {
+        Serial.printf("🔄 RETRY Chunk progress: %d/%d bytes\n", retryBytesRead, retryContentLength);
+        if (retryChunkRead == 0) break;
+      }
+    }
+    
+    unsigned long retryDuration = millis() - retryStartTime;
+    
+    isImageDownloadInProgress = false;
+    
+    Serial.printf("🔍 RETRY: Read took %lu ms\n", retryDuration);
+    Serial.printf("🔍 RETRY: Stream available after read: %d bytes\n", retryStream->available());
+    Serial.printf("🔍 RETRY: Free heap after read: %d bytes\n", ESP.getFreeHeap());
+    
+    // Sprawdź czy retry też miał ten sam problem
+    if (retryBytesRead < retryContentLength && retryStream->available() > 0) {
+      Serial.printf("⚠️ RETRY SUSPECT: readBytes() stopped early! Stream still has %d bytes\n", 
+                    retryStream->available());
+    }
+    
+    Serial.printf("🔄 RETRY: Transfer complete: %d/%d bytes (%.1f%%)\n", 
+                  retryBytesRead, retryContentLength, (retryBytesRead * 100.0) / retryContentLength);
+    
+    if (retryBytesRead != retryContentLength) {
+      Serial.printf("❌ RETRY also failed! Missing %d bytes\n", retryContentLength - retryBytesRead);
+      free(buffer);
+      http.end();
+      return false;
+    }
+    
+    contentLength = retryContentLength;
+    bytesRead = retryBytesRead;
+    Serial.println("✅ RETRY successful - proceeding with image decode");
+  }
+  
+  Serial.println("✅ Full transfer completed successfully");
   
   // Clear and display image
   tft.fillScreen(TFT_BLACK);
@@ -298,8 +531,40 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
   TJpgDec.setCallback(tft_output_nasa);
   
   // DODAJ DEBUGOWANIE PRZED DEKODOWANIEM
+  // === BARDZO SZCZEGÓŁOWY DEBUG BUFORA ===
   Serial.printf("📊 Buffer info: %d bytes, first 4 bytes: %02X %02X %02X %02X\n", 
                 contentLength, buffer[0], buffer[1], buffer[2], buffer[3]);
+  
+  // Debug pierwszych 16 bajtów
+  Serial.print("🔍 First 16 bytes: ");
+  for(int i = 0; i < min(16, (int)contentLength); i++) {
+    Serial.printf("%02X ", buffer[i]);
+  }
+  Serial.println();
+  
+  // Debug ostatnich 16 bajtów
+  Serial.print("🔍 Last 16 bytes: ");
+  for(int i = max(0, (int)contentLength - 16); i < (int)contentLength; i++) {
+    Serial.printf("%02X ", buffer[i]);
+  }
+  Serial.println();
+  
+  // Sprawdź czy to faktycznie JPEG
+  bool isValidJPEG = (buffer[0] == 0xFF && buffer[1] == 0xD8);
+  bool hasValidEnd = (contentLength >= 2 && buffer[contentLength-2] == 0xFF && buffer[contentLength-1] == 0xD9);
+  Serial.printf("🔍 JPEG validation: Start=%s, End=%s\n", 
+                isValidJPEG ? "OK" : "FAIL", hasValidEnd ? "OK" : "FAIL");
+  
+  // Sprawdź wielkość vs limit
+  Serial.printf("🔍 Memory check: Buffer=%d bytes, Free heap=%d bytes\n", 
+                contentLength, ESP.getFreeHeap());
+                
+  // Sprawdź czy bufor nie jest uszkodzony
+  uint32_t checksum = 0;
+  for(size_t i = 0; i < contentLength; i++) {
+    checksum += buffer[i];
+  }
+  Serial.printf("🔍 Buffer checksum: %08X\n", checksum);
   
   // Sprawdź czy to prawdziwy JPEG (powinien zaczynać się od FF D8)
   if (contentLength < 4 || buffer[0] != 0xFF || buffer[1] != 0xD8) {
@@ -310,7 +575,16 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
     return false;
   }
   
+  // === DEBUG PRZED DEKODOWANIEM ===
+  Serial.println("🎯 Starting JPEG decode...");
+  Serial.printf("🎯 TJpgDec library ready, buffer at: 0x%08X\n", (uint32_t)buffer);
+  Serial.printf("🎯 About to call TJpgDec.drawJpg(0, 0, buffer, %d)\n", contentLength);
+  
   int result = TJpgDec.drawJpg(0, 0, buffer, contentLength);
+  
+  // === DEBUG PO DEKODOWANIU ===
+  Serial.printf("🎯 JPEG decode completed with result: %d\n", result);
+  Serial.printf("🎯 Free heap after decode: %d bytes\n", ESP.getFreeHeap());
   
   if (result == 0) {
     // Dodaj tytuł na dole - wyśrodkowany
@@ -352,6 +626,39 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
     Serial.println("✗ JPEG decode error: " + String(result) + " - " + errorMsg);
     Serial.println("📄 URL: " + String(selectedImage.url));
     Serial.println("📦 Content-Length: " + String(contentLength));
+    
+    // === DODATKOWY DEBUG PRZY BŁĘDZIE ===
+    Serial.println("🔴 DECODE FAILED - Additional debug:");
+    Serial.printf("🔴 Buffer pointer valid: %s\n", buffer ? "YES" : "NO");
+    Serial.printf("🔴 Content length > 0: %s\n", contentLength > 0 ? "YES" : "NO");
+    
+    // Sprawdź czy problem w środku pliku - szukaj JFIF/EXIF markerów
+    bool hasJFIFMarker = false;
+    bool hasEXIFMarker = false;
+    for(size_t i = 0; i < min((size_t)100, (size_t)(contentLength-4)); i++) {
+      if(buffer[i] == 'J' && buffer[i+1] == 'F' && buffer[i+2] == 'I' && buffer[i+3] == 'F') {
+        hasJFIFMarker = true;
+        Serial.printf("🔴 JFIF marker found at offset: %d\n", i);
+      }
+      if(buffer[i] == 'E' && buffer[i+1] == 'x' && buffer[i+2] == 'i' && buffer[i+3] == 'f') {
+        hasEXIFMarker = true;
+        Serial.printf("🔴 EXIF marker found at offset: %d\n", i);
+      }
+    }
+    Serial.printf("🔴 JFIF marker present: %s\n", hasJFIFMarker ? "YES" : "NO");
+    Serial.printf("🔴 EXIF marker present: %s\n", hasEXIFMarker ? "YES" : "NO");
+    
+    // Sprawdź czy są dodatkowe JPEG markery
+    int markerCount = 0;
+    for(size_t i = 0; i < contentLength-1; i++) {
+      if(buffer[i] == 0xFF && buffer[i+1] != 0x00 && buffer[i+1] != 0xFF) {
+        markerCount++;
+        if(markerCount <= 5) { // Pokaż tylko pierwsze 5
+          Serial.printf("🔴 JPEG marker at %d: FF %02X\n", i, buffer[i+1]);
+        }
+      }
+    }
+    Serial.printf("🔴 Total JPEG markers found: %d\n", markerCount);
     
     // FALLBACK: Pokaż error screen z detalami
     tft.fillScreen(TFT_RED);
