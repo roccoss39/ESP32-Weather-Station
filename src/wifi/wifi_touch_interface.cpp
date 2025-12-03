@@ -1297,15 +1297,24 @@ void drawLocationScreen(TFT_eSPI& tft) {
   tft.setCursor(10, 70);
   tft.printf("Current: %s", currentLoc.displayName);
   
-  // City list
+  // City list with scrolling
   tft.setTextColor(WHITE);
   int yPos = 90;
-  int maxCities = min(cityCount, 5); // Show max 5 cities
+  int maxVisibleCities = 5; // Show max 5 cities on screen
   
-  for (int i = 0; i < maxCities; i++) {
-    bool isSelected = (i == currentLocationIndex);
-    bool isCurrent = (strcmp(cityList[i].cityName, currentLoc.cityName) == 0 && 
-                     strcmp(cityList[i].countryCode, currentLoc.countryCode) == 0);
+  // Calculate scroll offset to keep selected item visible
+  int scrollOffset = 0;
+  if (currentLocationIndex >= maxVisibleCities) {
+    scrollOffset = currentLocationIndex - maxVisibleCities + 1;
+  }
+  
+  for (int i = 0; i < min(cityCount, maxVisibleCities); i++) {
+    int cityIndex = i + scrollOffset; // Real index in city list
+    if (cityIndex >= cityCount) break; // Safety check
+    
+    bool isSelected = (cityIndex == currentLocationIndex);
+    bool isCurrent = (strcmp(cityList[cityIndex].cityName, currentLoc.cityName) == 0 && 
+                     strcmp(cityList[cityIndex].countryCode, currentLoc.countryCode) == 0);
     
     uint16_t bgColor = BLACK;
     if (isSelected) bgColor = BLUE;
@@ -1320,11 +1329,11 @@ void drawLocationScreen(TFT_eSPI& tft) {
     else if (isSelected) tft.print("→ ");
     else tft.print("  ");
     
-    tft.printf("%s", cityList[i].displayName);
+    tft.printf("%s", cityList[cityIndex].displayName);
     
     // Coordinates (rounded to 2 decimal places)
     tft.setCursor(200, yPos + 2);
-    tft.printf("%.2f,%.2f", cityList[i].latitude, cityList[i].longitude);
+    tft.printf("%.2f,%.2f", cityList[cityIndex].latitude, cityList[cityIndex].longitude);
     
     yPos += 25;
   }
@@ -1345,8 +1354,8 @@ void drawLocationScreen(TFT_eSPI& tft) {
   tft.print("WYBIERZ");
   
   tft.fillRect(200, 210, 50, 25, RED);
-  tft.setCursor(215, 218);
-  tft.print("COFNIJ");
+  tft.setCursor(213, 218);
+  tft.print("POWROT");
   
   tft.fillRect(260, 210, 55, 25, ORANGE);
   tft.setCursor(270, 218);
@@ -1406,9 +1415,10 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
     else if (x >= 70 && x <= 120) {
       int maxCities = SZCZECIN_DISTRICTS_COUNT;
       
-      if (currentLocationIndex < min(maxCities - 1, 4)) {
+      if (currentLocationIndex < maxCities - 1) {
         currentLocationIndex++;
         drawLocationScreen(tft);
+        Serial.printf("DOWN: currentLocationIndex = %d (max: %d)\n", currentLocationIndex, maxCities - 1);
       }
     }
     // SELECT button

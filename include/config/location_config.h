@@ -13,18 +13,18 @@ struct WeatherLocation {
     const char* timezone;
 };
 
-// Dzielnice i obszary Szczecina + lokalizacje testowe
+// Dzielnice i obszary Szczecina
 const WeatherLocation SZCZECIN_DISTRICTS[] = {
-    {"Szczecin", "PL", "Centrum", 53.44, 14.56, "CET-1CEST,M3.5.0/2,M10.5.0/3"},        // Centrum miasta
-    {"Cairo", "EG", "Kair (TEST)", 30.0444, 31.2357, "EET-2EEST,M4.5.5/0,M10.5.4/24"},  // Kair, Egipt - lokalizacja testowa
-    {"Szczecin", "PL", "Srodmiescie", 53.42, 14.57, "CET-1CEST,M3.5.0/2,M10.5.0/3"},    // Srodmiescie
-    {"Szczecin", "PL", "Pogodno", 53.40, 14.61, "CET-1CEST,M3.5.0/2,M10.5.0/3"},        // Pogodno
-    {"Szczecin", "PL", "Gumience", 53.47, 14.60, "CET-1CEST,M3.5.0/2,M10.5.0/3"},       // Gumience
-    {"Szczecin", "PL", "Dabie", 53.38, 14.69, "CET-1CEST,M3.5.0/2,M10.5.0/3"},          // Dabie
-    {"Szczecin", "PL", "Niebuszewo", 53.48, 14.52, "CET-1CEST,M3.5.0/2,M10.5.0/3"},     // Niebuszewo
-    {"Szczecin", "PL", "Prawobreze", 53.46, 14.64, "CET-1CEST,M3.5.0/2,M10.5.0/3"},     // Prawobreze
-    {"Szczecin", "PL", "Zelechowa", 53.36, 14.60, "CET-1CEST,M3.5.0/2,M10.5.0/3"},      // Zelechowa
-    {"Szczecin", "PL", "Port/Nabreze", 53.41, 14.58, "CET-1CEST,M3.5.0/2,M10.5.0/3"}   // Port i nabreze
+    {"Szczecin", "PL", "Centrum", 53.44, 14.56, "CET-1CEST,M3.5.0/2,M10.5.0/3"},          // Centrum miasta
+    {"Szczecin", "PL", "Zawadzkiego", 53.459, 14.543, "CET-1CEST,M3.5.0/2,M10.5.0/3"},    // Os. Zawadzkiego
+    {"Szczecin", "PL", "Pogodno", 53.40, 14.61, "CET-1CEST,M3.5.0/2,M10.5.0/3"},          // Pogodno
+    {"Mierzyn", "PL", "Mierzyn", 53.492, 14.613, "CET-1CEST,M3.5.0/2,M10.5.0/3"},         // Mierzyn (gmina)
+    {"Plonia", "PL", "Plonia", 53.506, 14.589, "CET-1CEST,M3.5.0/2,M10.5.0/3"},           // Plonia (gmina)
+    {"Szczecin", "PL", "Gumience", 53.47, 14.60, "CET-1CEST,M3.5.0/2,M10.5.0/3"},         // Gumience
+    {"Szczecin", "PL", "Dabie", 53.38, 14.69, "CET-1CEST,M3.5.0/2,M10.5.0/3"},            // Dabie
+    {"Szczecin", "PL", "Niebuszewo", 53.48, 14.52, "CET-1CEST,M3.5.0/2,M10.5.0/3"},       // Niebuszewo
+    {"Szczecin", "PL", "Prawobreze", 53.46, 14.64, "CET-1CEST,M3.5.0/2,M10.5.0/3"},       // Prawobrze
+    {"Szczecin", "PL", "Zelechowa", 53.36, 14.60, "CET-1CEST,M3.5.0/2,M10.5.0/3"}         // Zelechowa
 };
 
 // Placeholder dla zachowania kompatybilności
