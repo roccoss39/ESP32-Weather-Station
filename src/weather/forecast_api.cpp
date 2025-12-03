@@ -156,6 +156,7 @@ bool generateWeeklyForecast() {
     float tempMax = -999;
     float windMin = 999;
     float windMax = -999;
+    bool hasData = false;  // Flaga czy dzień ma jakiekolwiek dane
     String icons[8];  // max 8 ikon na dzien
     int iconCounts[8] = {0};
     int iconIndex = 0;
@@ -197,13 +198,22 @@ bool generateWeeklyForecast() {
         precipChance = (int)(item["pop"].as<float>() * 100);
       }
       
-      // Aktualizuj min/max temp
-      if (temp < group.tempMin) group.tempMin = temp;
-      if (temp > group.tempMax) group.tempMax = temp;
-      
-      // Aktualizuj min/max wiatr
-      if (wind < group.windMin) group.windMin = wind;
-      if (wind > group.windMax) group.windMax = wind;
+      // Aktualizuj min/max temp - inicjalizuj pierwszą wartością jeśli to pierwsze dane
+      if (!group.hasData) {
+        group.tempMin = temp;  // Inicjalizuj pierwszą prawdziwą temperaturą
+        group.tempMax = temp;
+        group.windMin = wind;
+        group.windMax = wind;
+        group.hasData = true;
+        Serial.printf("🌡️ Inicjalizacja dnia %s: temp=%.1f°C, wiatr=%.0fkm/h\n", 
+                     dayNames[dayOfWeek], temp, wind);
+      } else {
+        // Normalne porównywanie min/max dla kolejnych prognoz
+        if (temp < group.tempMin) group.tempMin = temp;
+        if (temp > group.tempMax) group.tempMax = temp;
+        if (wind < group.windMin) group.windMin = wind;
+        if (wind > group.windMax) group.windMax = wind;
+      }
       
       // Zlicz ikony (znajdz dominujaca)
       bool iconFound = false;
@@ -231,18 +241,51 @@ bool generateWeeklyForecast() {
     DailyForecast& day = weeklyForecast.days[i];
     
     day.dayName = String(dayNames[group.dayOfWeek]);
-    day.tempMin = group.tempMin;
-    day.tempMax = group.tempMax;
+    
+    // Sprawdź czy dzień ma prawidłowe dane
+    if (!group.hasData || group.tempMin == 999 || group.tempMax == -999) {
+      Serial.printf("⚠️ BŁĄD: Dzień %s ma nieprawidłowe dane temp: min=%.1f, max=%.1f\n", 
+                   day.dayName.c_str(), group.tempMin, group.tempMax);
+      // Ustaw wartości domyślne/sensowne
+      day.tempMin = 0;
+      day.tempMax = 0;
+    } else {
+      day.tempMin = group.tempMin;
+      day.tempMax = group.tempMax;
+    }
     day.windMin = group.windMin;
     day.windMax = group.windMax;
     day.precipitationChance = group.itemCount > 0 ? group.precipSum / group.itemCount : 0;
     
-    // Znajdz dominujaca ikone
-    int maxCount = 0;
-    for (int j = 0; j < group.iconIndex; j++) {
-      if (group.iconCounts[j] > maxCount) {
-        maxCount = group.iconCounts[j];
-        day.icon = group.icons[j];
+    // ULEPSZONA LOGIKA: Priorytetyzuj ikony opadów przy wysokim prawdopodobieństwie
+    day.icon = "01d"; // Domyślnie słońce
+    bool precipIconFound = false;
+    
+    if (day.precipitationChance >= 40) {
+      // Przy wysokim prawdopodobieństwie opadów (≥40%) szukaj ikon opadów w kolejności priorytetów
+      String precipIcons[] = {"11", "10", "09", "13"}; // burza > deszcz > mżawka > śnieg
+      
+      for (int p = 0; p < 4 && !precipIconFound; p++) {
+        for (int j = 0; j < group.iconIndex; j++) {
+          if (group.icons[j].indexOf(precipIcons[p]) >= 0) {
+            day.icon = group.icons[j];
+            precipIconFound = true;
+            Serial.printf("🌧️ Wybrano ikonę opadów %s (prawdopodobieństwo: %d%%)\n", 
+                         day.icon.c_str(), day.precipitationChance);
+            break; // Znaleziono odpowiednią ikonę opadów
+          }
+        }
+      }
+    }
+    
+    // Jeśli brak ikon opadów lub niskie prawdopodobieństwo, użyj dominującej ikony
+    if (!precipIconFound) {
+      int maxCount = 0;
+      for (int j = 0; j < group.iconIndex; j++) {
+        if (group.iconCounts[j] > maxCount) {
+          maxCount = group.iconCounts[j];
+          day.icon = group.icons[j];
+        }
       }
     }
     

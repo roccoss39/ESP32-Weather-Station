@@ -26,13 +26,13 @@ void updateWeatherCache() {
 
 // Funkcja wybierająca kolor wiatru na podstawie prędkości
 uint16_t getWindColor(float windKmh) {
-  if (windKmh >= 25.0) {
+  if (windKmh >= 30.0) {
     Serial.println("Wind: " + String(windKmh, 1) + "km/h - EXTREME (bordowy)");
     return COLOR_WIND_EXTREME;    // 25+ km/h - bordowy (bardzo silny)
-  } else if (windKmh >= 20.0) {
+  } else if (windKmh >= 25.0) {
     Serial.println("Wind: " + String(windKmh, 1) + "km/h - STRONG (czerwony)");
     return COLOR_WIND_STRONG;     // 20-25 km/h - czerwony (silny)
-  } else if (windKmh >= 15.0) {
+  } else if (windKmh >= 20.0) {
     Serial.println("Wind: " + String(windKmh, 1) + "km/h - MODERATE (zolty)");
     return COLOR_WIND_MODERATE;   // 15-20 km/h - zolty (umiarkowany)
   } else {
@@ -60,12 +60,12 @@ uint16_t getHumidityColor(float humidity) {
   if (humidity < 30.0) {
     Serial.println("Humidity: " + String(humidity, 0) + "% - DRY (ciemny czerwony)");
     return COLOR_HUMIDITY_DRY;     // <30% - ciemny czerwony (za sucho)
-  } else if (humidity > 85.0) {
+  } else if (humidity > 90.0) {
     Serial.println("Humidity: " + String(humidity, 0) + "% - WET (brązowy)");
     return COLOR_HUMIDITY_WET;     // >85% - brązowy (bardzo wilgotno)
-  } else if (humidity > 70.0) {
+  } else if (humidity > 85.0) {
     Serial.println("Humidity: " + String(humidity, 0) + "% - HUMID (fioletowy)");
-    return COLOR_HUMIDITY_HUMID;   // 70-85% - zolty (duszno)
+    return COLOR_HUMIDITY_HUMID;   // 80-85% - zolty (duszno)
   } else {
     Serial.println("Humidity: " + String(humidity, 0) + "% - COMFORT (bialy)");
     return COLOR_HUMIDITY_COMFORT; // 30-70% - bialy (komfort)

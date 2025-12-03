@@ -88,62 +88,35 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     tft.setTextDatum(TL_DATUM);
     tft.drawString(day.dayName, 10, y);
     
-    // === IKONA POGODY (uproszczona kolorowa) ===
+    // === PRAWDZIWE IKONY POGODOWE (jak na ekranie 1 i 2) ===
+    extern void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconCode);
+    
     int iconX = 55;
-    int iconY = y + 5;
+    int iconY = y - 20; // Wyżej żeby nie nachodzily na nazwe dnia
     
-    // Rysuj uproszczona kolorowa ikone (lepsza czytelnosc)
-    tft.fillCircle(iconX, iconY, 12, TFT_BLACK); // Tlo
+    // Mapowanie ikony na warunek pogodowy (dla drawWeatherIcon)
+    String condition = "";
+    if (day.icon.indexOf("01") >= 0) condition = "clear sky";
+    else if (day.icon.indexOf("02") >= 0) condition = "few clouds";
+    else if (day.icon.indexOf("03") >= 0) condition = "scattered clouds";
+    else if (day.icon.indexOf("04") >= 0) condition = "overcast clouds";
+    else if (day.icon.indexOf("09") >= 0) condition = "shower rain";
+    else if (day.icon.indexOf("10") >= 0) condition = "rain";
+    else if (day.icon.indexOf("11") >= 0) condition = "thunderstorm";
+    else if (day.icon.indexOf("13") >= 0) condition = "snow";
+    else if (day.icon.indexOf("50") >= 0) condition = "mist";
+    else condition = "unknown";
     
-    uint16_t iconColor = TFT_WHITE;
-    if (day.icon.indexOf("01") >= 0) { 
-      iconColor = 0xFFE0; // Zolte slonce
-      tft.fillCircle(iconX, iconY, 8, iconColor);
-      // Promienie slonca
-      for(int i = 0; i < 8; i++) {
-        int angle = i * 45;
-        int x1 = iconX + cos(angle * PI/180) * 10;
-        int y1 = iconY + sin(angle * PI/180) * 10;
-        tft.drawPixel(x1, y1, iconColor);
-      }
-    }
-    else if (day.icon.indexOf("02") >= 0 || day.icon.indexOf("03") >= 0) { 
-      iconColor = 0xCE79; // Szare chmury
-      tft.fillCircle(iconX-3, iconY, 6, iconColor);
-      tft.fillCircle(iconX+3, iconY, 6, iconColor);
-      tft.fillCircle(iconX, iconY-3, 6, iconColor);
-    }
-    else if (day.icon.indexOf("04") >= 0) { 
-      iconColor = 0x7BEF; // Ciemne chmury
-      tft.fillRect(iconX-8, iconY-4, 16, 8, iconColor);
-    }
-    else if (day.icon.indexOf("09") >= 0 || day.icon.indexOf("10") >= 0) { 
-      iconColor = 0x07FF; // Cyan deszcz
-      tft.fillRect(iconX-6, iconY-4, 12, 6, iconColor);
-      // Krople
-      for(int i = 0; i < 3; i++) {
-        tft.drawLine(iconX-4+i*4, iconY+3, iconX-4+i*4, iconY+8, iconColor);
-      }
-    }
-    else if (day.icon.indexOf("11") >= 0) { 
-      iconColor = 0xF81F; // Magenta burza
-      tft.fillRect(iconX-6, iconY-4, 12, 6, iconColor);
-      // Blyskawiaca
-      tft.drawLine(iconX-2, iconY-2, iconX+2, iconY+2, TFT_YELLOW);
-      tft.drawLine(iconX+2, iconY-2, iconX-2, iconY+2, TFT_YELLOW);
-    }
-    else if (day.icon.indexOf("13") >= 0) { 
-      iconColor = TFT_WHITE; // Bialy snieg
-      tft.fillCircle(iconX-3, iconY-3, 3, iconColor);
-      tft.fillCircle(iconX+3, iconY-3, 3, iconColor);
-      tft.fillCircle(iconX, iconY+3, 3, iconColor);
-    }
-    else if (day.icon.indexOf("50") >= 0) { 
-      iconColor = 0x8410; // Szara mgla
-      for(int i = 0; i < 3; i++) {
-        tft.drawLine(iconX-6, iconY-2+i*2, iconX+6, iconY-2+i*2, iconColor);
-      }
-    }
+    // Rysuj prawdziwa ikone pogodowa (25x25 px)
+    // Tymczasowo skaluj ikone dla weekly
+    int originalIconSize = 50; // ICON_SIZE z config
+    
+    // Przeskaluj ikone: oryginal 50x50 -> 25x25 dla weekly
+    // Rysuj w połowie rozmiaru
+    extern void drawWeatherIconScaled(TFT_eSPI& tft, int x, int y, String condition, String iconCode, float scale);
+    
+    // Jesli funkcja scalowana nie istnieje, uzyj oryginalnej z przeskalowaniem
+    drawWeatherIcon(tft, iconX, iconY, condition, day.icon);
     
     // === TEMPERATURY MIN/MAX ===
     tft.setTextSize(2);
