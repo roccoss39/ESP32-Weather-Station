@@ -164,7 +164,7 @@ void updateDisplayPowerState(TFT_eSPI& tft, bool isConfigModeActive = false) {
     if (ledFlashActive && (millis() - ledFlashStartTime) > LED_FLASH_DURATION) {
         digitalWrite(LED_BUILTIN, LOW); // Wyłącz diodę
         ledFlashActive = false;
-        Serial.println("💙 LED wyłączona po flash");
+        //Serial.println("💙 LED wyłączona po flash");
     }
 
     // --- KROK 1: Sprawdź aktywność DOTYKU (tylko w trybie NORMALNYM) ---
