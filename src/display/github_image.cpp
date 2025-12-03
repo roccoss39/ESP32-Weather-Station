@@ -4,7 +4,7 @@
 #include <HTTPClient.h>
 #include "SPIFFS.h"
 
-#define TEST_IMG 0
+#define TEST_ONE_IMG 0  // WŁĄCZONY TRYB TESTOWY
 
 // --- ZMIENNE GLOBALNE ---
 CurrentImageData currentImage;
@@ -13,7 +13,7 @@ CurrentImageData currentImage;
 #include "photo_display/esp32_nasa_ultimate.h"
 
 // --- RANDOM CONFIG: wszystkie obrazki ---
-const unsigned long IMAGE_CHANGE_INTERVAL = 10000;  // 3 sekundy
+const unsigned long IMAGE_CHANGE_INTERVAL = 2000;  // 3 sekundy
 
 // Callback dla TJpg_Decoder (z photo_display) - Z DEBUG
 bool tft_output_nasa(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bitmap) {
@@ -128,7 +128,7 @@ bool getRandomNASAImage() {
   // LOSOWY WYBÓR ze wszystkich 1359 obrazków
   currentImage.imageNumber = random(0, num_nasa_images); // 0-1358 (losowy)
   
-  if (TEST_IMG == 1)
+  if (TEST_ONE_IMG == 1)
   {
    Serial.println("podmieniam");
    currentImage.url = "https://roccoss39.github.io/nasa.github.io-/nasa-images/Colorful_Airglow_Bands_Surround_Milky_Way.jpg";
@@ -253,7 +253,7 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
   http.setTimeout(10000); // 10 sekund timeout
   http.setConnectTimeout(5000); // 5 sekund na połączenie
 
-    if (TEST_IMG == 1)
+    if (TEST_ONE_IMG == 1)
   {
    Serial.println("podmieniam");
    selectedImage.url = "https://roccoss39.github.io/nasa.github.io-/nasa-images/Colorful_Airglow_Bands_Surround_Milky_Way@@@@@.jpg";
@@ -271,10 +271,10 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
   
   if (httpCode != HTTP_CODE_OK) {
     Serial.println("❌ HTTP Error: " + String(httpCode));
-    tft.fillScreen(TFT_RED);
-    tft.setTextColor(TFT_WHITE);
-    tft.drawString("Download Failed!", 10, 100);
-    tft.drawString("HTTP: " + String(httpCode), 10, 120);
+    // tft.fillScreen(TFT_RED);                              // WYŁĄCZONE - czerwony ekran
+    // tft.setTextColor(TFT_WHITE);                          // WYŁĄCZONE
+    // tft.drawString("Download Failed!", 10, 100);          // WYŁĄCZONE
+    // tft.drawString("HTTP: " + String(httpCode), 10, 120); // WYŁĄCZONE
     http.end();
     return false;
   }
@@ -660,15 +660,15 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
     }
     Serial.printf("🔴 Total JPEG markers found: %d\n", markerCount);
     
-    // FALLBACK: Pokaż error screen z detalami
-    tft.fillScreen(TFT_RED);
-    tft.setTextColor(TFT_WHITE, TFT_RED);
-    tft.setTextSize(1);
-    tft.setTextDatum(TL_DATUM);
-    tft.drawString("JPEG ERROR " + String(result), 10, 10);
-    tft.drawString(errorMsg, 10, 30);
-    tft.drawString("Size: " + String(contentLength) + " bytes", 10, 50);
-    tft.drawString("NASA #" + String(imageIndex + 1), 10, 70);
+    // FALLBACK: Pokaż error screen z detalami - WYŁĄCZONE
+    // tft.fillScreen(TFT_RED);                                    // WYŁĄCZONE - czerwony ekran
+    // tft.setTextColor(TFT_WHITE, TFT_RED);                       // WYŁĄCZONE
+    // tft.setTextSize(1);                                         // WYŁĄCZONE
+    // tft.setTextDatum(TL_DATUM);                                 // WYŁĄCZONE  
+    // tft.drawString("JPEG ERROR " + String(result), 10, 10);    // WYŁĄCZONE
+    // tft.drawString(errorMsg, 10, 30);                          // WYŁĄCZONE
+    // tft.drawString("Size: " + String(contentLength) + " bytes", 10, 50);  // WYŁĄCZONE
+    // tft.drawString("NASA #" + String(imageIndex + 1), 10, 70); // WYŁĄCZONE
     
     free(buffer);
     http.end();

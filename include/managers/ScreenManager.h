@@ -17,7 +17,7 @@ private:
     // --- PRIVATE STATE ---
     ScreenType currentScreen = SCREEN_CURRENT_WEATHER;
     unsigned long lastScreenSwitch = 0;
-    static const unsigned long SCREEN_SWITCH_INTERVAL = 10000; // 10 sekund
+    static const unsigned long SCREEN_SWITCH_INTERVAL = 2000; // 10 sekund
 
 public:
     // --- CONSTRUCTOR ---
@@ -64,8 +64,11 @@ public:
         ScreenType previousScreen = currentScreen;
         lastScreenSwitch = millis();
 
-        if (TEST_MODE == 1)
-        currentScreen = SCREEN_FORECAST;
+        if (TEST_MODE == 1) {
+            currentScreen = SCREEN_IMAGE;  // W trybie testowym tylko IMAGE
+            Serial.println("📱 TEST MODE: Staying on IMAGE screen");
+            return previousScreen;
+        }
 
         switch(currentScreen) {
             case SCREEN_CURRENT_WEATHER:
@@ -112,8 +115,9 @@ public:
         resetCacheForScreen(currentScreen);
         
         // Renderuj odpowiedni ekran
-        if (TEST_MODE == 1)
-        currentScreen = SCREEN_IMAGE;
+        if (TEST_MODE == 1) {
+            currentScreen = SCREEN_IMAGE;  // W trybie testowym tylko IMAGE
+        }
 
         switch(currentScreen) {
             case SCREEN_CURRENT_WEATHER:
