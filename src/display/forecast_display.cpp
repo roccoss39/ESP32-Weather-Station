@@ -156,21 +156,40 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
   // Sprawdź czy temperatura jest bardzo niska (≤ -5°C)
   if (minTemp <= -5.0 || maxTemp <= -5.0) {
     // Bez 'C dla bardzo niskich temperatur (oszczędność miejsca)
-    tempValues = formatTemperature(minTemp, 0) + "/" + formatTemperature(maxTemp, 0);
-    Serial.println("Uzywam skroconego formatu temperatury dla niskich wartosci: " + tempValues);
+    String minTempStr = formatTemperature(minTemp, 0);
+    String maxTempStr = formatTemperature(maxTemp, 0);
+    
+    // Min temp (szary)
+    tft.setTextColor(TFT_LIGHTGREY, COLOR_BACKGROUND);
+    tft.drawString(minTempStr + "/", 45, y - 10);
+    
+    // Max temp (biały)
+    tft.setTextColor(TFT_WHITE, COLOR_BACKGROUND);
+    tft.drawString(maxTempStr, 45 + (minTempStr.length() * 12) + 6, y - 10);
+    
+    Serial.println("Uzywam skroconego formatu temperatury dla niskich wartosci: " + minTempStr + "/" + maxTempStr);
   } else {
-    // Normalny format z 'C
-    tempValues = formatTemperature(minTemp, 0) + "'C/" + formatTemperature(maxTemp, 0) + "'C";
+    // Normalny format z 'C - min temp (szary)
+    String minTempStr = formatTemperature(minTemp, 0) + "'C";
+    String maxTempStr = formatTemperature(maxTemp, 0) + "'C";
+    
+    // Min temp (szary)
+    tft.setTextColor(TFT_LIGHTGREY, COLOR_BACKGROUND);
+    tft.drawString(minTempStr + "/", 45, y - 10);
+    
+    // Max temp (biały)
+    tft.setTextColor(TFT_WHITE, COLOR_BACKGROUND);
+    tft.drawString(maxTempStr, 45 + (minTempStr.length() * 12) + 6, y - 10);
   }
-  
-  tft.drawString(tempValues, 45, y - 10);
   
   // Wiatr.max: z małą czcionką - przesunięty o 10 pikseli wyżej
   tft.setTextSize(1);
+  tft.setTextColor(TFT_LIGHTGREY, COLOR_BACKGROUND);
   tft.drawString("Wiatr.max:", 160, y - 10);
   
-  // Wartości wiatru z normalną czcionką
+  // Wartości wiatru z normalną czcionką (biały dla max wartości)
   tft.setTextSize(2);
+  tft.setTextColor(TFT_WHITE, COLOR_BACKGROUND);
   String windValue = String(maxWind, 0) + "km/h";
   tft.drawString(windValue, 230, y - 10);
   
