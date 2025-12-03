@@ -1609,7 +1609,7 @@ void drawCoordinatesScreen(TFT_eSPI& tft) {
   tft.setTextColor(WHITE);
   tft.setTextSize(2);
   tft.setCursor(10, 5);
-  tft.println("CUSTOM COORDINATES");
+  tft.println("WLASNE WSPOLRZEDNE");
   
   // Instructions
   tft.setTextColor(YELLOW);
@@ -1664,7 +1664,7 @@ void drawCoordinatesScreen(TFT_eSPI& tft) {
   tft.fillRect(250, 80, 60, 45, PURPLE);
   tft.setTextColor(WHITE);
   tft.setCursor(260, 90);
-  tft.print("SWITCH");
+  tft.print("PRZELACZ");
   tft.setCursor(265, 105);
   tft.print(editingLatitude ? "DO DLG" : "DO SZR");
   
@@ -1724,12 +1724,12 @@ void drawCoordinatesScreen(TFT_eSPI& tft) {
   // Backspace button
   tft.fillRect(220, 170, 90, 25, ORANGE);
   tft.setCursor(240, 178);
-  tft.print("BACK<-");
+  tft.print("COFNIJ");
   
   // SET GPS button (main action)
   tft.fillRect(220, 200, 90, 25, GREEN);
-  tft.setCursor(235, 208);
-  tft.print("SET GPS");
+  tft.setCursor(240, 208);
+  tft.print("USTAW");
   
   // BACK button (return to location)
   tft.fillRect(160, 170, 55, 25, GRAY);

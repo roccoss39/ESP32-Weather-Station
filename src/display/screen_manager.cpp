@@ -8,6 +8,7 @@
 #include "sensors/motion_sensor.h"
 #include "managers/WeatherCache.h"
 #include "managers/TimeDisplayCache.h"
+#include "config/location_config.h"
 
 // Singleton instance ScreenManager
 static ScreenManager screenManager;
@@ -168,12 +169,33 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
                   day.dayName.c_str(), day.tempMin, day.tempMax, day.icon.c_str());
   }
   
-  // === FOOTER ===
+  // === FOOTER z lokalizacją i czasem aktualizacji ===
   tft.setTextColor(TFT_DARKGREY);
   tft.setTextSize(1);
-  tft.setTextDatum(TC_DATUM);
-  unsigned long age = (millis() - weeklyForecast.lastUpdate) / 1000;
-  tft.drawString("Update: " + String(age) + "s ago", 160, 210);
+  
+  // Obecna lokalizacja z dzielnicą (lewa strona)
+  extern LocationManager locationManager;
+  WeatherLocation currentLoc = locationManager.getCurrentLocation();
+  tft.setTextDatum(TL_DATUM);
+  String locationText = String(currentLoc.cityName) + ", " + String(currentLoc.displayName);
+  tft.drawString(locationText, 10, 210);
+  
+  // Czas ostatniej aktualizacji z inteligentnym formatem (prawa strona)  
+  unsigned long ageSeconds = (millis() - weeklyForecast.lastUpdate) / 1000;
+  String updateText;
+  
+  if (ageSeconds < 60) {
+    updateText = "Aktualizacja: " + String(ageSeconds) + "s temu";
+  } else if (ageSeconds < 3600) {
+    unsigned long ageMinutes = ageSeconds / 60;
+    updateText = "Aktualizacja: " + String(ageMinutes) + "min temu";
+  } else {
+    unsigned long ageHours = ageSeconds / 3600;
+    updateText = "Aktualizacja: " + String(ageHours) + "h temu";
+  }
+  
+  tft.setTextDatum(TR_DATUM);
+  tft.drawString(updateText, 310, 210);
   
   Serial.println("✅ Weekly screen rendered with weather data");
 }
