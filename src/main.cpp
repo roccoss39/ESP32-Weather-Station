@@ -560,4 +560,9 @@ void onWiFiConnectedTasks() {
     forecastErrorModeGlobal = true;
     lastWeatherCheckGlobal = millis() - WEATHER_FORCE_REFRESH;
     lastForecastCheckGlobal = millis() - WEATHER_FORCE_REFRESH;
+    
+    // 3. WYMUŚ WEEKLY FORECAST PO RECONNECT WiFi
+    extern unsigned long lastWeeklyUpdate;
+    lastWeeklyUpdate = millis() - WEEKLY_UPDATE_INTERVAL; // Wymuś natychmiastową aktualizację
+    Serial.println("Forcing immediate weekly forecast update after WiFi reconnect");
 }
