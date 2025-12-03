@@ -128,12 +128,12 @@ bool getRandomNASAImage() {
   // LOSOWY WYBÓR ze wszystkich 1359 obrazków
   currentImage.imageNumber = random(0, num_nasa_images); // 0-1358 (losowy)
   
-  if (TEST_ONE_IMG == 1)
-  {
-   Serial.println("podmieniam");
-   currentImage.url = "https://roccoss39.github.io/nasa.github.io-/nasa-images/Colorful_Airglow_Bands_Surround_Milky_Way.jpg";
-  }
-  else
+  // if (TEST_ONE_IMG == 1)
+  // {
+  //  Serial.println("podmieniam");
+  //  currentImage.url = "https://roccoss39.github.io/nasa.github.io-/nasa-images/NGC_3628_The_Hamburger_Galaxy.jpg";
+  // }
+  // else
   currentImage.url = String(nasa_ultimate_collection[currentImage.imageNumber].url);
   
   currentImage.title = String(nasa_ultimate_collection[currentImage.imageNumber].title);
@@ -256,7 +256,7 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
     if (TEST_ONE_IMG == 1)
   {
    Serial.println("podmieniam");
-   selectedImage.url = "https://roccoss39.github.io/nasa.github.io-/nasa-images/Colorful_Airglow_Bands_Surround_Milky_Way@@@@@.jpg";
+   selectedImage.url = "https://roccoss39.github.io/nasa.github.io-/nasa-images/NGC_3628_The_Hamburger_Galaxy.jpg";
   }
 
   Serial.printf("🌐 Connecting to: %s\n", selectedImage.url);
@@ -281,6 +281,12 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
   
   int contentLength = http.getSize();
   Serial.println("File size: " + String(contentLength) + " bytes");
+  
+  if (contentLength > 35000) {
+    Serial.println("⚠️ Obrazek zbyt duży (>35KB) dla bezpiecznego malloc! Pomijam.");
+    http.end();
+    return false; // Wymusi wylosowanie innego obrazka
+  }
   
   // === SPRAWDŹ WSZYSTKIE HEADERS ===
   String contentType = http.header("Content-Type");

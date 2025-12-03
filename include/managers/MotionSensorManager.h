@@ -131,15 +131,15 @@ public:
         ledFlashStartTime = currentTime;
         
         // DEBUG: Log motion detection z więcej szczegółów
-        Serial.printf("🔥 PIR MOTION DETECTED! Timer reset to %lu ms (was %lu ms since last motion)\n", 
-                      currentTime, currentTime - lastMotionTime);
+        // Serial.printf("🔥 PIR MOTION DETECTED! Timer reset to %lu ms (was %lu ms since last motion)\n", 
+        //               currentTime, currentTime - lastMotionTime);
         
         // Wake up display if sleeping
         if (currentDisplayState == DISPLAY_SLEEPING) {
             currentDisplayState = DISPLAY_ACTIVE;
-            Serial.println("🔥 MOTION DETECTED - Wake up display!");
+           // Serial.println("🔥 MOTION DETECTED - Wake up display!");
         } else {
-            Serial.println("🔄 MOTION DETECTED - Extending display time");
+          //  Serial.println("🔄 MOTION DETECTED - Extending display time");
         }
     }
     
