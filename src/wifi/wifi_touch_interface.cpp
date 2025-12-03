@@ -76,10 +76,18 @@ bool networkSecure[20];
 // Password visibility toggle
 bool showPassword = false;
 
-// Location selection variables
-int currentLocationCategory = 0; // 0=Szczecin Districts, 1=Custom GPS
+// Location selection variables - NOWY UPROSZCZONY SYSTEM
+enum LocationMenuState {
+  MENU_MAIN,           // Główne menu: Szczecin, Poznan, Zlocieniec, Wlasny GPS  
+  MENU_DISTRICTS       // Lista dzielnic wybranego miasta
+};
+
+LocationMenuState currentMenuState = MENU_MAIN;
 int currentLocationIndex = 0;
-const char* locationCategories[] = {"Szczecin", "Wlasny GPS"};
+int selectedCityIndex = 0; // 0=Szczecin, 1=Poznan, 2=Zlocieniec, 3=Wlasny GPS
+
+// Opcje głównego menu (4 opcje)
+const char* mainMenuOptions[] = {"Szczecin", "Poznan", "Zlocieniec", "Wlasny GPS"};
 
 
 // Custom coordinates variables
@@ -1251,89 +1259,100 @@ void handleKeyboardTouch(int16_t x, int16_t y) {
 void enterLocationSelectionMode(TFT_eSPI& tft) {
   Serial.println("Entering LOCATION SELECTION MODE");
   currentState = STATE_SELECT_LOCATION;
-  currentLocationCategory = 0; // Start with Poland
+  currentMenuState = MENU_MAIN; // Start with main menu
   currentLocationIndex = 0;
+  selectedCityIndex = 0;
   drawLocationScreen(tft);
 }
 
 void drawLocationScreen(TFT_eSPI& tft) {
   tft.fillScreen(BLACK);
-  tft.setTextColor(WHITE);
+  tft.setTextColor(CYAN);
   tft.setTextSize(2);
   tft.setCursor(10, 5);
-  tft.println("WYBIERZ LOKALIZACJE");
   
-  // Category buttons
-  for (int i = 0; i < 2; i++) {
-    uint16_t color = (i == currentLocationCategory) ? CYAN : DARKGRAY;
-    tft.fillRect(10 + i * 150, 35, 140, 25, color);
-    tft.setTextColor(WHITE);
-    tft.setTextSize(1);
-    tft.setCursor(15 + i * 150, 43);
-    tft.println(locationCategories[i]);
+  if (currentMenuState == MENU_MAIN) {
+    tft.println("WYBIERZ MIASTO");
+  } else {
+    tft.printf("DZIELNICE: %s", mainMenuOptions[selectedCityIndex]);
   }
   
-  // Get current city list based on category
-  const WeatherLocation* cityList;
-  int cityCount;
+  // Określ źródło danych
+  const WeatherLocation* cityList = nullptr;
+  int cityCount = 0;
   
-  if (currentLocationCategory == 0) {
-    cityList = SZCZECIN_DISTRICTS;
-    cityCount = SZCZECIN_DISTRICTS_COUNT;
-  } else {
-    // Category 1 = Custom GPS - redirect to coordinates mode
-    if (currentLocationCategory == 1) {
-      enterCoordinatesMode(tft);
-      return;
+  if (currentMenuState == MENU_MAIN) {
+    // Główne menu - 4 opcje
+    cityCount = 4; // Szczecin, Poznan, Zlocieniec, Wlasny GPS
+  } else if (currentMenuState == MENU_DISTRICTS) {
+    // Lista dzielnic dla wybranego miasta
+    if (selectedCityIndex == 0) {
+      cityList = SZCZECIN_DISTRICTS;
+      cityCount = SZCZECIN_DISTRICTS_COUNT;
+    } else if (selectedCityIndex == 1) {
+      cityList = POZNAN_DISTRICTS;  
+      cityCount = POZNAN_DISTRICTS_COUNT;
+    } else if (selectedCityIndex == 2) {
+      cityList = ZLOCIENIEC_AREAS;
+      cityCount = ZLOCIENIEC_AREAS_COUNT;
     }
-    cityList = SZCZECIN_DISTRICTS;
-    cityCount = SZCZECIN_DISTRICTS_COUNT;
   }
   
   // Display current location
   WeatherLocation currentLoc = locationManager.getCurrentLocation();
   tft.setTextColor(YELLOW);
   tft.setTextSize(1);
-  tft.setCursor(10, 70);
-  tft.printf("Current: %s", currentLoc.displayName);
+  tft.setCursor(10, 35);
+  tft.printf("Aktualna: %s", currentLoc.displayName);
   
-  // City list with scrolling
+  // Lista elementów z przewijaniem
   tft.setTextColor(WHITE);
-  int yPos = 90;
-  int maxVisibleCities = 5; // Show max 5 cities on screen
+  int yPos = 60;
+  int maxVisibleItems = 5; // Maksymalnie 5 elementów na ekranie
   
-  // Calculate scroll offset to keep selected item visible
+  // Oblicz offset dla przewijania
   int scrollOffset = 0;
-  if (currentLocationIndex >= maxVisibleCities) {
-    scrollOffset = currentLocationIndex - maxVisibleCities + 1;
+  if (currentLocationIndex >= maxVisibleItems) {
+    scrollOffset = currentLocationIndex - maxVisibleItems + 1;
   }
   
-  for (int i = 0; i < min(cityCount, maxVisibleCities); i++) {
-    int cityIndex = i + scrollOffset; // Real index in city list
-    if (cityIndex >= cityCount) break; // Safety check
+  for (int i = 0; i < min(cityCount, maxVisibleItems); i++) {
+    int itemIndex = i + scrollOffset;
+    if (itemIndex >= cityCount) break;
     
-    bool isSelected = (cityIndex == currentLocationIndex);
-    bool isCurrent = (strcmp(cityList[cityIndex].cityName, currentLoc.cityName) == 0 && 
-                     strcmp(cityList[cityIndex].countryCode, currentLoc.countryCode) == 0);
-    
-    uint16_t bgColor = BLACK;
-    if (isSelected) bgColor = BLUE;
-    else if (isCurrent) bgColor = GREEN;
+    bool isSelected = (itemIndex == currentLocationIndex);
+    uint16_t bgColor = isSelected ? BLUE : BLACK;
     
     tft.fillRect(10, yPos - 2, 300, 22, bgColor);
-    
     tft.setTextColor(WHITE);
     tft.setCursor(15, yPos + 2);
     
-    if (isCurrent) tft.print("● ");
-    else if (isSelected) tft.print("→ ");
-    else tft.print("  ");
-    
-    tft.printf("%s", cityList[cityIndex].displayName);
-    
-    // Coordinates (rounded to 2 decimal places)
-    tft.setCursor(200, yPos + 2);
-    tft.printf("%.2f,%.2f", cityList[cityIndex].latitude, cityList[cityIndex].longitude);
+    if (currentMenuState == MENU_MAIN) {
+      // Wyświetlanie głównego menu miast
+      if (isSelected) tft.print("→ ");
+      else tft.print("  ");
+      tft.printf("%s", mainMenuOptions[itemIndex]);
+      
+    } else if (currentMenuState == MENU_DISTRICTS) {
+      // Wyświetlanie dzielnic wybranego miasta
+      bool isCurrent = (strcmp(cityList[itemIndex].cityName, currentLoc.cityName) == 0 && 
+                       strcmp(cityList[itemIndex].countryCode, currentLoc.countryCode) == 0);
+      
+      if (isCurrent) {
+        tft.fillRect(10, yPos - 2, 300, 22, GREEN);
+        tft.print("● ");
+      } else if (isSelected) {
+        tft.print("→ ");
+      } else {
+        tft.print("  ");
+      }
+      
+      tft.printf("%s", cityList[itemIndex].displayName);
+      
+      // Współrzędne GPS
+      tft.setCursor(200, yPos + 2);
+      tft.printf("%.2f,%.2f", cityList[itemIndex].latitude, cityList[itemIndex].longitude);
+    }
     
     yPos += 25;
   }
@@ -1361,6 +1380,18 @@ void drawLocationScreen(TFT_eSPI& tft) {
   tft.setCursor(270, 218);
   tft.print("ZAPISZ");
   
+  // Wskazówka przewijania
+  if (cityCount > 5) {
+    tft.setTextColor(TFT_DARKGREY);
+    tft.setTextSize(1);
+    tft.setCursor(10, 185);
+    if (currentMenuState == MENU_MAIN) {
+      tft.printf("(4 opcje - uzyj UP/DOWN)");
+    } else {
+      tft.printf("(%d dzielnic - uzyj UP/DOWN)", cityCount);
+    }
+  }
+  
   // Custom coordinates button
   tft.fillRect(10, 240, 100, 25, PURPLE);
   tft.setCursor(25, 248);
@@ -1371,17 +1402,29 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
   Serial.printf("Location Touch: X=%d, Y=%d\n", x, y);
   
   // Category selection
-  if (y >= 35 && y <= 60) {
-    int newCategory = (x - 10) / 150;
-    if (newCategory >= 0 && newCategory < 2 && newCategory != currentLocationCategory) {
-      currentLocationCategory = newCategory;
-      currentLocationIndex = 0; // Reset city index
-      Serial.printf("Category changed to: %s\n", locationCategories[currentLocationCategory]);
+  // Obsługa wyboru elementów z listy (kliknięcie na element)
+  if (y >= 60 && y <= 185) {
+    int clickedIndex = (y - 60) / 25; // 25px na element
+    int realIndex = clickedIndex;
+    
+    // Uwzględnij scroll offset
+    if (currentLocationIndex >= 5) {
+      realIndex += (currentLocationIndex - 4);
+    }
+    
+    if (realIndex >= 0 && realIndex < 4 && currentMenuState == MENU_MAIN) {
+      currentLocationIndex = realIndex;
+      selectedCityIndex = realIndex;
       
-      if (newCategory == 1) {
-        // Direct jump to Custom GPS mode
+      if (realIndex == 3) {
+        // "Własny GPS" - przejdź do Custom GPS
         enterCoordinatesMode(tft);
         return;
+      } else {
+        // Wybrano miasto - przejdź do dzielnic
+        currentMenuState = MENU_DISTRICTS;
+        currentLocationIndex = 0; // Reset selection
+        Serial.printf("Wybrano miasto: %s\n", mainMenuOptions[selectedCityIndex]);
       }
       
       drawLocationScreen(tft);
@@ -1413,32 +1456,58 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
     }
     // DOWN button
     else if (x >= 70 && x <= 120) {
-      int maxCities = SZCZECIN_DISTRICTS_COUNT;
+      int maxItems = 0;
       
-      if (currentLocationIndex < maxCities - 1) {
+      if (currentMenuState == MENU_MAIN) {
+        maxItems = 4; // Szczecin, Poznan, Zlocieniec, Wlasny GPS
+      } else if (currentMenuState == MENU_DISTRICTS) {
+        if (selectedCityIndex == 0) maxItems = SZCZECIN_DISTRICTS_COUNT;
+        else if (selectedCityIndex == 1) maxItems = POZNAN_DISTRICTS_COUNT;
+        else if (selectedCityIndex == 2) maxItems = ZLOCIENIEC_AREAS_COUNT;
+      }
+      
+      if (currentLocationIndex < maxItems - 1) {
         currentLocationIndex++;
         drawLocationScreen(tft);
-        Serial.printf("DOWN: currentLocationIndex = %d (max: %d)\n", currentLocationIndex, maxCities - 1);
+        Serial.printf("DOWN: currentLocationIndex = %d (max: %d)\n", currentLocationIndex, maxItems - 1);
       }
     }
     // SELECT button
     else if (x >= 130 && x <= 190) {
-      const WeatherLocation* cityList = SZCZECIN_DISTRICTS;
-      
-      WeatherLocation selectedLocation = cityList[currentLocationIndex];
-      locationManager.setLocation(selectedLocation);
-      isLocationSavePending = true;
-      Serial.printf("Location set to: %s\n", selectedLocation.displayName);
-      
-      // Visual feedback
-      tft.fillRect(130, 210, 60, 25, YELLOW);
-      tft.setTextColor(BLACK);
-      tft.setCursor(145, 218);
-      tft.print("SET!");
-      delay(100);
-      
-      // SAFE WEATHER REFRESH for districts - Prevents WiFi disconnect  
-      tft.fillRect(130, 210, 60, 25, PURPLE);
+      if (currentMenuState == MENU_MAIN) {
+        // W głównym menu
+        if (currentLocationIndex == 3) {
+          // "Własny GPS"
+          enterCoordinatesMode(tft);
+          return;
+        } else {
+          // Wybrano miasto - przejdź do dzielnic
+          selectedCityIndex = currentLocationIndex;
+          currentMenuState = MENU_DISTRICTS;
+          currentLocationIndex = 0;
+          Serial.printf("Wybrano miasto: %s\n", mainMenuOptions[selectedCityIndex]);
+          drawLocationScreen(tft);
+          return;
+        }
+      } else if (currentMenuState == MENU_DISTRICTS) {
+        // W menu dzielnic - ustaw lokalizację
+        const WeatherLocation* cityList = nullptr;
+        if (selectedCityIndex == 0) cityList = SZCZECIN_DISTRICTS;
+        else if (selectedCityIndex == 1) cityList = POZNAN_DISTRICTS;
+        else if (selectedCityIndex == 2) cityList = ZLOCIENIEC_AREAS;
+        
+        if (cityList) {
+          WeatherLocation selectedLocation = cityList[currentLocationIndex];
+          locationManager.setLocation(selectedLocation);
+          isLocationSavePending = true;
+          Serial.printf("Location set to: %s\n", selectedLocation.displayName);
+          
+          // Visual feedback
+          tft.fillRect(130, 210, 60, 25, YELLOW);
+          tft.setTextColor(BLACK);
+          tft.setCursor(145, 218);
+          tft.print("SET!");
+          delay(100);
       tft.setTextColor(WHITE);
       tft.setCursor(140, 218);
       tft.print("SAFE");
@@ -1461,9 +1530,28 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       delay(150);
       
      drawLocationScreen(tft);
+        }
+      }
     }
-    // BACK button
+    // BACK button (POWROT)
     else if (x >= 200 && x <= 250) {
+      if (currentMenuState == MENU_DISTRICTS) {
+        // W menu dzielnic - wróć do głównego menu
+        currentMenuState = MENU_MAIN;
+        currentLocationIndex = selectedCityIndex; // Ustaw selekcję na wybrane miasto
+        Serial.println("Powrót do głównego menu miast");
+        drawLocationScreen(tft);
+        return;
+      } else {
+        // W głównym menu - wyjdź z menu lokalizacji
+        Serial.println("BACK to config mode");
+        currentState = STATE_CONFIG_MODE;
+        drawConfigModeScreen();
+        return;
+      }
+    }
+    // BACK button - OLD CODE
+    else if (x >= 200 && x <= 250 && false) {
       Serial.println("Returning to CONFIG MODE");
       currentState = STATE_CONFIG_MODE;
       drawConfigModeScreen();
@@ -1498,7 +1586,7 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
     
     enterCoordinatesMode(tft);
   }
-}
+} // Koniec funkcji handleLocationTouch
 
 // === CUSTOM COORDINATES IMPLEMENTATION ===
 
@@ -1780,8 +1868,9 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
     
     // Proper state transition
     currentState = STATE_SELECT_LOCATION;
-    currentLocationCategory = 0;  // Reset to Szczecin districts
+    currentMenuState = MENU_MAIN;  // Reset to main menu
     currentLocationIndex = 0;      // Reset selection
+    selectedCityIndex = 0;         // Reset city selection
     
     // Clear screen and return
     tft.fillScreen(BLACK);
@@ -1913,8 +2002,9 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       // Ensure proper state transition
       Serial.println("🔙 Returning to Location Selection...");
       currentState = STATE_SELECT_LOCATION;
-      currentLocationCategory = 0;  // Reset to Szczecin districts
+      currentMenuState = MENU_MAIN;  // Reset to main menu
       currentLocationIndex = 0;      // Reset selection
+      selectedCityIndex = 0;         // Reset city selection
       
       // Clear screen before drawing location screen
       tft.fillScreen(BLACK);
