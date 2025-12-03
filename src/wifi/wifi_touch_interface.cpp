@@ -79,7 +79,7 @@ bool showPassword = false;
 // Location selection variables
 int currentLocationCategory = 0; // 0=Szczecin Districts, 1=Custom GPS
 int currentLocationIndex = 0;
-const char* locationCategories[] = {"Szczecin", "Custom GPS"};
+const char* locationCategories[] = {"Szczecin", "Wlasny GPS"};
 
 
 // Custom coordinates variables
@@ -127,7 +127,7 @@ void initWiFiTouchInterface() {
   } else {
     // Only try to connect if WiFi is not already connected
     Serial.println("No WiFi connection, trying saved credentials...");
-    drawStatusMessage(tft, "Connecting to WiFi...");
+    drawStatusMessage(tft, "Laczenie z WiFi...");
     
     // Try saved WiFi credentials
     WiFi.begin(defaultSSID.c_str(), defaultPassword.c_str());
@@ -137,7 +137,7 @@ void initWiFiTouchInterface() {
       delay(500);
       Serial.print(".");
       timeout++;
-      drawStatusMessage(tft, "Connecting... " + String(timeout) + "/20");
+      drawStatusMessage(tft, "Laczenie... " + String(timeout) + "/20");
     }
     
     if (WiFi.status() == WL_CONNECTED) {
@@ -166,7 +166,7 @@ void initWiFiTouchInterface() {
       tft.setTextColor(BLACK);
       tft.setTextSize(1);
       tft.setCursor(15, 220);
-      tft.println("WiFi lost - Reconnecting every 19s or select network");
+      tft.println("Brak WiFi - Polacz co 19s lub wybierz siec");
     }
   }
 }
@@ -256,7 +256,7 @@ void drawConnectedScreen(TFT_eSPI& tft) {
   tft.setTextColor(WHITE);
   tft.setTextSize(2);
   tft.setCursor(30, 50);
-  tft.println("CONNECTED!");
+  tft.println("POLACZONY!");
   
   tft.setTextSize(1);
   tft.setCursor(10, 100);
@@ -274,7 +274,7 @@ void drawConnectedScreen(TFT_eSPI& tft) {
       tft.fillRect(10, 160, 300, 20, RED);
       tft.setTextColor(WHITE);
       tft.setCursor(15, 165);
-      tft.printf("WiFi LOST! Reconnect in: %d sec (try: 19s)", remaining);
+      tft.printf("Brak WiFi! Polacz za: %d sek (prob: 19s)", remaining);
     }
   }
   
@@ -283,11 +283,11 @@ void drawConnectedScreen(TFT_eSPI& tft) {
   tft.setTextColor(WHITE);
   tft.setTextSize(2);
   tft.setCursor(60, 290);
-  tft.println("DISCONNECT");
+  tft.println("ROZLACZ");
 }
 
 void scanNetworks() {
-  drawStatusMessage(tft, "Scanning networks...");
+  drawStatusMessage(tft, "Szukam sieci...");
   WiFi.mode(WIFI_STA);
   WiFi.disconnect();
   delay(100);
@@ -315,7 +315,7 @@ void drawNetworkList(TFT_eSPI& tft) {
   tft.setTextColor(WHITE);
   tft.setTextSize(1);
   tft.setCursor(10, 10);
-  tft.println("Select WiFi Network:");
+  tft.println("Wybierz siec WiFi:");
   
   int yPos = 30;
   int maxNetworks = min(networkCount, 7);  // Reduced from 8 to 7 to make space for REFRESH button
@@ -355,7 +355,7 @@ void drawNetworkList(TFT_eSPI& tft) {
   tft.setTextColor(WHITE);
   tft.setTextSize(1);
   tft.setCursor(250, 130);
-  tft.println("REFRESH");
+  tft.println("ODSWIEZ");
 }
 
 void drawPasswordScreen() {
@@ -363,7 +363,7 @@ void drawPasswordScreen() {
   tft.setTextColor(WHITE);
   tft.setTextSize(1);
   tft.setCursor(10, 10);
-  tft.println("Enter password for:");
+  tft.println("Wpisz haslo dla:");
   tft.setCursor(10, 25);
   tft.println(networkNames[selectedNetworkIndex]);
   
@@ -389,9 +389,9 @@ void drawPasswordScreen() {
   tft.setTextSize(1);
   tft.setCursor(250, 58);
   if (showPassword) {
-    tft.print("HIDE");
+    tft.print("UKRYJ");
   } else {
-    tft.print("SHOW");
+    tft.print("POKAZ");
   }
   
   drawKeyboard();
@@ -504,11 +504,11 @@ void drawKeyboard() {
   tft.drawRect(240, specialY, 75, keyHeight, WHITE);
   tft.setTextColor(WHITE);
   tft.setCursor(255, specialY + 10);
-  tft.print("BACK");
+  tft.print("COFNIJ");
 }
 
 void connectToWiFi() {
-  drawStatusMessage(tft, "Connecting to " + currentSSID + "...");
+  drawStatusMessage(tft, "Laczenie z " + currentSSID + "...");
   Serial.println("Connecting to: " + currentSSID);
   
   currentPassword = enteredPassword;
@@ -519,7 +519,7 @@ void connectToWiFi() {
     delay(500);
     Serial.print(".");
     timeout++;
-    drawStatusMessage(tft, "Connecting... " + String(timeout) + "/30");
+    drawStatusMessage(tft, "Laczenie... " + String(timeout) + "/30");
   }
   
   if (WiFi.status() == WL_CONNECTED) {
@@ -542,9 +542,9 @@ void connectToWiFi() {
     tft.setTextColor(WHITE);
     tft.setTextSize(2);
     tft.setCursor(10, 100);
-    tft.println("FAILED!");
+    tft.println("BLAD!");
     tft.setCursor(10, 130);
-    tft.println("Touch to retry");
+    tft.println("Dotknij aby powtorzyc");
     
     delay(DELAY_SUCCESS_DISPLAY);
     currentState = STATE_SCAN_NETWORKS;
@@ -596,7 +596,7 @@ void handleLongPress(TFT_eSPI& tft) {
         tft.setTextColor(WHITE);
         tft.setTextSize(1);
         tft.setCursor(130, 35);
-        tft.printf("Hold for %d...", (WIFI_LONG_PRESS_TIME - elapsed) / 1000 + 1);
+        tft.printf("Trzymaj %d...", (WIFI_LONG_PRESS_TIME - elapsed) / 1000 + 1);
       }
     }
   }
@@ -657,30 +657,28 @@ void drawConfigModeScreen() {
   tft.setTextColor(CYAN);
   tft.setTextSize(2);
   tft.setCursor(10, 5);
-  tft.println("CONFIG MODE");
-  
-  tft.setTextColor(WHITE);
-  tft.setTextSize(1);
-  tft.setCursor(150, 10);
-  tft.println("(120 sec timeout)");
+  tft.println("TRYB KONFIGURACJI");
   
   // Draw refresh button
   tft.fillRect(10, 200, 65, 40, BLUE);
   tft.setTextColor(WHITE);
-  tft.setCursor(20, 215);
-  tft.println("REFRESH");
+  tft.setTextSize(1);
+  tft.setCursor(17, 218);
+  tft.println("ODSWIEZ");
   
   // Draw location button
-  tft.fillRect(85, 200, 75, 40, GREEN);
+  tft.fillRect(85, 200, 65, 40, GREEN);
   tft.setTextColor(WHITE);
-  tft.setCursor(95, 215);
-  tft.println("LOCATION");
+  tft.setTextSize(1);
+  tft.setCursor(92, 218);
+  tft.println("LOKACJA");
   
   // Draw exit button
-  tft.fillRect(250, 200, 65, 40, RED);
+  tft.fillRect(160, 200, 65, 40, RED);
   tft.setTextColor(WHITE);
-  tft.setCursor(265, 215);
-  tft.println("EXIT");
+  tft.setTextSize(1);
+  tft.setCursor(170, 218);
+  tft.println("WYJSCIE");
   
   // Draw network list
   int yPos = 35;
@@ -955,7 +953,7 @@ void handleWiFiLoss() {
       tft.setTextColor(BLACK);
       tft.setTextSize(1);
       tft.setCursor(15, 220);
-      tft.println("WiFi lost - Reconnecting every 19s or select network");
+      tft.println("Brak WiFi - Polacz co 19s lub wybierz siec");
       
   } else {
     // --- CZĘŚĆ 4: Aktualizuj licznik na ekranie "CONNECTED" ---
@@ -1086,7 +1084,8 @@ void handleTouchInput(int16_t x, int16_t y) {
       // Visual feedback
       tft.fillRect(10, 200, 65, 40, YELLOW);
       tft.setTextColor(WHITE);
-      tft.setCursor(20, 215);
+      tft.setTextSize(1);
+      tft.setCursor(20, 218);
       tft.println("SCANNING");
       delay(500);
       
@@ -1098,13 +1097,14 @@ void handleTouchInput(int16_t x, int16_t y) {
       Serial.printf("CONFIG MODE - Network list refreshed - found %d networks\n", networkCount);
     }
     // Location selection button
-    else if (y >= 200 && y <= 240 && x >= 85 && x <= 160) {
+    else if (y >= 200 && y <= 240 && x >= 85 && x <= 150) {
       Serial.println("CONFIG MODE - LOCATION BUTTON PRESSED");
       
       // Visual feedback
-      tft.fillRect(85, 200, 75, 40, YELLOW);
+      tft.fillRect(85, 200, 65, 40, YELLOW);
       tft.setTextColor(WHITE);
-      tft.setCursor(95, 215);
+      tft.setTextSize(1);
+      tft.setCursor(95, 218);
       tft.println("OPENING");
       delay(500);
       
@@ -1112,7 +1112,7 @@ void handleTouchInput(int16_t x, int16_t y) {
       enterLocationSelectionMode(tft);
     }
     // Exit config mode button (adjusted coordinates for landscape)
-    else if (y >= 200 && y <= 240 && x >= 250 && x <= 315) {
+    else if (y >= 200 && y <= 240 && x >= 160 && x <= 225) {
       Serial.println("EXIT CONFIG MODE - Button pressed");
       currentState = STATE_CONNECTED; // (1) Wyjdź z menu
       
@@ -1145,7 +1145,7 @@ void handleKeyboardTouch(int16_t x, int16_t y) {
   // Check SHOW/HIDE password button
   if (y >= 50 && y <= 75 && x >= 240 && x <= 315) {
     showPassword = !showPassword;
-    Serial.printf("Password visibility toggled: %s\n", showPassword ? "SHOW" : "HIDE");
+    Serial.printf("Password visibility toggled: %s\n", showPassword ? "POKAZ" : "UKRYJ");
     
     // Visual feedback
     tft.fillRect(240, 50, 75, 25, YELLOW);
@@ -1261,7 +1261,7 @@ void drawLocationScreen(TFT_eSPI& tft) {
   tft.setTextColor(WHITE);
   tft.setTextSize(2);
   tft.setCursor(10, 5);
-  tft.println("SELECT LOCATION");
+  tft.println("WYBIERZ LOKALIZACJE");
   
   // Category buttons
   for (int i = 0; i < 2; i++) {
@@ -1342,15 +1342,15 @@ void drawLocationScreen(TFT_eSPI& tft) {
   // Action buttons
   tft.fillRect(130, 210, 60, 25, GREEN);
   tft.setCursor(145, 218);
-  tft.print("SELECT");
+  tft.print("WYBIERZ");
   
   tft.fillRect(200, 210, 50, 25, RED);
   tft.setCursor(215, 218);
-  tft.print("BACK");
+  tft.print("COFNIJ");
   
   tft.fillRect(260, 210, 55, 25, ORANGE);
   tft.setCursor(270, 218);
-  tft.print("SAVE");
+  tft.print("ZAPISZ");
   
   // Custom coordinates button
   tft.fillRect(10, 240, 100, 25, PURPLE);
@@ -1466,7 +1466,7 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       tft.fillRect(260, 210, 55, 25, YELLOW);
       tft.setTextColor(BLACK);
       tft.setCursor(270, 218);
-      tft.print("SAVED");
+      tft.print("ZAPISANO");
       delay(100);
       
       // Return to config mode
@@ -1517,7 +1517,7 @@ void drawCoordinatesScreen(TFT_eSPI& tft) {
   tft.setTextColor(YELLOW);
   tft.setTextSize(1);
   tft.setCursor(10, 35);
-  tft.println("Enter GPS coordinates (decimal degrees):");
+  tft.println("Wpisz wspolrzedne GPS (stopnie dziesietne):");
   
   // Current location for reference
   WeatherLocation currentLoc = locationManager.getCurrentLocation();
@@ -1530,7 +1530,7 @@ void drawCoordinatesScreen(TFT_eSPI& tft) {
   tft.setTextColor(latColor);
   tft.setTextSize(1);
   tft.setCursor(10, 80);
-  tft.print("Latitude  (N/S): ");
+  tft.print("Szer. geogr. (N/S): ");
   
   // Latitude input box
   tft.fillRect(130, 75, 100, 20, editingLatitude ? BLUE : DARKGRAY);
@@ -1548,7 +1548,7 @@ void drawCoordinatesScreen(TFT_eSPI& tft) {
   uint16_t lonColor = !editingLatitude ? CYAN : WHITE;
   tft.setTextColor(lonColor);
   tft.setCursor(10, 110);
-  tft.print("Longitude (E/W): ");
+  tft.print("Dlug. geogr. (E/W): ");
   
   // Longitude input box
   tft.fillRect(130, 105, 100, 20, !editingLatitude ? BLUE : DARKGRAY);
@@ -1568,7 +1568,7 @@ void drawCoordinatesScreen(TFT_eSPI& tft) {
   tft.setCursor(260, 90);
   tft.print("SWITCH");
   tft.setCursor(265, 105);
-  tft.print(editingLatitude ? "TO LON" : "TO LAT");
+  tft.print(editingLatitude ? "DO DLG" : "DO SZR");
   
   // Numeric keypad (better layout)
   // Row 1: 1 2 3
@@ -1621,7 +1621,7 @@ void drawCoordinatesScreen(TFT_eSPI& tft) {
   tft.fillRect(220, 140, 90, 25, RED);
   tft.setTextColor(WHITE);
   tft.setCursor(245, 148);
-  tft.print("CLEAR");
+  tft.print("WYCZYSC");
   
   // Backspace button
   tft.fillRect(220, 170, 90, 25, ORANGE);
@@ -1636,7 +1636,7 @@ void drawCoordinatesScreen(TFT_eSPI& tft) {
   // BACK button (return to location)
   tft.fillRect(160, 170, 55, 25, GRAY);
   tft.setCursor(175, 178);
-  tft.print("EXIT");
+  tft.print("WYJSCIE");
   
   // TEST button (validate coordinates)
   tft.fillRect(160, 200, 55, 25, YELLOW);
@@ -1765,7 +1765,7 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
     tft.fillRect(160, 170, 55, 25, YELLOW);
     tft.setTextColor(BLACK);
     tft.setCursor(175, 178);
-    tft.print("EXITING");
+    tft.print("WYJSCIE");
     delay(500);
     
     // Proper state transition

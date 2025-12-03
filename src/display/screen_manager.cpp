@@ -70,8 +70,8 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     tft.setTextDatum(MC_DATUM);
     tft.drawString("Brak danych", 160, 80);
     tft.setTextSize(1);
-    tft.drawString("weekly forecast", 160, 110);
-    tft.drawString("Wpisz 'weekly' w Serial", 160, 130);
+    tft.drawString("prognoza tygodniowa", 160, 110);
+    tft.drawString("Wpisz 'x' w Serial", 160, 130);
     Serial.println("❌ Weekly data not available");
     return;
   }
