@@ -88,16 +88,62 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     tft.setTextDatum(TL_DATUM);
     tft.drawString(day.dayName, 10, y);
     
-    // === IKONA POGODY (proste kolo) ===
-    uint16_t iconColor = TFT_WHITE;
-    if (day.icon.indexOf("01") >= 0) iconColor = 0xFFE0;      // Slonce - zolty
-    else if (day.icon.indexOf("02") >= 0) iconColor = 0xCE79; // Czesciowe chmury
-    else if (day.icon.indexOf("04") >= 0) iconColor = 0x7BEF; // Chmury - szary
-    else if (day.icon.indexOf("09") >= 0) iconColor = 0x07FF; // Deszcz - cyan
-    else if (day.icon.indexOf("11") >= 0) iconColor = 0xF81F; // Burza - magenta
-    else if (day.icon.indexOf("13") >= 0) iconColor = TFT_WHITE; // Snieg
+    // === IKONA POGODY (uproszczona kolorowa) ===
+    int iconX = 55;
+    int iconY = y + 5;
     
-    tft.fillCircle(80, y + 10, 8, iconColor);
+    // Rysuj uproszczona kolorowa ikone (lepsza czytelnosc)
+    tft.fillCircle(iconX, iconY, 12, TFT_BLACK); // Tlo
+    
+    uint16_t iconColor = TFT_WHITE;
+    if (day.icon.indexOf("01") >= 0) { 
+      iconColor = 0xFFE0; // Zolte slonce
+      tft.fillCircle(iconX, iconY, 8, iconColor);
+      // Promienie slonca
+      for(int i = 0; i < 8; i++) {
+        int angle = i * 45;
+        int x1 = iconX + cos(angle * PI/180) * 10;
+        int y1 = iconY + sin(angle * PI/180) * 10;
+        tft.drawPixel(x1, y1, iconColor);
+      }
+    }
+    else if (day.icon.indexOf("02") >= 0 || day.icon.indexOf("03") >= 0) { 
+      iconColor = 0xCE79; // Szare chmury
+      tft.fillCircle(iconX-3, iconY, 6, iconColor);
+      tft.fillCircle(iconX+3, iconY, 6, iconColor);
+      tft.fillCircle(iconX, iconY-3, 6, iconColor);
+    }
+    else if (day.icon.indexOf("04") >= 0) { 
+      iconColor = 0x7BEF; // Ciemne chmury
+      tft.fillRect(iconX-8, iconY-4, 16, 8, iconColor);
+    }
+    else if (day.icon.indexOf("09") >= 0 || day.icon.indexOf("10") >= 0) { 
+      iconColor = 0x07FF; // Cyan deszcz
+      tft.fillRect(iconX-6, iconY-4, 12, 6, iconColor);
+      // Krople
+      for(int i = 0; i < 3; i++) {
+        tft.drawLine(iconX-4+i*4, iconY+3, iconX-4+i*4, iconY+8, iconColor);
+      }
+    }
+    else if (day.icon.indexOf("11") >= 0) { 
+      iconColor = 0xF81F; // Magenta burza
+      tft.fillRect(iconX-6, iconY-4, 12, 6, iconColor);
+      // Blyskawiaca
+      tft.drawLine(iconX-2, iconY-2, iconX+2, iconY+2, TFT_YELLOW);
+      tft.drawLine(iconX+2, iconY-2, iconX-2, iconY+2, TFT_YELLOW);
+    }
+    else if (day.icon.indexOf("13") >= 0) { 
+      iconColor = TFT_WHITE; // Bialy snieg
+      tft.fillCircle(iconX-3, iconY-3, 3, iconColor);
+      tft.fillCircle(iconX+3, iconY-3, 3, iconColor);
+      tft.fillCircle(iconX, iconY+3, 3, iconColor);
+    }
+    else if (day.icon.indexOf("50") >= 0) { 
+      iconColor = 0x8410; // Szara mgla
+      for(int i = 0; i < 3; i++) {
+        tft.drawLine(iconX-6, iconY-2+i*2, iconX+6, iconY-2+i*2, iconColor);
+      }
+    }
     
     // === TEMPERATURY MIN/MAX ===
     tft.setTextSize(2);
@@ -117,17 +163,21 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     
     // === WIATR MIN/MAX ===
     tft.setTextSize(1);
-    tft.setTextColor(TFT_DARKGREY);
     tft.setTextDatum(TL_DATUM);
-    String windText = String((int)day.windMin) + "-" + String((int)day.windMax) + "km/h";
-    tft.drawString(windText, 220, y + 8);
     
-    // === OPADY (jesli > 20%) ===
-    if (day.precipitationChance > 20) {
-      tft.setTextColor(0x07E0); // Zielony
-      tft.setTextSize(1);
-      tft.drawString(String(day.precipitationChance) + "%", 280, y + 20);
-    }
+    // Min wiatr (ciemnoszary)
+    tft.setTextColor(TFT_DARKGREY);
+    tft.drawString(String((int)day.windMin) + "-", 220, y + 8);
+    
+    // Max wiatr (bialy)  
+    tft.setTextColor(TFT_WHITE);
+    tft.drawString(String((int)day.windMax) + "km/h", 240, y + 8);
+    
+    // === OPADY (zawsze pokazuj na ciemno niebiesko) ===
+    tft.setTextColor(0x001F); // Ciemny niebieski
+    tft.setTextSize(1);
+    tft.setTextDatum(TL_DATUM);
+    tft.drawString(String(day.precipitationChance) + "%", 285, y + 8);
     
     Serial.printf("📅 Rendered: %s, %.1f'-%.1f'C, %s\n", 
                   day.dayName.c_str(), day.tempMin, day.tempMax, day.icon.c_str());
