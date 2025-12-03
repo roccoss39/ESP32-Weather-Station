@@ -10,7 +10,6 @@
 bool isImageDownloadInProgress = false;
 
 // --- KONFIGURACJA ---
-#include "config/wifi_config.h"
 #include "config/weather_config.h"
 #include "config/display_config.h"
 #include "config/secrets.h"
@@ -374,8 +373,24 @@ void loop() {
           Serial.println("✗ Brak połączenia WiFi");
         }
         break;
+      
+      case 'x':
+      case 'X':
+        // Wymuś pobranie weekly forecast
+        if (WiFi.status() == WL_CONNECTED) {
+          Serial.println("Wymuszam aktualizacje weekly forecast...");
+          if (generateWeeklyForecast()) {
+            Serial.println("✓ Weekly forecast zaktualizowany - przejdź na ekran weekly żeby zobaczyć zmiany");
+          } else {
+            Serial.println("✗ Blad aktualizacji weekly forecast");
+          }
+        } else {
+          Serial.println("✗ Brak połączenia WiFi");
+        }
+        break;
+      
       default:
-        Serial.println("Dostepne komendy: 'f', 'w'");
+        Serial.println("Dostepne komendy: 'f', 'w', 'x'");
         break;
     }
   }

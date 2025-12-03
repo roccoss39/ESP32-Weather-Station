@@ -109,6 +109,7 @@ bool getForecast() {
 
 // === FUNKCJA PRZETWARZANIA 40 PROGNOZ 3H NA 5 DNI ===
 bool generateWeeklyForecast() {
+  Serial.println("🗓️ WYWOŁANIE generateWeeklyForecast() - START");
   Serial.println("🗓️ Generowanie prognozy 5-dniowej z danych 3h...");
   
   if (WiFi.status() != WL_CONNECTED) {
@@ -208,11 +209,26 @@ bool generateWeeklyForecast() {
         Serial.printf("🌡️ Inicjalizacja dnia %s: temp=%.1f°C, wiatr=%.0fkm/h\n", 
                      dayNames[dayOfWeek], temp, wind);
       } else {
+        Serial.printf("📊 Aktualizacja dnia %s: temp=%.1f°C (min=%.1f, max=%.1f), wiatr=%.0fkm/h (min=%.0f, max=%.0f)\n", 
+                     dayNames[dayOfWeek], temp, group.tempMin, group.tempMax, wind, group.windMin, group.windMax);
+        
         // Normalne porównywanie min/max dla kolejnych prognoz
-        if (temp < group.tempMin) group.tempMin = temp;
-        if (temp > group.tempMax) group.tempMax = temp;
-        if (wind < group.windMin) group.windMin = wind;
-        if (wind > group.windMax) group.windMax = wind;
+        if (temp < group.tempMin) {
+          group.tempMin = temp;
+          Serial.printf("❄️ Nowa temp MIN dla %s: %.1f°C\n", dayNames[dayOfWeek], temp);
+        }
+        if (temp > group.tempMax) {
+          group.tempMax = temp;
+          Serial.printf("🔥 Nowa temp MAX dla %s: %.1f°C\n", dayNames[dayOfWeek], temp);
+        }
+        if (wind < group.windMin) {
+          group.windMin = wind;
+          Serial.printf("🍃 Nowy wiatr MIN dla %s: %.0fkm/h\n", dayNames[dayOfWeek], wind);
+        }
+        if (wind > group.windMax) {
+          group.windMax = wind;
+          Serial.printf("💨 Nowy wiatr MAX dla %s: %.0fkm/h\n", dayNames[dayOfWeek], wind);
+        }
       }
       
       // Zlicz ikony (znajdz dominujaca)
@@ -232,6 +248,16 @@ bool generateWeeklyForecast() {
       
       group.precipSum += precipChance;
       group.itemCount++;
+    }
+  }
+  
+  // USUŃ OSTATNI DZIEŃ JEŚLI MA ZA MAŁO PROGNOZ (< 3)
+  if (weeklyForecast.count > 0) {
+    DayGroup& lastDay = dayGroups[weeklyForecast.count - 1];
+    if (lastDay.itemCount < 3) {
+      Serial.printf("⚠️ Usuwam ostatni dzień %s - za mało prognoz (%d)\n", 
+                    dayNames[lastDay.dayOfWeek], lastDay.itemCount);
+      weeklyForecast.count--; // Usuń ostatni dzień
     }
   }
   
@@ -289,9 +315,9 @@ bool generateWeeklyForecast() {
       }
     }
     
-    Serial.printf("✅ Dzien %d: %s, %.1f'-%.1f'C, %.0f-%.0fkm/h, %s, %d%%\n", 
+    Serial.printf("✅ Dzien %d: %s, %.1f'-%.1f'C, %.0f-%.0fkm/h, %s, %d%% (%d prognoz)\n", 
                   i+1, day.dayName.c_str(), day.tempMin, day.tempMax, 
-                  day.windMin, day.windMax, day.icon.c_str(), day.precipitationChance);
+                  day.windMin, day.windMax, day.icon.c_str(), day.precipitationChance, group.itemCount);
   }
   
   weeklyForecast.isValid = true;

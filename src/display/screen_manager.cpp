@@ -58,8 +58,13 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
   // Sprawdz czy dane weekly sa dostepne
   extern WeeklyForecastData weeklyForecast;
   
+  // Sprawdź wiek danych (informacyjnie)
+  unsigned long dataAge = millis() - weeklyForecast.lastUpdate;
+  Serial.printf("📊 Weekly data: valid=%s, count=%d, age=%.1fh\n", 
+               weeklyForecast.isValid ? "YES" : "NO", weeklyForecast.count, dataAge / 3600000.0);
+  
   if (!weeklyForecast.isValid || weeklyForecast.count == 0) {
-    // Pokaz error screen
+    // Pokaz error screen dla brakujących danych
     tft.setTextColor(TFT_RED);
     tft.setTextSize(2);
     tft.setTextDatum(MC_DATUM);
@@ -75,8 +80,13 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
   tft.setTextSize(1);
   tft.setTextDatum(TL_DATUM);
   
+  // DYNAMICZNE WYRÓWNANIE - dostosuj wysokość do liczby dni
+  int availableHeight = 200; // Wysokość ekranu minus margines
   int startY = 15;
-  int rowHeight = 35;
+  int rowHeight = weeklyForecast.count > 0 ? (availableHeight / weeklyForecast.count) : 35;
+  
+  Serial.printf("📐 Wyrównanie ekranu: %d dni, wysokość rzędu: %dpx\n", 
+                weeklyForecast.count, rowHeight);
   
   for(int i = 0; i < weeklyForecast.count && i < 5; i++) {
     DailyForecast& day = weeklyForecast.days[i];
@@ -92,7 +102,7 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     extern void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconCode);
     
     int iconX = 55;
-    int iconY = y - 20; // Wyżej żeby nie nachodzily na nazwe dnia
+    int iconY = y - (rowHeight / 4); // Dynamicznie wycentruj ikonę
     
     // Mapowanie ikony na warunek pogodowy (dla drawWeatherIcon)
     String condition = "";
@@ -138,19 +148,21 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     tft.setTextSize(1);
     tft.setTextDatum(TL_DATUM);
     
+    int windY = y + (rowHeight / 3); // Dynamiczne pozycjonowanie wiatru
+    
     // Min wiatr (ciemnoszary)
     tft.setTextColor(TFT_DARKGREY);
-    tft.drawString(String((int)day.windMin) + "-", 220, y + 8);
+    tft.drawString(String((int)day.windMin) + "-", 220, windY);
     
     // Max wiatr (bialy)  
     tft.setTextColor(TFT_WHITE);
-    tft.drawString(String((int)day.windMax) + "km/h", 240, y + 8);
+    tft.drawString(String((int)day.windMax) + "km/h", 240, windY);
     
     // === OPADY (zawsze pokazuj na ciemno niebiesko) ===
     tft.setTextColor(0x001F); // Ciemny niebieski
     tft.setTextSize(1);
     tft.setTextDatum(TL_DATUM);
-    tft.drawString(String(day.precipitationChance) + "%", 285, y + 8);
+    tft.drawString(String(day.precipitationChance) + "%", 285, windY);
     
     Serial.printf("📅 Rendered: %s, %.1f'-%.1f'C, %s\n", 
                   day.dayName.c_str(), day.tempMin, day.tempMax, day.icon.c_str());
