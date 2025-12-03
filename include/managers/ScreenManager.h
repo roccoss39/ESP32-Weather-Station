@@ -65,9 +65,12 @@ public:
         lastScreenSwitch = millis();
 
         if (TEST_MODE == 1) {
-            currentScreen = SCREEN_IMAGE;  // W trybie testowym tylko IMAGE
-            Serial.println("📱 TEST MODE: Staying on IMAGE screen");
-            return previousScreen;
+            static int nr = 0;
+            nr++;
+            if(nr%2)
+            currentScreen = SCREEN_FORECAST;  // W trybie testowym tylko IMAGE
+            else 
+            currentScreen = SCREEN_CURRENT_WEATHER;
         }
 
         switch(currentScreen) {
@@ -115,9 +118,14 @@ public:
         resetCacheForScreen(currentScreen);
         
         // Renderuj odpowiedni ekran
-        if (TEST_MODE == 1) {
-            currentScreen = SCREEN_IMAGE;  // W trybie testowym tylko IMAGE
-        }
+        // if (TEST_MODE == 1) {
+        //     static int nr = 0;
+        //     nr++;
+        //     if(nr%2)
+        //     currentScreen = SCREEN_IMAGE;  // W trybie testowym tylko IMAGE
+        //     else 
+        //     currentScreen = SCREEN_CURRENT_WEATHER;
+        // }
 
         switch(currentScreen) {
             case SCREEN_CURRENT_WEATHER:
