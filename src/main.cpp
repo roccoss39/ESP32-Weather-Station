@@ -50,6 +50,7 @@ TFT_eSPI tft = TFT_eSPI();
 // --- GLOBALNE FLAGI ERROR MODE ---
 bool weatherErrorModeGlobal = false;
 bool forecastErrorModeGlobal = false;
+bool weeklyErrorModeGlobal = false;
 bool isNtpSyncPending = false;      
 bool isLocationSavePending = false; 
 
@@ -404,19 +405,31 @@ void loop() {
     Serial.println("🔴 WiFi LOST - Screen manager PAUSED");
   }
 
-  // --- AUTOMATYCZNA AKTUALIZACJA WEEKLY CO 4H ---
-  if (millis() - lastWeeklyUpdate >= WEEKLY_UPDATE_INTERVAL) {
+  // === WEEKLY FORECAST - ERROR MODE LUB CO 4H ===
+  unsigned long weeklyInterval = weeklyErrorModeGlobal ? WEEKLY_UPDATE_ERROR : WEEKLY_UPDATE_INTERVAL;
+  
+  if (millis() - lastWeeklyUpdate >= weeklyInterval) {
+    lastWeeklyUpdate = millis();
+    
     if (WiFi.status() == WL_CONNECTED) {
-      Serial.println("⏰ 4h timer - updating weekly forecast...");
-      lastWeeklyUpdate = millis();
-      if (generateWeeklyForecast()) {
-        Serial.println("✅ Weekly forecast auto-updated");
+      if (weeklyErrorModeGlobal) {
+        Serial.println("Retry weekly forecast po błędzie (5s)...");
       } else {
-        Serial.println("❌ Weekly forecast auto-update failed");
+        Serial.println("Automatyczna aktualizacja weekly forecast (4h)...");
+      }
+      
+      if (generateWeeklyForecast()) {
+        // Sukces - wyłącz error mode
+        if (weeklyErrorModeGlobal) {
+          Serial.println("✓ Weekly forecast naprawiony - powrót do 4h interwału");
+          weeklyErrorModeGlobal = false;
+        }
+      } else {
+        Serial.println("❌ Weekly forecast update failed - aktywuję error mode");
+        weeklyErrorModeGlobal = true;
       }
     } else {
-      Serial.println("⏰ 4h timer - skipping weekly update (no WiFi)");
-      lastWeeklyUpdate = millis(); // Reset timer anyway
+      Serial.println("⏰ Weekly timer - skipping update (no WiFi)");
     }
   }
 
@@ -558,6 +571,7 @@ void onWiFiConnectedTasks() {
     Serial.println("Forcing immediate API fetch (pending NTP sync)...");
     weatherErrorModeGlobal = true;
     forecastErrorModeGlobal = true;
+    weeklyErrorModeGlobal = true;
     lastWeatherCheckGlobal = millis() - WEATHER_FORCE_REFRESH;
     lastForecastCheckGlobal = millis() - WEATHER_FORCE_REFRESH;
     

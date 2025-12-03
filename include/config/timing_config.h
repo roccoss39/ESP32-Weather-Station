@@ -11,7 +11,7 @@
 // === WIFI TOUCH INTERFACE TIMEOUTS ===
 #define WIFI_LOSS_TIMEOUT           60000   // 60s - czas po którym przejdzie do scan mode
 #define WIFI_CONFIG_MODE_TIMEOUT    180000  // 180s (3 min) - timeout config mode
-#define WIFI_LONG_PRESS_TIME        5000    // 5s - czas długiego naciśnięcia
+#define WIFI_LONG_PRESS_TIME        3000    // 3s - czas długiego naciśnięcia
 #define WIFI_RECONNECT_INTERVAL     19000   // 19s - interval między próbami reconnect
 #define WIFI_CONNECTION_TIMEOUT     10000   // 10s - timeout pojedynczej próby połączenia
 #define WIFI_STATUS_CHECK_INTERVAL  2000    // 2s - jak często sprawdzać status WiFi
@@ -30,9 +30,10 @@
 
 // === WEATHER API INTERVALS ===
 #define WEATHER_UPDATE_NORMAL       600000  // 10 min - normalny interval pogody
-#define WEATHER_UPDATE_ERROR        20000   // 20s - interval po błędzie
-#define WEATHER_FORCE_REFRESH       20000   // 20s - wymuszenie odświeżenia po błędzie
+#define WEATHER_UPDATE_ERROR        10000   // 20s - interval po błędzie
+#define WEATHER_FORCE_REFRESH       10000   // 20s - wymuszenie odświeżenia po błędzie
 #define WEEKLY_UPDATE_INTERVAL     14400000  // 4 godziny - weekly forecast update
+#define WEEKLY_UPDATE_ERROR         5000    // 5s - weekly forecast po błędzie/zmianie lokalizacji
 
 // === DISPLAY & SCREEN TIMEOUTS ===
 // NOTE: SCREEN_SWITCH_INTERVAL jest już zdefiniowany w ScreenManager.h

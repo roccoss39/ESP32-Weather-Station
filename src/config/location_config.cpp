@@ -16,6 +16,9 @@ void LocationManager::setLocation(const WeatherLocation& location) {
     
     Serial.printf("📍 NEW Location: %s (%.6f, %.6f)\n", 
                   location.displayName, location.latitude, location.longitude);
+    
+    // Weekly forecast aktualizuje się automatycznie przez error mode system
+    
     Serial.println("✅ Location successfully changed!");
 }
 

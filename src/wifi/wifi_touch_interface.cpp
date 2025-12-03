@@ -9,6 +9,7 @@ extern bool isNtpSyncPending;
 extern bool isLocationSavePending;
 extern bool weatherErrorModeGlobal;  // <-- DODAJ TĘ LINIĘ
 extern bool forecastErrorModeGlobal; // <-- DODAJ TĘ LINIĘ
+extern bool weeklyErrorModeGlobal;
 
 // Hardware pins - moved from header
 #define TFT_BL   25  // Backlight
@@ -584,8 +585,8 @@ void handleLongPress(TFT_eSPI& tft) {
     else {
       // Show progress indicator for long press
       unsigned long elapsed = millis() - touchStartTime;
-      if (elapsed >= 1000 && elapsed < 5000) {
-        int progress = map(elapsed, 1000, 5000, 0, 100);
+      if (elapsed >= 1000 && elapsed < WIFI_LONG_PRESS_TIME) {
+        int progress = map(elapsed, 1000, WIFI_LONG_PRESS_TIME, 0, 100);
         
         // Draw progress bar on connected screen
         tft.fillRect(10, 10, 300, 20, BLACK);
@@ -595,7 +596,7 @@ void handleLongPress(TFT_eSPI& tft) {
         tft.setTextColor(WHITE);
         tft.setTextSize(1);
         tft.setCursor(130, 35);
-        tft.printf("Hold for %d...", (5000 - elapsed) / 1000 + 1);
+        tft.printf("Hold for %d...", (WIFI_LONG_PRESS_TIME - elapsed) / 1000 + 1);
       }
     }
   }
@@ -1436,9 +1437,10 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       extern unsigned long lastWeatherCheckGlobal;
       extern unsigned long lastForecastCheckGlobal;
 
-      // (1) Włącz tryb błędu, aby wymusić szybki interwał (20s)
+      // (1) Włącz tryb błędu, aby wymusić szybki interwał (5s)
       weatherErrorModeGlobal = true; 
       forecastErrorModeGlobal = true;
+      weeklyErrorModeGlobal = true;
 
       // Ustawiamy timery tak, jakby właśnie wygasły (używając wartości z configu, np. 20000)
       lastWeatherCheckGlobal = millis() - 20000; 
