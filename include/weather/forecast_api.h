@@ -5,5 +5,6 @@
 
 // --- FUNKCJE API PROGNOZY ---
 bool getForecast();
+bool generateWeeklyForecast();
 
 #endif

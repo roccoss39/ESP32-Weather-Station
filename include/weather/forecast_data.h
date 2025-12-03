@@ -21,8 +21,30 @@ struct ForecastData {
   unsigned long lastUpdate = 0;
 };
 
-// Globalna zmienna prognozy
+// --- STRUKTURA POJEDYNCZEGO DNIA (5-DNIOWA PROGNOZA) ---
+struct DailyForecast {
+  String dayName = "";        // "Pon", "Wto", "Sro", etc.
+  float tempMin = 0;          // minimalna temperatura dnia
+  float tempMax = 0;          // maksymalna temperatura dnia
+  float windMin = 0;          // minimalny wiatr dnia (km/h)
+  float windMax = 0;          // maksymalny wiatr dnia (km/h)
+  String icon = "";           // najczęstsza ikona dnia
+  String description = "";    // główny opis pogody
+  int precipitationChance = 0; // średnie prawdopodobieństwo opadów
+};
+
+// --- STRUKTURA PROGNOZY 5-DNIOWEJ ---
+struct WeeklyForecastData {
+  DailyForecast days[5];      // 5 dni prognozy
+  int count = 0;              // ile dni jest dostępnych
+  bool isValid = false;
+  unsigned long lastUpdate = 0;
+};
+
+// Globalne zmienne prognozy
 extern ForecastData forecast;
+extern WeeklyForecastData weeklyForecast;
 extern unsigned long lastForecastUpdate;
+extern unsigned long lastWeeklyUpdate;
 
 #endif

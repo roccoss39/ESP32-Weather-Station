@@ -32,6 +32,7 @@
 #define WEATHER_UPDATE_NORMAL       600000  // 10 min - normalny interval pogody
 #define WEATHER_UPDATE_ERROR        20000   // 20s - interval po błędzie
 #define WEATHER_FORCE_REFRESH       20000   // 20s - wymuszenie odświeżenia po błędzie
+#define WEEKLY_UPDATE_INTERVAL     14400000  // 4 godziny - weekly forecast update
 
 // === DISPLAY & SCREEN TIMEOUTS ===
 // NOTE: SCREEN_SWITCH_INTERVAL jest już zdefiniowany w ScreenManager.h

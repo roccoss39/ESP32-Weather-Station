@@ -4,12 +4,13 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 
-#define TEST_MODE 1
+#define TEST_MODE 0
 // ScreenType enum definition - musi być tutaj dla ScreenManager
 enum ScreenType {
   SCREEN_CURRENT_WEATHER = 0,
   SCREEN_FORECAST = 1,
-  SCREEN_IMAGE = 2
+  SCREEN_WEEKLY = 2,
+  SCREEN_IMAGE = 3
 };
 
 class ScreenManager {
@@ -79,8 +80,12 @@ public:
                 Serial.println("📱 Przełączanie: WEATHER → FORECAST");
                 break;
             case SCREEN_FORECAST:
+                currentScreen = SCREEN_WEEKLY;
+                Serial.println("📱 Przełączanie: FORECAST → WEEKLY");
+                break;
+            case SCREEN_WEEKLY:
                 currentScreen = SCREEN_IMAGE;
-                Serial.println("📱 Przełączanie: FORECAST → IMAGE");
+                Serial.println("📱 Przełączanie: WEEKLY → IMAGE");
                 break;
             case SCREEN_IMAGE:
                 currentScreen = SCREEN_CURRENT_WEATHER;
@@ -134,6 +139,9 @@ public:
             case SCREEN_FORECAST:
                 renderForecastScreen(tft);
                 break;
+            case SCREEN_WEEKLY:
+                renderWeeklyScreen(tft);
+                break;
             case SCREEN_IMAGE:
                 renderImageScreen(tft);
                 break;
@@ -176,6 +184,7 @@ public:
         switch(screen) {
             case SCREEN_CURRENT_WEATHER: return "WEATHER";
             case SCREEN_FORECAST: return "FORECAST";
+            case SCREEN_WEEKLY: return "WEEKLY";
             case SCREEN_IMAGE: return "IMAGE";
             default: return "UNKNOWN";
         }
@@ -197,6 +206,10 @@ public:
                 // Reset tylko cache prognozy
                 Serial.println("📱 Reset cache: FORECAST");
                 break;
+            case SCREEN_WEEKLY:
+                // Reset cache weekly
+                Serial.println("📱 Reset cache: WEEKLY");
+                break;
             case SCREEN_IMAGE:
                 // Nie ma cache dla obrazów
                 Serial.println("📱 Reset cache: IMAGE (none)");
@@ -207,6 +220,7 @@ public:
     // --- RENDERING METHODS (do implementacji w .cpp) ---
     void renderWeatherScreen(TFT_eSPI& tft);
     void renderForecastScreen(TFT_eSPI& tft);
+    void renderWeeklyScreen(TFT_eSPI& tft);
     void renderImageScreen(TFT_eSPI& tft);
     void resetWeatherAndTimeCache();
     

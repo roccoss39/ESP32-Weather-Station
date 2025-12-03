@@ -218,6 +218,10 @@ if (WiFi.status() == WL_CONNECTED) {
     
     tft.drawString("Pobieranie prognozy...", tft.width() / 2, tft.height() / 2 + 10);
     getForecast();
+    
+    // Wygeneruj takze prognoza 5-dniowa przy starcie
+    generateWeeklyForecast();
+    
     if (!forecast.isValid) {
       Serial.println("BLAD: Nie udalo sie pobrac prognozy - AKTYWUJĘ ERROR MODE");
       tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
@@ -370,6 +374,9 @@ void loop() {
           Serial.println("✗ Brak połączenia WiFi");
         }
         break;
+      default:
+        Serial.println("Dostepne komendy: 'f', 'w'");
+        break;
     }
   }
 
@@ -380,6 +387,22 @@ void loop() {
     updateScreenManager();
   } else {
     Serial.println("🔴 WiFi LOST - Screen manager PAUSED");
+  }
+
+  // --- AUTOMATYCZNA AKTUALIZACJA WEEKLY CO 4H ---
+  if (millis() - lastWeeklyUpdate >= WEEKLY_UPDATE_INTERVAL) {
+    if (WiFi.status() == WL_CONNECTED) {
+      Serial.println("⏰ 4h timer - updating weekly forecast...");
+      lastWeeklyUpdate = millis();
+      if (generateWeeklyForecast()) {
+        Serial.println("✅ Weekly forecast auto-updated");
+      } else {
+        Serial.println("❌ Weekly forecast auto-update failed");
+      }
+    } else {
+      Serial.println("⏰ 4h timer - skipping weekly update (no WiFi)");
+      lastWeeklyUpdate = millis(); // Reset timer anyway
+    }
   }
 
   // --- AUTOMATYCZNA AKTUALIZACJA POGODY (10 min normalnie, 30s po błędzie) ---
