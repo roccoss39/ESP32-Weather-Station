@@ -17,8 +17,6 @@ ScreenManager& getScreenManager() {
   return screenManager;
 }
 
-// ❌ USUNIĘTE: 3 extern variables zastąpione ScreenManager class
-
 void updateScreenManager() {
   // Nie przełączaj ekranów jeśli display śpi
   if (getDisplayState() == DISPLAY_SLEEPING) {
@@ -81,6 +79,7 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
   tft.setTextSize(1);
   tft.setTextDatum(TL_DATUM);
   
+  
   // DYNAMICZNE WYRÓWNANIE - dostosuj wysokość do liczby dni
   int availableHeight = 200; // Wysokość ekranu minus margines
   int startY = 15;
@@ -95,7 +94,7 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     
     // === NAZWA DNIA ===
     tft.setTextColor(TFT_WHITE); // Bialy
-    tft.setTextSize(2);
+    tft.setTextSize(2); // Wysokość ~16px
     tft.setTextDatum(TL_DATUM);
     tft.drawString(day.dayName, 10, y);
     
@@ -103,7 +102,7 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     extern void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconCode);
     
     int iconX = 55;
-    int iconY = y - (rowHeight / 4); // Dynamicznie wycentruj ikonę
+    int iconY = y - (rowHeight / 4); // Ikony są specyficzne, zostawiamy ich pozycjonowanie
     
     // Mapowanie ikony na warunek pogodowy
     String condition = "";
@@ -127,7 +126,7 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     // Min temp (szary)
     tft.setTextColor(TFT_LIGHTGREY); 
     tft.setTextDatum(TL_DATUM);
-    tft.drawString(String((int)day.tempMin) + "'", 120, y);
+    tft.drawString(String((int)round(day.tempMin)) + "'", 120, y);
     
     // Separator
     tft.setTextColor(TFT_WHITE);
@@ -135,21 +134,26 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     
     // Max temp (bialy)
     tft.setTextColor(TFT_WHITE); 
-    tft.drawString(String((int)day.tempMax) + "'", 170, y);
+    tft.drawString(String((int)round(day.tempMax)) + "'", 170, y);
     
     // === WIATR MIN/MAX ===
+    // Ustawiamy małą czcionkę (rozmiar 1 ma ok. 8px wysokości)
     tft.setTextSize(1);
     tft.setTextDatum(TL_DATUM);
     
-    int windY = y + (rowHeight / 3); 
+    // --- POPRAWKA POZYCJONOWANIA ---
+    // Zamiast dzielić rowHeight, dodajemy stały offset do 'y'.
+    // 'y' to góra dużej czcionki (rozmiar 2).
+    // Dodając 5px, centrujemy małą czcionkę (rozmiar 1) w pionie względem dużej.
+    int windY = y + 5; 
     
     // Min wiatr (ciemnoszary)
     tft.setTextColor(TFT_DARKGREY);
-    tft.drawString(String((int)day.windMin) + "-", 220, windY);
+    tft.drawString(String((int)round(day.windMin)) + "-", 220, windY);
     
     // Max wiatr (bialy)  
     tft.setTextColor(TFT_WHITE);
-    tft.drawString(String((int)day.windMax) + "km/h", 240, windY);
+    tft.drawString(String((int)round(day.windMax)) + "km/h", 240, windY);
     
     // === OPADY ===
     tft.setTextColor(0x001F); // Ciemny niebieski
@@ -172,22 +176,19 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     WeatherLocation loc = locationManager.getCurrentLocation();
     String locationText;
 
-    // INTELIGENTNE BUDOWANIE NAZWY:
-    // Sprawdź czy displayName istnieje i czy różni się od cityName
+    // INTELIGENTNE BUDOWANIE NAZWY
     if (loc.displayName.length() > 0 && loc.displayName != loc.cityName) {
-        // Mamy np. "Szczecin" i "Centrum" -> "Szczecin, Centrum"
         locationText = loc.cityName + ", " + loc.displayName;
     } else {
-        // Mamy tylko "Szczecin" lub duplikat -> Sam "Szczecin"
         locationText = loc.cityName;
     }
     
-    // Skracanie tekstu, jeśli nadal jest za długi
+    // Skracanie tekstu
     if (locationText.length() > 38) {
       locationText = locationText.substring(0, 35) + "...";
     }
     
-    // Rysuj na środku ekranu (X = 160) - przesunięte wyżej dla większej czcionki
+    // Rysuj na środku ekranu (X = 160)
     tft.drawString(locationText, 160, 205);
   } else {
     tft.drawString("Brak lokalizacji", 160, 205);
@@ -217,38 +218,36 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
   tft.setCursor(20, 60);
   tft.print("Temp. lokalna: ");
   tft.setTextColor(TFT_YELLOW);
-  tft.print("--.-'C");  // TODO: Dodać prawdziwe dane z DHT22
+  tft.print("--.-'C");  
   
   // Wilgotność
   tft.setTextColor(TFT_WHITE);
   tft.setCursor(20, 110);
   tft.print("Wilg. lokalna: ");
   tft.setTextColor(TFT_CYAN);
-  tft.print("--%");     // TODO: Dodać prawdziwe dane z DHT22
-  
-  // Status DHT22 przeniesiony do sekcji AKTUALIZACJE
+  tft.print("--%");     
   
   // === FOOTER z informacjami o aktualizacjach ===
   tft.setTextColor(TFT_DARKGREY);
   tft.setTextSize(1);
   
-  // Wyczyść obszar footera (więcej miejsca)
-  tft.fillRect(0, UPDATES_CLEAR_Y, 320, 75, COLOR_BACKGROUND);  // Używamy define
+  // Wyczyść obszar footera
+  tft.fillRect(0, UPDATES_CLEAR_Y, 320, 75, COLOR_BACKGROUND);
   
-  // Etykieta AKTUALIZACJE (wyżej)
+  // Etykieta AKTUALIZACJE
   tft.setTextDatum(TC_DATUM);
   tft.setTextColor(TFT_CYAN);
-  tft.drawString("AKTUALIZACJE:", 160, UPDATES_TITLE_Y);  // Używamy define
+  tft.drawString("AKTUALIZACJE:", 160, UPDATES_TITLE_Y);
   
-  // 1. Status DHT22 (PRZENIESIONY Z GÓRY)
+  // 1. Status DHT22
   tft.setTextColor(TFT_GREEN);
-  tft.drawString("DHT22: Gotowy", 160, UPDATES_DHT22_Y);  // Używamy define
+  tft.drawString("DHT22: Gotowy", 160, UPDATES_DHT22_Y);
   
-  // 2. Czujnik odczyt (WYŚRODKOWANY)
+  // 2. Czujnik odczyt
   tft.setTextColor(TFT_DARKGREY);
-  tft.drawString("Czujnik dht: co 2s", 160, UPDATES_SENSOR_Y);  // Używamy define
+  tft.drawString("Czujnik dht: co 2s", 160, UPDATES_SENSOR_Y);
   
-  // 2. Pogoda bieżąca (drugi rząd)
+  // 3. Pogoda bieżąca
   extern unsigned long lastWeatherCheckGlobal;
   unsigned long weatherAge = (millis() - lastWeatherCheckGlobal) / 1000;
   String weatherUpdateText;
@@ -261,10 +260,9 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
     unsigned long weatherHours = weatherAge / 3600;
     weatherUpdateText = "Pogoda: " + String(weatherHours) + "h temu (co 10min)";
   }
+  tft.drawString(weatherUpdateText, 160, UPDATES_WEATHER_Y);
   
-  tft.drawString(weatherUpdateText, 160, UPDATES_WEATHER_Y);  // Używamy define
-  
-  // 3. Prognoza weekly (trzeci rząd)
+  // 4. Prognoza weekly
   extern WeeklyForecastData weeklyForecast;
   unsigned long weeklyAge = (millis() - weeklyForecast.lastUpdate) / 1000;
   String weeklyUpdateText;
@@ -277,10 +275,9 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
     unsigned long weeklyHours = weeklyAge / 3600;
     weeklyUpdateText = "Pogoda tyg.: " + String(weeklyHours) + "h temu (co 4h)";
   }
+  tft.drawString(weeklyUpdateText, 160, UPDATES_WEEKLY_Y);
   
-  tft.drawString(weeklyUpdateText, 160, UPDATES_WEEKLY_Y);  // Używamy define
-  
-  // 4. Stan WiFi (czwarty rząd)
+  // 5. Stan WiFi
   String wifiStatus;
   if (WiFi.status() == WL_CONNECTED) {
     int rssi = WiFi.RSSI();
@@ -288,13 +285,10 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
   } else {
     wifiStatus = "WiFi: Rozlaczony";
   }
-  
-  // Skróć jeśli za długi
   if (wifiStatus.length() > 30) {
     wifiStatus = wifiStatus.substring(0, 27) + "...";
   }
-  
-  tft.drawString(wifiStatus, 160, UPDATES_WIFI_Y);  // Używamy define
+  tft.drawString(wifiStatus, 160, UPDATES_WIFI_Y);
 }
 
 void ScreenManager::renderImageScreen(TFT_eSPI& tft) {
@@ -303,7 +297,6 @@ void ScreenManager::renderImageScreen(TFT_eSPI& tft) {
 }
 
 void ScreenManager::resetWeatherAndTimeCache() {
-  // Coordination z Phase 1+2 managers - teraz includes są w .cpp
   getWeatherCache().resetCache();
   getTimeDisplayCache().resetCache();
   Serial.println("📱 Cache reset: WeatherCache + TimeDisplayCache");

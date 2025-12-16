@@ -111,6 +111,7 @@ bool getForecast() {
 bool generateWeeklyForecast() {
   Serial.println("🗓️ WYWOŁANIE generateWeeklyForecast() - START");
   Serial.println("🗓️ Generowanie prognozy 5-dniowej z danych 3h...");
+  Serial.println("🔍 DEBUG_WEATHER_API status: ENABLED");
   
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("❌ WiFi not connected for weekly forecast");
@@ -132,6 +133,15 @@ bool generateWeeklyForecast() {
   }
   
   String payload = http.getString();
+  
+  // === DEBUG: JSON dump dla weekly forecast ===
+  #ifdef DEBUG_WEATHER_API
+    Serial.println("=== RAW JSON WEEKLY FORECAST API ===");
+    Serial.println(payload);
+    Serial.println("=== KONIEC RAW JSON WEEKLY ===");
+    Serial.println();
+  #endif
+  
   JsonDocument doc;
   
   if (deserializeJson(doc, payload) != DeserializationError::Ok) {
@@ -248,6 +258,21 @@ bool generateWeeklyForecast() {
       
       group.precipSum += precipChance;
       group.itemCount++;
+    }
+  }
+  
+  // USUŃ PIERWSZY DZIEŃ JEŚLI MA TYLKO 1 PROGNOZĘ (dzisiejszy dzień kończy się)
+  if (weeklyForecast.count > 0) {
+    DayGroup& firstDay = dayGroups[0];
+    if (firstDay.itemCount == 1) {
+      Serial.printf("⚠️ Usuwam pierwszy dzień %s - tylko 1 prognoza (dzień się kończy)\n", 
+                    dayNames[firstDay.dayOfWeek], firstDay.itemCount);
+      
+      // Przesuń wszystkie dni w lewo
+      for (int i = 0; i < weeklyForecast.count - 1; i++) {
+        dayGroups[i] = dayGroups[i + 1];
+      }
+      weeklyForecast.count--; // Zmniejsz liczbę dni
     }
   }
   
