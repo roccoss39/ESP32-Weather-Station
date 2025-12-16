@@ -224,20 +224,21 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
   
   // Temperatura
   tft.setCursor(20, 60);
-  tft.print("Temperatura: ");
+  tft.print("Temp. lokalna: ");
   tft.setTextColor(TFT_YELLOW);
-  tft.print("--.-°C");  // TODO: Dodać prawdziwe dane z DHT22
+  tft.print("--.-'C");  // TODO: Dodać prawdziwe dane z DHT22
   
   // Wilgotność
   tft.setTextColor(TFT_WHITE);
   tft.setCursor(20, 110);
-  tft.print("Wilgotnosc: ");
+  tft.print("Wilg. lokalna: ");
   tft.setTextColor(TFT_CYAN);
   tft.print("--%");     // TODO: Dodać prawdziwe dane z DHT22
   
-  // Status czujnika
+  // Status czujnika (mniejsza czcionka)
   tft.setTextColor(TFT_WHITE);
-  tft.setCursor(20, 160);
+  tft.setTextSize(1);  // ZMIENIONE: mniejsza czcionka
+  tft.setCursor(20, 140);  // ZMIENIONE: wyżej
   tft.print("Status DHT22: ");
   tft.setTextColor(TFT_GREEN);
   tft.print("Gotowy");   // TODO: Dodać prawdziwe dane z DHT22
@@ -246,20 +247,20 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
   tft.setTextColor(TFT_DARKGREY);
   tft.setTextSize(1);
   
-  // Wyczyść obszar footera
-  tft.fillRect(0, 190, 320, 30, COLOR_BACKGROUND);
+  // Wyczyść obszar footera (więcej miejsca)
+  tft.fillRect(0, 165, 320, 55, COLOR_BACKGROUND);  // ZMIENIONE: większy obszar
   
-  // Etykieta AKTUALIZACJE (góra-środek)
+  // Etykieta AKTUALIZACJE (wyżej)
   tft.setTextDatum(TC_DATUM);
   tft.setTextColor(TFT_CYAN);
-  tft.drawString("AKTUALIZACJE:", 160, 192);
+  tft.drawString("AKTUALIZACJE:", 160, 168);  // ZMIENIONE: wyżej
   
-  // Informacja o czujniku (lewa strona)
+  // 1. Czujnik DHT22 (pierwszy rząd)
   tft.setTextColor(TFT_DARKGREY);
   tft.setTextDatum(TL_DATUM);
-  tft.drawString("Czujnik: co 2s", 10, 208);
+  tft.drawString("Czujnik temp. i wilg.: co 2s", 10, 185);  // ZMIENIONE: nowa pozycja
   
-  // Aktualizacja pogody (środek-góra)
+  // 2. Pogoda bieżąca (drugi rząd)
   extern unsigned long lastWeatherCheckGlobal;
   unsigned long weatherAge = (millis() - lastWeatherCheckGlobal) / 1000;
   String weatherUpdateText;
@@ -273,25 +274,41 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
     weatherUpdateText = "Pogoda: " + String(weatherHours) + "h temu (co 10min)";
   }
   
-  tft.setTextDatum(TR_DATUM);
-  tft.drawString(weatherUpdateText, 310, 208);
+  tft.setTextDatum(TL_DATUM);  // ZMIENIONE: wyrównanie do lewej
+  tft.drawString(weatherUpdateText, 10, 200);  // ZMIENIONE: nowa pozycja
   
-  // Aktualizacja weekly (prawa strona-dół)
+  // 3. Prognoza weekly (trzeci rząd)
   extern WeeklyForecastData weeklyForecast;
   unsigned long weeklyAge = (millis() - weeklyForecast.lastUpdate) / 1000;
   String weeklyUpdateText;
   if (weeklyAge < 60) {
-    weeklyUpdateText = "Weekly: " + String(weeklyAge) + "s temu (co 4h)";
+    weeklyUpdateText = "Pogoda tyg.: " + String(weeklyAge) + "s temu (co 4h)";
   } else if (weeklyAge < 3600) {
     unsigned long weeklyMinutes = weeklyAge / 60;
-    weeklyUpdateText = "Weekly: " + String(weeklyMinutes) + "min temu (co 4h)";
+    weeklyUpdateText = "Pogoda tyg.: " + String(weeklyMinutes) + "min temu (co 4h)";
   } else {
     unsigned long weeklyHours = weeklyAge / 3600;
-    weeklyUpdateText = "Weekly: " + String(weeklyHours) + "h temu (co 4h)";
+    weeklyUpdateText = "Pogoda tyg.: " + String(weeklyHours) + "h temu (co 4h)";
   }
   
-  tft.setTextDatum(TC_DATUM);
-  tft.drawString(weeklyUpdateText, 160, 220);
+  tft.setTextDatum(TL_DATUM);  // ZMIENIONE: wyrównanie do lewej
+  tft.drawString(weeklyUpdateText, 10, 215);  // ZMIENIONE: trzeci rząd
+  
+  // 4. Stan WiFi (czwarty rząd) - NOWE!
+  String wifiStatus;
+  if (WiFi.status() == WL_CONNECTED) {
+    int rssi = WiFi.RSSI();
+    wifiStatus = "WiFi: " + String(WiFi.SSID()) + " (" + String(rssi) + "dBm)";
+  } else {
+    wifiStatus = "WiFi: Rozlaczony";
+  }
+  
+  // Skróć jeśli za długi
+  if (wifiStatus.length() > 35) {
+    wifiStatus = wifiStatus.substring(0, 32) + "...";
+  }
+  
+  tft.drawString(wifiStatus, 10, 230);  // NOWE: czwarty rząd
 }
 
 void ScreenManager::renderImageScreen(TFT_eSPI& tft) {
