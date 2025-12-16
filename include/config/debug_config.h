@@ -5,7 +5,7 @@
 // Odkomentuj linie żeby włączyć debug dla konkretnych modułów
 
 // --- WEATHER API DEBUG ---
-// #define DEBUG_WEATHER_API        // Pokazuje pełny JSON z API pogodowego
+#define DEBUG_WEATHER_API        // Pokazuje pełny JSON z API pogodowego
 
 // --- MOTION SENSOR DEBUG ---
 // #define DEBUG_MOTION_SENSOR      // Szczegółowy log PIR events

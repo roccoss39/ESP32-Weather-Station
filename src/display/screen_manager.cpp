@@ -160,13 +160,13 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
   
   // === FOOTER z lokalizacją (WYŚRODKOWANY) ===
   tft.setTextColor(TFT_DARKGREY);
-  tft.setTextSize(1);
+  tft.setTextSize(2);
   
   // Ustawienie: ŚRODEK-GÓRA (Top Center)
   tft.setTextDatum(TC_DATUM); 
   
   // Wyczyść CAŁY pasek na dole (320px szerokości), aby usunąć stare napisy
-  tft.fillRect(0, 205, 320, 15, COLOR_BACKGROUND);
+  tft.fillRect(0, 200, 320, 25, COLOR_BACKGROUND);
   
   if (locationManager.isLocationSet()) {
     WeatherLocation loc = locationManager.getCurrentLocation();
@@ -187,10 +187,10 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
       locationText = locationText.substring(0, 35) + "...";
     }
     
-    // Rysuj na środku ekranu (X = 160)
-    tft.drawString(locationText, 160, 210);
+    // Rysuj na środku ekranu (X = 160) - przesunięte wyżej dla większej czcionki
+    tft.drawString(locationText, 160, 205);
   } else {
-    tft.drawString("Brak lokalizacji", 160, 210);
+    tft.drawString("Brak lokalizacji", 160, 205);
   }
   
   Serial.println("✅ Weekly screen rendered with centered location");
