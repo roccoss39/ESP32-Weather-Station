@@ -42,11 +42,15 @@ void LocationManager::loadLocationFromPreferences() {
             Serial.println("📍 Loading saved CUSTOM coordinates...");
             
             WeatherLocation customSaved;
-            customSaved.cityName = savedCity.c_str();
-            customSaved.countryCode = savedCountry.c_str(); 
+
+            customSaved.cityName = savedCity; 
+            customSaved.countryCode = savedCountry; 
+            
             customSaved.latitude = prefs.getFloat("latitude", 53.44);
             customSaved.longitude = prefs.getFloat("longitude", 14.56);
-            customSaved.displayName = prefs.getString("displayName", "Custom GPS").c_str();
+            
+            // To też jest teraz bezpieczne
+            customSaved.displayName = prefs.getString("displayName", "Wlasny GPS");
             customSaved.timezone = "UTC0";
             
             setLocation(customSaved);

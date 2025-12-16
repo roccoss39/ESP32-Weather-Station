@@ -173,35 +173,129 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
   tft.setTextColor(TFT_DARKGREY);
   tft.setTextSize(1);
   
-  // Obecna lokalizacja z dzielnicą (lewa strona)
-  extern LocationManager locationManager;
-  WeatherLocation currentLoc = locationManager.getCurrentLocation();
+  // Obecna lokalizacja (lewa strona)
   tft.setTextDatum(TL_DATUM);
-  String locationText = String(currentLoc.cityName) + ", " + String(currentLoc.displayName);
-  tft.drawString(locationText, 10, 210);
   
-  // Czas ostatniej aktualizacji z inteligentnym formatem (prawa strona)  
-  unsigned long ageSeconds = (millis() - weeklyForecast.lastUpdate) / 1000;
-  String updateText;
+  // Wyczyść lewą stronę ekranu przed napisaniem
+  tft.fillRect(0, 205, 150, 15, COLOR_BACKGROUND);
   
-  if (ageSeconds < 60) {
-    updateText = "Aktualizacja: " + String(ageSeconds) + "s temu";
-  } else if (ageSeconds < 3600) {
-    unsigned long ageMinutes = ageSeconds / 60;
-    updateText = "Aktualizacja: " + String(ageMinutes) + "min temu";
+  // Lokalizacja - USING ACTUAL LOCATION MANAGER (properly declared)
+  tft.setTextDatum(TL_DATUM);
+  tft.setTextColor(TFT_DARKGREY);
+  
+  // Use the global locationManager that actually exists!
+  if (locationManager.isLocationSet()) {
+    WeatherLocation loc = locationManager.getCurrentLocation();
+    String locationText = String(loc.cityName) + ", " + String(loc.displayName);
+    
+    // Truncate if too long (prevent artifacts)
+    if (locationText.length() > 36) {
+      locationText = locationText.substring(0, 33) + "...";
+    }
+    
+    tft.drawString(locationText, 10, 210);
   } else {
-    unsigned long ageHours = ageSeconds / 3600;
-    updateText = "Aktualizacja: " + String(ageHours) + "h temu";
+    tft.drawString("Brak lokalizacji", 10, 210);
   }
   
+  // Pusty footer po prawej stronie (aktualizacja przeniesiona na ekran 4)
   tft.setTextDatum(TR_DATUM);
-  tft.drawString(updateText, 310, 210);
+  tft.fillRect(160, 205, 160, 15, COLOR_BACKGROUND);
   
   Serial.println("✅ Weekly screen rendered with weather data");
 }
 
+void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
+  // Ekran 4: Lokalne czujniki DHT22
+  Serial.println("📱 Rysowanie ekranu: LOCAL SENSORS");
+  
+  tft.fillScreen(COLOR_BACKGROUND);
+  
+  // === NAGŁÓWEK ===
+  tft.setTextColor(TFT_CYAN);
+  tft.setTextSize(2);
+  tft.setTextDatum(TC_DATUM);
+  tft.drawString("LOKALNE CZUJNIKI", 160, 10);
+  
+  // === INFORMACJE O DHT22 ===
+  tft.setTextColor(TFT_WHITE);
+  tft.setTextSize(2);
+  tft.setTextDatum(TL_DATUM);
+  
+  // Temperatura
+  tft.setCursor(20, 60);
+  tft.print("Temperatura: ");
+  tft.setTextColor(TFT_YELLOW);
+  tft.print("--.-°C");  // TODO: Dodać prawdziwe dane z DHT22
+  
+  // Wilgotność
+  tft.setTextColor(TFT_WHITE);
+  tft.setCursor(20, 110);
+  tft.print("Wilgotnosc: ");
+  tft.setTextColor(TFT_CYAN);
+  tft.print("--%");     // TODO: Dodać prawdziwe dane z DHT22
+  
+  // Status czujnika
+  tft.setTextColor(TFT_WHITE);
+  tft.setCursor(20, 160);
+  tft.print("Status DHT22: ");
+  tft.setTextColor(TFT_GREEN);
+  tft.print("Gotowy");   // TODO: Dodać prawdziwe dane z DHT22
+  
+  // === FOOTER z informacjami o aktualizacjach ===
+  tft.setTextColor(TFT_DARKGREY);
+  tft.setTextSize(1);
+  
+  // Wyczyść obszar footera
+  tft.fillRect(0, 190, 320, 30, COLOR_BACKGROUND);
+  
+  // Etykieta AKTUALIZACJE (góra-środek)
+  tft.setTextDatum(TC_DATUM);
+  tft.setTextColor(TFT_CYAN);
+  tft.drawString("AKTUALIZACJE:", 160, 192);
+  
+  // Informacja o czujniku (lewa strona)
+  tft.setTextColor(TFT_DARKGREY);
+  tft.setTextDatum(TL_DATUM);
+  tft.drawString("Czujnik: co 2s", 10, 208);
+  
+  // Aktualizacja pogody (środek-góra)
+  extern unsigned long lastWeatherCheckGlobal;
+  unsigned long weatherAge = (millis() - lastWeatherCheckGlobal) / 1000;
+  String weatherUpdateText;
+  if (weatherAge < 60) {
+    weatherUpdateText = "Pogoda: " + String(weatherAge) + "s temu (co 10min)";
+  } else if (weatherAge < 3600) {
+    unsigned long weatherMinutes = weatherAge / 60;
+    weatherUpdateText = "Pogoda: " + String(weatherMinutes) + "min temu (co 10min)";
+  } else {
+    unsigned long weatherHours = weatherAge / 3600;
+    weatherUpdateText = "Pogoda: " + String(weatherHours) + "h temu (co 10min)";
+  }
+  
+  tft.setTextDatum(TR_DATUM);
+  tft.drawString(weatherUpdateText, 310, 208);
+  
+  // Aktualizacja weekly (prawa strona-dół)
+  extern WeeklyForecastData weeklyForecast;
+  unsigned long weeklyAge = (millis() - weeklyForecast.lastUpdate) / 1000;
+  String weeklyUpdateText;
+  if (weeklyAge < 60) {
+    weeklyUpdateText = "Weekly: " + String(weeklyAge) + "s temu (co 4h)";
+  } else if (weeklyAge < 3600) {
+    unsigned long weeklyMinutes = weeklyAge / 60;
+    weeklyUpdateText = "Weekly: " + String(weeklyMinutes) + "min temu (co 4h)";
+  } else {
+    unsigned long weeklyHours = weeklyAge / 3600;
+    weeklyUpdateText = "Weekly: " + String(weeklyHours) + "h temu (co 4h)";
+  }
+  
+  tft.setTextDatum(TC_DATUM);
+  tft.drawString(weeklyUpdateText, 160, 220);
+}
+
 void ScreenManager::renderImageScreen(TFT_eSPI& tft) {
-  // Ekran 3: Zdjęcie z GitHub
+  // Ekran 5: Zdjęcie z GitHub
   displayGitHubImage(tft);
 }
 

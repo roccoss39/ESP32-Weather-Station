@@ -5,12 +5,12 @@
 
 // Struktura dla predefiniowanych lokalizacji
 struct WeatherLocation {
-    const char* cityName;
-    const char* countryCode;
-    const char* displayName;
+    String cityName;
+    String countryCode;
+    String displayName;
     float latitude;
     float longitude;
-    const char* timezone;
+    String timezone;
 };
 
 // Dzielnice i obszary Szczecina

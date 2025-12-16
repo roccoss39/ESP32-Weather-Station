@@ -5,13 +5,14 @@
 #include <TFT_eSPI.h>
 
 #define TEST_MODE 0
-#define SCREEN_SWITCH_INTERVAL_ 4000
+#define SCREEN_SWITCH_INTERVAL_ 2000
 // ScreenType enum definition - musi być tutaj dla ScreenManager
 enum ScreenType {
   SCREEN_CURRENT_WEATHER = 0,
   SCREEN_FORECAST = 1,
   SCREEN_WEEKLY = 2,
-  SCREEN_IMAGE = 3
+  SCREEN_LOCAL_SENSORS = 3,
+  SCREEN_IMAGE = 4
 };
 
 class ScreenManager {
@@ -85,8 +86,12 @@ public:
                 Serial.println("📱 Przełączanie: FORECAST → WEEKLY");
                 break;
             case SCREEN_WEEKLY:
+                currentScreen = SCREEN_LOCAL_SENSORS;
+                Serial.println("📱 Przełączanie: WEEKLY → LOCAL_SENSORS");
+                break;
+            case SCREEN_LOCAL_SENSORS:
                 currentScreen = SCREEN_IMAGE;
-                Serial.println("📱 Przełączanie: WEEKLY → IMAGE");
+                Serial.println("📱 Przełączanie: LOCAL_SENSORS → IMAGE");
                 break;
             case SCREEN_IMAGE:
                 currentScreen = SCREEN_CURRENT_WEATHER;
@@ -143,6 +148,9 @@ public:
             case SCREEN_WEEKLY:
                 renderWeeklyScreen(tft);
                 break;
+            case SCREEN_LOCAL_SENSORS:
+                renderLocalSensorsScreen(tft);
+                break;
             case SCREEN_IMAGE:
                 renderImageScreen(tft);
                 break;
@@ -186,6 +194,7 @@ public:
             case SCREEN_CURRENT_WEATHER: return "WEATHER";
             case SCREEN_FORECAST: return "FORECAST";
             case SCREEN_WEEKLY: return "WEEKLY";
+            case SCREEN_LOCAL_SENSORS: return "LOCAL_SENSORS";
             case SCREEN_IMAGE: return "IMAGE";
             default: return "UNKNOWN";
         }
@@ -222,6 +231,7 @@ public:
     void renderWeatherScreen(TFT_eSPI& tft);
     void renderForecastScreen(TFT_eSPI& tft);
     void renderWeeklyScreen(TFT_eSPI& tft);
+    void renderLocalSensorsScreen(TFT_eSPI& tft);
     void renderImageScreen(TFT_eSPI& tft);
     void resetWeatherAndTimeCache();
     

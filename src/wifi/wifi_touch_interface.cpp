@@ -1335,8 +1335,8 @@ void drawLocationScreen(TFT_eSPI& tft) {
       
     } else if (currentMenuState == MENU_DISTRICTS) {
       // Wyświetlanie dzielnic wybranego miasta
-      bool isCurrent = (strcmp(cityList[itemIndex].cityName, currentLoc.cityName) == 0 && 
-                       strcmp(cityList[itemIndex].countryCode, currentLoc.countryCode) == 0);
+      bool isCurrent = (cityList[itemIndex].cityName == currentLoc.cityName && 
+                  cityList[itemIndex].countryCode == currentLoc.countryCode);
       
       if (isCurrent) {
         tft.fillRect(10, yPos - 2, 300, 22, GREEN);
@@ -1522,8 +1522,8 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       weeklyErrorModeGlobal = true;
 
       // Ustawiamy timery tak, jakby właśnie wygasły (używając wartości z configu, np. 20000)
-      lastWeatherCheckGlobal = millis() - 20000; 
-      lastForecastCheckGlobal = millis() - 20000;
+      lastWeatherCheckGlobal = millis() - WEATHER_UPDATE_ERROR; 
+      lastForecastCheckGlobal = millis() - WEATHER_UPDATE_ERROR;
 
       Serial.println("⏰ FORCING immediate weather refresh in main loop...");
       
@@ -1984,9 +1984,25 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       // SAFE: Delayed refresh instead of immediate (prevents WiFi crash)
       extern unsigned long lastWeatherCheckGlobal;
       extern unsigned long lastForecastCheckGlobal;
+
+      // --- TUTAJ DODAJ TE LINIE (Brakowało ich!) ---
+      extern bool weatherErrorModeGlobal;   // Deklaracja extern (dla pewności)
+      extern bool forecastErrorModeGlobal;
+      extern bool weeklyErrorModeGlobal;
+      
+      weatherErrorModeGlobal = true;  // <--- TO JEST KLUCZOWE: Wymusza krótki interwał
+      forecastErrorModeGlobal = true;
+      weeklyErrorModeGlobal = true;
+      // ---------------------------------------------
+
       // Ustawiamy timery tak, jakby właśnie wygasły
-      lastWeatherCheckGlobal = millis() - 20000; 
-      lastForecastCheckGlobal = millis() - 20000;
+      lastWeatherCheckGlobal = millis() - WEATHER_UPDATE_ERROR; 
+      lastForecastCheckGlobal = millis() - WEATHER_UPDATE_ERROR;
+
+      // Warto też wymusić Weekly Forecast (prognozę tygodniową)
+      extern unsigned long lastWeeklyUpdate;
+      lastWeeklyUpdate = millis() - 15000000; // Bardzo duża wartość odejmowana, by wymusić start
+      Serial.println("⏰ FORCING immediate weather refresh (Custom GPS)...");
 
       Serial.println("⏰ FORCING immediate weather refresh in main loop...");
       
