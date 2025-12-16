@@ -207,6 +207,10 @@ void handleWiFiTouchLoop(TFT_eSPI& tft) {
   // Use built-in calibrated TFT_eSPI touch function
   if (tft.getTouch(&x, &y)) {
 
+    // Dopóki dotykasz ekranu, resetuj timer zmiany slajdów!
+    extern ScreenManager& getScreenManager();
+    getScreenManager().resetScreenTimer();
+
     // --- POPRAWKA UŚPIENIA (KROK 2) ---
     // Ręcznie zresetuj 10-sekundowy timer bezczynności,
     // ponieważ właśnie wykryliśmy PRAWDZIWĄ aktywność (dotyk).
@@ -260,21 +264,41 @@ void drawStatusMessage(TFT_eSPI& tft, String message) {
 }
 
 void drawConnectedScreen(TFT_eSPI& tft) {
-  tft.fillScreen(DARK_BLUE);  // Professional dark blue for WiFi lost state
-  tft.setTextColor(WHITE);
-  tft.setTextSize(2);
-  tft.setCursor(30, 50);
-  tft.println("POLACZONY!");
+  tft.fillScreen(DARK_BLUE);  // Tło pozostaje ciemnoniebieskie
   
+  // --- ZMIANA TUTAJ: INTELIGENTNY NAGŁÓWEK ---
+  if (wifiLostDetected || WiFi.status() != WL_CONNECTED) {
+    // Jeśli WiFi utracone: Piszemy na POMARAŃCZOWO/CZERWONO "UTRACONO WIFI"
+    tft.setTextColor(ORANGE); // Używamy zdefiniowanego wcześniej koloru ORANGE
+    tft.setTextSize(2);
+    tft.setCursor(30, 50);
+    tft.println("UTRACONO WIFI!");
+  } else {
+    // Jeśli wszystko OK: Piszemy na BIAŁO "POLACZONY!"
+    tft.setTextColor(WHITE);
+    tft.setTextSize(2);
+    tft.setCursor(30, 50);
+    tft.println("POLACZONY!");
+  }
+  // -------------------------------------------
+  
+  tft.setTextColor(WHITE); // Reset koloru dla reszty tekstów (IP, SSID)
   tft.setTextSize(1);
   tft.setCursor(10, 100);
   tft.println("Network: " + WiFi.SSID());
   tft.setCursor(10, 120);
-  tft.println("IP: " + WiFi.localIP().toString());
+  
+  // Opcjonalnie: Jeśli nie ma WiFi, IP może być 0.0.0.0, można to też obsłużyć
+  if (WiFi.status() == WL_CONNECTED) {
+      tft.println("IP: " + WiFi.localIP().toString());
+  } else {
+      tft.println("IP: ---.---.---.---");
+  }
+
   tft.setCursor(10, 140);
   tft.println("Signal: " + String(WiFi.RSSI()) + " dBm");
   
-  // WiFi monitoring status
+  // WiFi monitoring status (Twój czerwony pasek - to zostawiamy bez zmian)
   if (wifiLostDetected) {
     unsigned long elapsed = millis() - wifiLostTime;
     int remaining = (WIFI_LOSS_TIMEOUT - elapsed) / 1000;
@@ -282,18 +306,10 @@ void drawConnectedScreen(TFT_eSPI& tft) {
       tft.fillRect(10, 160, 300, 20, RED);
       tft.setTextColor(WHITE);
       tft.setCursor(15, 165);
-      tft.printf("Brak WiFi! Polacz za: %d sek (prob: 19s)", remaining);
+      tft.printf("Brak WiFi! Polacz za: %d sek (auto. proba: 9s)", remaining);
     }
   }
-  
-  // Disconnect button - RESTORED ORIGINAL
-  tft.fillRect(10, 280, 220, 30, RED);
-  tft.setTextColor(WHITE);
-  tft.setTextSize(2);
-  tft.setCursor(60, 290);
-  tft.println("ROZLACZ");
 }
-
 void scanNetworks() {
   drawStatusMessage(tft, "Szukam sieci...");
   WiFi.mode(WIFI_STA);
@@ -564,6 +580,12 @@ void handleLongPress(TFT_eSPI& tft) {
   uint16_t x, y;
   bool currentTouch = tft.getTouch(&x, &y);
   
+  if (currentTouch) {
+    // Jeśli trzymasz palec (nawet nieruchomo), blokuj zmianę ekranu
+    extern ScreenManager& getScreenManager();
+    getScreenManager().resetScreenTimer();
+  }
+
   if (currentTouch && !touchActive) {
     // Touch started
     touchStartTime = millis();
@@ -613,7 +635,8 @@ void handleLongPress(TFT_eSPI& tft) {
   if (!currentTouch && !longPressDetected && touchActive) {
     // Clear any progress bar remnants
     if (currentState == STATE_CONNECTED) {
-      drawConnectedScreen(tft); // Redraw clean connected screen
+      extern void forceScreenRefresh(TFT_eSPI& tft);
+      forceScreenRefresh(tft);
     }
   }
 }
@@ -837,13 +860,17 @@ void checkWiFiConnection() {
           wifiLostTime = millis();
           lastReconnectAttempt = millis();
           Serial.printf("WiFi LOST! Starting %d-second countdown...\n", WIFI_LOSS_TIMEOUT/1000);
-          drawConnectedScreen(tft); // Update display with countdown
+          if (!touchActive) {
+             drawConnectedScreen(tft); 
+          }
         }
       } else if (isConnected && wifiLostDetected) {
         // WiFi reconnected
         wifiLostDetected = false;
         Serial.println("WiFi RECONNECTED! Canceling auto-reconnect.");
-        drawConnectedScreen(tft); // Update display
+        if (!touchActive) {
+           drawConnectedScreen(tft);
+        }
       }
     }
     
@@ -903,7 +930,7 @@ void handleWiFiLoss() {
     return; // Pomiń reconnect podczas pobierania
   }
   
-  if (elapsed < WIFI_LOSS_TIMEOUT && millis() - lastReconnectAttempt >= 19000) {
+  if (elapsed < WIFI_LOSS_TIMEOUT && millis() - lastReconnectAttempt >= WIFI_RECONNECT_INTERVAL) {
     
     String savedSSID = preferences.getString("ssid", "");
     String savedPassword = preferences.getString("password", "");
@@ -968,7 +995,9 @@ void handleWiFiLoss() {
     static unsigned long lastCountdownUpdate = 0;
     if (millis() - lastCountdownUpdate > 1000) {
       lastCountdownUpdate = millis();
-      drawConnectedScreen(tft); // Odśwież ekran, aby pokazać licznik
+      if (!touchActive) {
+        drawConnectedScreen(tft); 
+      }
     }
   }
 }
@@ -1135,7 +1164,7 @@ void handleTouchInput(int16_t x, int16_t y) {
       wifiLostDetected = true;
       wifiLostTime = millis();
       // Ustaw timer tak, jakby właśnie minęło 19 sekund
-      lastReconnectAttempt = millis() - 19000; // <-- POPRAWKA: Wymuś natychmiastowe działanie
+      lastReconnectAttempt = millis() - WIFI_RECONNECT_INTERVAL; // <-- POPRAWKA: Wymuś natychmiastowe działanie
       wifiWasConnected = true;
     }
     // Debug: show all touch attempts in config mode

@@ -12,7 +12,7 @@
 #define WIFI_LOSS_TIMEOUT           60000   // 60s - czas po którym przejdzie do scan mode
 #define WIFI_CONFIG_MODE_TIMEOUT    180000  // 180s (3 min) - timeout config mode
 #define WIFI_LONG_PRESS_TIME        3000    // 3s - czas długiego naciśnięcia
-#define WIFI_RECONNECT_INTERVAL     19000   // 19s - interval między próbami reconnect
+#define WIFI_RECONNECT_INTERVAL     9000   // 9s - interval między próbami reconnect
 #define WIFI_CONNECTION_TIMEOUT     10000   // 10s - timeout pojedynczej próby połączenia
 #define WIFI_STATUS_CHECK_INTERVAL  2000    // 2s - jak często sprawdzać status WiFi
 #define WIFI_FINAL_WAIT_TIME        3000    // 3s - ostatnie oczekiwanie przed scan mode
