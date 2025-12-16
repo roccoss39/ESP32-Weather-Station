@@ -1,5 +1,6 @@
 #include "weather/forecast_api.h"
 #include "weather/forecast_data.h"
+#include "weather/weather_data.h"
 #include "config/weather_config.h"
 #include "config/secrets.h"
 #include "config/location_config.h"
@@ -175,11 +176,11 @@ bool generateWeeklyForecast() {
     int itemCount = 0;
   };
   
-  DayGroup dayGroups[5];
+  DayGroup dayGroups[4];  // Maksymalnie 4 dni
   int currentDayIndex = -1;
   
-  // Przetwarz do 40 prognoz (5 dni × 8 prognoz)
-  for (int i = 0; i < min(40, (int)list.size()) && weeklyForecast.count < 5; i++) {
+  // Przetwarz do 32 prognoz (4 dni × 8 prognoz)
+  for (int i = 0; i < min(32, (int)list.size()) && weeklyForecast.count < 4; i++) {
     JsonObject item = list[i];
     
     long timestamp = item["dt"];
@@ -188,7 +189,7 @@ bool generateWeeklyForecast() {
     
     // Sprawdz czy to nowy dzien
     if (currentDayIndex == -1 || dayGroups[currentDayIndex].dayOfWeek != dayOfWeek) {
-      if (weeklyForecast.count < 5) {
+      if (weeklyForecast.count < 4) {
         currentDayIndex = weeklyForecast.count;
         dayGroups[currentDayIndex].dayOfWeek = dayOfWeek;
         weeklyForecast.count++;
@@ -196,7 +197,7 @@ bool generateWeeklyForecast() {
       }
     }
     
-    if (currentDayIndex >= 0 && currentDayIndex < 5) {
+    if (currentDayIndex >= 0 && currentDayIndex < 4) {
       DayGroup& group = dayGroups[currentDayIndex];
       
       // Zbierz dane pogodowe
@@ -209,27 +210,60 @@ bool generateWeeklyForecast() {
         precipChance = (int)(item["pop"].as<float>() * 100);
       }
       
-      // Aktualizuj min/max temp - inicjalizuj pierwszą wartością jeśli to pierwsze dane
+      // Aktualizuj min/max temp - dla pierwszego dnia uwzględnij current weather
       if (!group.hasData) {
         group.tempMin = temp;  // Inicjalizuj pierwszą prawdziwą temperaturą
         group.tempMax = temp;
         group.windMin = wind;
         group.windMax = wind;
         group.hasData = true;
-        Serial.printf("🌡️ Inicjalizacja dnia %s: temp=%.1f°C, wiatr=%.0fkm/h\n", 
-                     dayNames[dayOfWeek], temp, wind);
+        
+        // SPECJALNA LOGIKA: Dla dzisiejszego dnia (pierwszego) dodaj current weather
+        if (currentDayIndex == 0 && weather.isValid) {
+          float currentTemp = weather.temperature;
+          if (currentTemp < group.tempMin) {
+            group.tempMin = currentTemp;
+            Serial.printf("🌡️ Current weather MIN dla dzisiejszego dnia: %.1f°C\n", currentTemp);
+          }
+          if (currentTemp > group.tempMax) {
+            group.tempMax = currentTemp;
+            Serial.printf("🌡️ Current weather MAX dla dzisiejszego dnia: %.1f°C\n", currentTemp);
+          }
+          Serial.printf("🌡️ Inicjalizacja dnia %s z current weather: temp=%.1f°C (current=%.1f°C), wiatr=%.0fkm/h\n", 
+                       dayNames[dayOfWeek], temp, currentTemp, wind);
+        } else {
+          Serial.printf("🌡️ Inicjalizacja dnia %s: temp=%.1f°C, wiatr=%.0fkm/h\n", 
+                       dayNames[dayOfWeek], temp, wind);
+        }
       } else {
         Serial.printf("📊 Aktualizacja dnia %s: temp=%.1f°C (min=%.1f, max=%.1f), wiatr=%.0fkm/h (min=%.0f, max=%.0f)\n", 
                      dayNames[dayOfWeek], temp, group.tempMin, group.tempMax, wind, group.windMin, group.windMax);
         
         // Normalne porównywanie min/max dla kolejnych prognoz
-        if (temp < group.tempMin) {
-          group.tempMin = temp;
-          Serial.printf("❄️ Nowa temp MIN dla %s: %.1f°C\n", dayNames[dayOfWeek], temp);
-        }
-        if (temp > group.tempMax) {
-          group.tempMax = temp;
-          Serial.printf("🔥 Nowa temp MAX dla %s: %.1f°C\n", dayNames[dayOfWeek], temp);
+        // Dla dzisiejszego dnia (pierwszego) zawsze uwzględniaj current weather
+        if (currentDayIndex == 0 && weather.isValid) {
+          float currentTemp = weather.temperature;
+          float realMin = min(min(temp, group.tempMin), currentTemp);
+          float realMax = max(max(temp, group.tempMax), currentTemp);
+          
+          if (realMin != group.tempMin) {
+            group.tempMin = realMin;
+            Serial.printf("❄️ Nowa temp MIN dla dzisiejszego dnia %s: %.1f°C (uwzględnia current weather)\n", dayNames[dayOfWeek], realMin);
+          }
+          if (realMax != group.tempMax) {
+            group.tempMax = realMax;
+            Serial.printf("🔥 Nowa temp MAX dla dzisiejszego dnia %s: %.1f°C (uwzględnia current weather)\n", dayNames[dayOfWeek], realMax);
+          }
+        } else {
+          // Dla przyszłych dni - normalne porównywanie
+          if (temp < group.tempMin) {
+            group.tempMin = temp;
+            Serial.printf("❄️ Nowa temp MIN dla %s: %.1f°C\n", dayNames[dayOfWeek], temp);
+          }
+          if (temp > group.tempMax) {
+            group.tempMax = temp;
+            Serial.printf("🔥 Nowa temp MAX dla %s: %.1f°C\n", dayNames[dayOfWeek], temp);
+          }
         }
         if (wind < group.windMin) {
           group.windMin = wind;
@@ -261,30 +295,29 @@ bool generateWeeklyForecast() {
     }
   }
   
-  // USUŃ PIERWSZY DZIEŃ JEŚLI MA TYLKO 1 PROGNOZĘ (dzisiejszy dzień kończy się)
-  if (weeklyForecast.count > 0) {
-    DayGroup& firstDay = dayGroups[0];
-    if (firstDay.itemCount == 1) {
-      Serial.printf("⚠️ Usuwam pierwszy dzień %s - tylko 1 prognoza (dzień się kończy)\n", 
-                    dayNames[firstDay.dayOfWeek], firstDay.itemCount);
-      
-      // Przesuń wszystkie dni w lewo
-      for (int i = 0; i < weeklyForecast.count - 1; i++) {
-        dayGroups[i] = dayGroups[i + 1];
+  // NOWA LOGIKA: USUŃ DNI Z < 4 PROGNOZAMI (za mało danych)
+  int finalDays = 0;
+  for (int i = 0; i < weeklyForecast.count; i++) {
+    if (dayGroups[i].itemCount >= 4) {
+      if (finalDays != i) {
+        // Przesuń dzień do właściwej pozycji
+        dayGroups[finalDays] = dayGroups[i];
       }
-      weeklyForecast.count--; // Zmniejsz liczbę dni
+      finalDays++;
+    } else {
+      Serial.printf("⚠️ Usuwam dzień %s - za mało prognoz (%d < 4)\n", 
+                    dayNames[dayGroups[i].dayOfWeek], dayGroups[i].itemCount);
     }
+  }
+  weeklyForecast.count = finalDays;
+  
+  // Ogranicz do maksymalnie 4 dni dla lepszej czytelności
+  if (weeklyForecast.count > 4) {
+    weeklyForecast.count = 4;
+    Serial.printf("📅 Ograniczono do 4 dni dla lepszej czytelności\n");
   }
   
-  // USUŃ OSTATNI DZIEŃ JEŚLI MA ZA MAŁO PROGNOZ (< 3)
-  if (weeklyForecast.count > 0) {
-    DayGroup& lastDay = dayGroups[weeklyForecast.count - 1];
-    if (lastDay.itemCount < 3) {
-      Serial.printf("⚠️ Usuwam ostatni dzień %s - za mało prognoz (%d)\n", 
-                    dayNames[lastDay.dayOfWeek], lastDay.itemCount);
-      weeklyForecast.count--; // Usuń ostatni dzień
-    }
-  }
+  Serial.printf("📊 Finalna liczba dni: %d (dni z ≥4 prognozami)\n", weeklyForecast.count);
   
   // Przekonwertuj zgrupowane dane na finalna strukture
   for (int i = 0; i < weeklyForecast.count; i++) {
