@@ -99,13 +99,13 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     tft.setTextDatum(TL_DATUM);
     tft.drawString(day.dayName, 10, y);
     
-    // === PRAWDZIWE IKONY POGODOWE (jak na ekranie 1 i 2) ===
+    // === PRAWDZIWE IKONY POGODOWE ===
     extern void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconCode);
     
     int iconX = 55;
     int iconY = y - (rowHeight / 4); // Dynamicznie wycentruj ikonę
     
-    // Mapowanie ikony na warunek pogodowy (dla drawWeatherIcon)
+    // Mapowanie ikony na warunek pogodowy
     String condition = "";
     if (day.icon.indexOf("01") >= 0) condition = "clear sky";
     else if (day.icon.indexOf("02") >= 0) condition = "few clouds";
@@ -118,22 +118,14 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     else if (day.icon.indexOf("50") >= 0) condition = "mist";
     else condition = "unknown";
     
-    // Rysuj prawdziwa ikone pogodowa (25x25 px)
-    // Tymczasowo skaluj ikone dla weekly
-    int originalIconSize = 50; // ICON_SIZE z config
-    
-    // Przeskaluj ikone: oryginal 50x50 -> 25x25 dla weekly
-    // Rysuj w połowie rozmiaru
-    extern void drawWeatherIconScaled(TFT_eSPI& tft, int x, int y, String condition, String iconCode, float scale);
-    
-    // Jesli funkcja scalowana nie istnieje, uzyj oryginalnej z przeskalowaniem
+    // Rysuj ikonę
     drawWeatherIcon(tft, iconX, iconY, condition, day.icon);
     
     // === TEMPERATURY MIN/MAX ===
     tft.setTextSize(2);
     
     // Min temp (szary)
-    tft.setTextColor(TFT_LIGHTGREY); // Szary dla min
+    tft.setTextColor(TFT_LIGHTGREY); 
     tft.setTextDatum(TL_DATUM);
     tft.drawString(String((int)day.tempMin) + "'", 120, y);
     
@@ -142,14 +134,14 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     tft.drawString("/", 155, y);
     
     // Max temp (bialy)
-    tft.setTextColor(TFT_WHITE); // Bialy dla max
+    tft.setTextColor(TFT_WHITE); 
     tft.drawString(String((int)day.tempMax) + "'", 170, y);
     
     // === WIATR MIN/MAX ===
     tft.setTextSize(1);
     tft.setTextDatum(TL_DATUM);
     
-    int windY = y + (rowHeight / 3); // Dynamiczne pozycjonowanie wiatru
+    int windY = y + (rowHeight / 3); 
     
     // Min wiatr (ciemnoszary)
     tft.setTextColor(TFT_DARKGREY);
@@ -159,50 +151,49 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     tft.setTextColor(TFT_WHITE);
     tft.drawString(String((int)day.windMax) + "km/h", 240, windY);
     
-    // === OPADY (zawsze pokazuj na ciemno niebiesko) ===
+    // === OPADY ===
     tft.setTextColor(0x001F); // Ciemny niebieski
     tft.setTextSize(1);
     tft.setTextDatum(TL_DATUM);
     tft.drawString(String(day.precipitationChance) + "%", 285, windY);
-    
-    Serial.printf("📅 Rendered: %s, %.1f'-%.1f'C, %s\n", 
-                  day.dayName.c_str(), day.tempMin, day.tempMax, day.icon.c_str());
   }
   
-  // === FOOTER z lokalizacją i czasem aktualizacji ===
+  // === FOOTER z lokalizacją (WYŚRODKOWANY) ===
   tft.setTextColor(TFT_DARKGREY);
   tft.setTextSize(1);
   
-  // Obecna lokalizacja (lewa strona)
-  tft.setTextDatum(TL_DATUM);
+  // Ustawienie: ŚRODEK-GÓRA (Top Center)
+  tft.setTextDatum(TC_DATUM); 
   
-  // Wyczyść lewą stronę ekranu przed napisaniem
-  tft.fillRect(0, 205, 150, 15, COLOR_BACKGROUND);
+  // Wyczyść CAŁY pasek na dole (320px szerokości), aby usunąć stare napisy
+  tft.fillRect(0, 205, 320, 15, COLOR_BACKGROUND);
   
-  // Lokalizacja - USING ACTUAL LOCATION MANAGER (properly declared)
-  tft.setTextDatum(TL_DATUM);
-  tft.setTextColor(TFT_DARKGREY);
-  
-  // Use the global locationManager that actually exists!
   if (locationManager.isLocationSet()) {
     WeatherLocation loc = locationManager.getCurrentLocation();
-    String locationText = String(loc.cityName) + ", " + String(loc.displayName);
-    
-    // Truncate if too long (prevent artifacts)
-    if (locationText.length() > 36) {
-      locationText = locationText.substring(0, 33) + "...";
+    String locationText;
+
+    // INTELIGENTNE BUDOWANIE NAZWY:
+    // Sprawdź czy displayName istnieje i czy różni się od cityName
+    if (loc.displayName.length() > 0 && loc.displayName != loc.cityName) {
+        // Mamy np. "Szczecin" i "Centrum" -> "Szczecin, Centrum"
+        locationText = loc.cityName + ", " + loc.displayName;
+    } else {
+        // Mamy tylko "Szczecin" lub duplikat -> Sam "Szczecin"
+        locationText = loc.cityName;
     }
     
-    tft.drawString(locationText, 10, 210);
+    // Skracanie tekstu, jeśli nadal jest za długi
+    if (locationText.length() > 38) {
+      locationText = locationText.substring(0, 35) + "...";
+    }
+    
+    // Rysuj na środku ekranu (X = 160)
+    tft.drawString(locationText, 160, 210);
   } else {
-    tft.drawString("Brak lokalizacji", 10, 210);
+    tft.drawString("Brak lokalizacji", 160, 210);
   }
   
-  // Pusty footer po prawej stronie (aktualizacja przeniesiona na ekran 4)
-  tft.setTextDatum(TR_DATUM);
-  tft.fillRect(160, 205, 160, 15, COLOR_BACKGROUND);
-  
-  Serial.println("✅ Weekly screen rendered with weather data");
+  Serial.println("✅ Weekly screen rendered with centered location");
 }
 
 void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
