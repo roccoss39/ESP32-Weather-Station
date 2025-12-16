@@ -46,7 +46,7 @@ inline String formatTemperature(float temp, int decimals = 1) {
 
 // --- POZYCJE I ROZMIARY ---
 #define WEATHER_AREA_X      5
-#define WEATHER_AREA_Y      5
+#define WEATHER_AREA_Y      1
 #define WEATHER_AREA_WIDTH  310
 #define WEATHER_AREA_HEIGHT 140
 
@@ -74,6 +74,16 @@ inline String formatTemperature(float temp, int decimals = 1) {
 
 #define PRESSURE_X_OFFSET   5    // Przywrócone do oryginalnej pozycji
 #define PRESSURE_Y_OFFSET   145
+
+// --- POZYCJE SEKCJI AKTUALIZACJI (SENSORS SCREEN) ---
+#define UPDATES_SECTION_Y   140   // Punkt odniesienia dla sekcji aktualizacji (było 155, teraz 140 = -15px)
+#define UPDATES_CLEAR_Y     145   // Y pozycja czyszczenia obszaru
+#define UPDATES_TITLE_Y     (UPDATES_SECTION_Y + 0)    // Etykieta "AKTUALIZACJE:"
+#define UPDATES_DHT22_Y     (UPDATES_SECTION_Y + 15)   // "DHT22: Gotowy"  
+#define UPDATES_SENSOR_Y    (UPDATES_SECTION_Y + 30)   // "Czujnik dht: co 2s"
+#define UPDATES_WEATHER_Y   (UPDATES_SECTION_Y + 45)   // "Pogoda: ..."
+#define UPDATES_WEEKLY_Y    (UPDATES_SECTION_Y + 60)   // "Pogoda tyg.: ..."
+#define UPDATES_WIFI_Y      (UPDATES_SECTION_Y + 75)   // "WiFi: ..."
 
 // --- ROZMIARY CZCIONEK ---
 #define FONT_SIZE_LARGE     3

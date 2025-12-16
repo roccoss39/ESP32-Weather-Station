@@ -226,30 +226,27 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
   tft.setTextColor(TFT_CYAN);
   tft.print("--%");     // TODO: Dodać prawdziwe dane z DHT22
   
-  // Status czujnika (mniejsza czcionka)
-  tft.setTextColor(TFT_WHITE);
-  tft.setTextSize(1);  // ZMIENIONE: mniejsza czcionka
-  tft.setCursor(20, 140);  // ZMIENIONE: wyżej
-  tft.print("Status DHT22: ");
-  tft.setTextColor(TFT_GREEN);
-  tft.print("Gotowy");   // TODO: Dodać prawdziwe dane z DHT22
+  // Status DHT22 przeniesiony do sekcji AKTUALIZACJE
   
   // === FOOTER z informacjami o aktualizacjach ===
   tft.setTextColor(TFT_DARKGREY);
   tft.setTextSize(1);
   
   // Wyczyść obszar footera (więcej miejsca)
-  tft.fillRect(0, 165, 320, 55, COLOR_BACKGROUND);  // ZMIENIONE: większy obszar
+  tft.fillRect(0, UPDATES_CLEAR_Y, 320, 75, COLOR_BACKGROUND);  // Używamy define
   
   // Etykieta AKTUALIZACJE (wyżej)
   tft.setTextDatum(TC_DATUM);
   tft.setTextColor(TFT_CYAN);
-  tft.drawString("AKTUALIZACJE:", 160, 168);  // ZMIENIONE: wyżej
+  tft.drawString("AKTUALIZACJE:", 160, UPDATES_TITLE_Y);  // Używamy define
   
-  // 1. Czujnik DHT22 (pierwszy rząd)
+  // 1. Status DHT22 (PRZENIESIONY Z GÓRY)
+  tft.setTextColor(TFT_GREEN);
+  tft.drawString("DHT22: Gotowy", 160, UPDATES_DHT22_Y);  // Używamy define
+  
+  // 2. Czujnik odczyt (WYŚRODKOWANY)
   tft.setTextColor(TFT_DARKGREY);
-  tft.setTextDatum(TL_DATUM);
-  tft.drawString("Czujnik temp. i wilg.: co 2s", 10, 185);  // ZMIENIONE: nowa pozycja
+  tft.drawString("Czujnik dht: co 2s", 160, UPDATES_SENSOR_Y);  // Używamy define
   
   // 2. Pogoda bieżąca (drugi rząd)
   extern unsigned long lastWeatherCheckGlobal;
@@ -265,8 +262,7 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
     weatherUpdateText = "Pogoda: " + String(weatherHours) + "h temu (co 10min)";
   }
   
-  tft.setTextDatum(TL_DATUM);  // ZMIENIONE: wyrównanie do lewej
-  tft.drawString(weatherUpdateText, 10, 200);  // ZMIENIONE: nowa pozycja
+  tft.drawString(weatherUpdateText, 160, UPDATES_WEATHER_Y);  // Używamy define
   
   // 3. Prognoza weekly (trzeci rząd)
   extern WeeklyForecastData weeklyForecast;
@@ -282,10 +278,9 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
     weeklyUpdateText = "Pogoda tyg.: " + String(weeklyHours) + "h temu (co 4h)";
   }
   
-  tft.setTextDatum(TL_DATUM);  // ZMIENIONE: wyrównanie do lewej
-  tft.drawString(weeklyUpdateText, 10, 215);  // ZMIENIONE: trzeci rząd
+  tft.drawString(weeklyUpdateText, 160, UPDATES_WEEKLY_Y);  // Używamy define
   
-  // 4. Stan WiFi (czwarty rząd) - NOWE!
+  // 4. Stan WiFi (czwarty rząd)
   String wifiStatus;
   if (WiFi.status() == WL_CONNECTED) {
     int rssi = WiFi.RSSI();
@@ -295,11 +290,11 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
   }
   
   // Skróć jeśli za długi
-  if (wifiStatus.length() > 35) {
-    wifiStatus = wifiStatus.substring(0, 32) + "...";
+  if (wifiStatus.length() > 30) {
+    wifiStatus = wifiStatus.substring(0, 27) + "...";
   }
   
-  tft.drawString(wifiStatus, 10, 230);  // NOWE: czwarty rząd
+  tft.drawString(wifiStatus, 160, UPDATES_WIFI_Y);  // Używamy define
 }
 
 void ScreenManager::renderImageScreen(TFT_eSPI& tft) {

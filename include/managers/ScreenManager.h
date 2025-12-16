@@ -5,7 +5,7 @@
 #include <TFT_eSPI.h>
 
 #define TEST_MODE 0
-#define SCREEN_SWITCH_INTERVAL_ 2000
+#define SCREEN_SWITCH_INTERVAL_ 8000
 // ScreenType enum definition - musi być tutaj dla ScreenManager
 enum ScreenType {
   SCREEN_CURRENT_WEATHER = 0,
