@@ -124,7 +124,7 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     tft.setTextSize(2);
     
     // Min temp (szary)
-    tft.setTextColor(TFT_LIGHTGREY); 
+    tft.setTextColor(TFT_DARKGREY); 
     tft.setTextDatum(TL_DATUM);
     tft.drawString(String((int)round(day.tempMin)) + "'", 120, y);
     
@@ -136,30 +136,73 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     tft.setTextColor(TFT_WHITE); 
     tft.drawString(String((int)round(day.tempMax)) + "'", 170, y);
     
-    // === WIATR MIN/MAX ===
-    // Ustawiamy małą czcionkę (rozmiar 1 ma ok. 8px wysokości)
-    tft.setTextSize(1);
-    tft.setTextDatum(TL_DATUM);
+    int tMinInt = (int)round(day.tempMin);
+    int tMaxInt = (int)round(day.tempMax);
+
+    // Warunek 1: Obie temperatury na minusie (minusy zajmują miejsce)
+    bool tempsBothNegative = (tMinInt < 0 && tMaxInt < 0);
+
+    // Warunek 2: Obie temperatury są co najmniej 2-cyfrowe (np. 10, -12, 25)
+    // Używamy abs() żeby sprawdzić wielkość liczby bez znaku
+    bool tempsBothDouble = (abs(tMinInt) >= 10 && abs(tMaxInt) >= 10);
+
+    // Warunek 3: Tłok w danych wiatru/opadów (wszystko >= 10)
+    bool dataCrowded = (day.windMin >= 10 && day.windMax >= 10 && day.precipitationChance >= 10);
     
-    // --- POPRAWKA POZYCJONOWANIA ---
-    // Zamiast dzielić rowHeight, dodajemy stały offset do 'y'.
-    // 'y' to góra dużej czcionki (rozmiar 2).
-    // Dodając 5px, centrujemy małą czcionkę (rozmiar 1) w pionie względem dużej.
-    int windY = y + 5; 
+    // Warunek 4: Ekstremalne wartości (setki)
+    bool dataHuge = (day.windMin >= 100 || day.windMax >= 100 || day.precipitationChance >= 100);
     
-    // Min wiatr (ciemnoszary)
-    tft.setTextColor(TFT_DARKGREY);
-    tft.drawString(String((int)round(day.windMin)) + "-", 220, windY);
+    // FINALNA DECYZJA: Mała czcionka, jeśli spełniony którykolwiek warunek
+    bool useSmallFont = (tempsBothNegative || tempsBothDouble || dataCrowded || dataHuge);
     
-    // Max wiatr (bialy)  
+    // Konfiguracja
+    int dataTextSize = useSmallFont ? 1 : 2;
+    int yOffsetData = useSmallFont ? 5 : 0; // Centrowanie w pionie dla małej czcionki
+
+    // === WIATR MIN/MAX (Bez spacji, DarkGrey) ===
+    tft.setTextSize(dataTextSize); 
+
+    int windX = 200;      
+    int currentX = windX; 
+
+    // 1. Min wiatr (DARKGREY)
+    tft.setTextColor(TFT_DARKGREY); // Zmiana na ciemnoszary
+    String minWind = String((int)round(day.windMin));
+    tft.drawString(minWind, currentX, y + yOffsetData);
+    currentX += tft.textWidth(minWind); 
+
+    // 2. Separator "-" (BIAŁY, BEZ SPACJI)
     tft.setTextColor(TFT_WHITE);
-    tft.drawString(String((int)round(day.windMax)) + "km/h", 240, windY);
+    String sep = "-"; // Usunięte spacje
+    tft.drawString(sep, currentX, y + yOffsetData);
+    currentX += tft.textWidth(sep);
+
+    // 3. Max wiatr (BIAŁY)
+    String maxWind = String((int)round(day.windMax));
+    tft.drawString(maxWind, currentX, y + yOffsetData);
+    currentX += tft.textWidth(maxWind);
+
+    // 4. Jednostka "km/h" (Zawsze mała, szara)
+    tft.setTextSize(1);
+    tft.setTextColor(TFT_SILVER);
+    
+    // Jeśli główny tekst mały (offset 5), jednostka równo (+0)
+    // Jeśli główny tekst duży (offset 0), jednostka niżej (+5)
+    int unitCorrection = useSmallFont ? 0 : 5; 
+    
+    // Dajemy mały odstęp 2px po liczbie
+    tft.drawString("km/h", currentX + 2, y + yOffsetData + unitCorrection);
     
     // === OPADY ===
     tft.setTextColor(0x001F); // Ciemny niebieski
-    tft.setTextSize(1);
-    tft.setTextDatum(TL_DATUM);
-    tft.drawString(String(day.precipitationChance) + "%", 285, windY);
+    tft.setTextDatum(TR_DATUM); // Wyrównanie do prawej krawędzi
+    
+    // Używamy tego samego rozmiaru co wiatr
+    tft.setTextSize(dataTextSize);
+    
+    tft.drawString(String(day.precipitationChance) + "%", 315, y + yOffsetData);
+    
+    tft.setTextDatum(TL_DATUM); // Reset
   }
   
   // === FOOTER z lokalizacją (WYŚRODKOWANY) ===
