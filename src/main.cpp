@@ -58,6 +58,7 @@ bool isLocationSavePending = false;
 unsigned long lastWeatherCheckGlobal = 0;
 unsigned long lastForecastCheckGlobal = 0;
 
+
 void setup() {
   Serial.begin(115200);
   delay(DELAY_STABILIZATION); // Stabilizacja po wake up
