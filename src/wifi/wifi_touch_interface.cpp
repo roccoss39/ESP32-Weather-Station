@@ -1364,8 +1364,11 @@ void drawLocationScreen(TFT_eSPI& tft) {
       
     } else if (currentMenuState == MENU_DISTRICTS) {
       // Wyświetlanie dzielnic wybranego miasta
-      bool isCurrent = (cityList[itemIndex].cityName == currentLoc.cityName && 
-                  cityList[itemIndex].countryCode == currentLoc.countryCode);
+      
+      // --- FIX: POPRAWIONA LOGIKA PODŚWIETLANIA NA ZIELONO ---
+      // Sprawdzamy, czy nazwa wyświetlana (Dzielnica) jest identyczna
+      bool isCurrent = (String(cityList[itemIndex].displayName) == String(currentLoc.displayName));
+      // -------------------------------------------------------
       
       if (isCurrent) {
         tft.fillRect(10, yPos - 2, 300, 22, GREEN);
