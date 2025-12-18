@@ -93,5 +93,4 @@ void displayTime(TFT_eSPI& tft) {
     getTimeDisplayCache().setPrevTimeStr(timeStr);
   }
 
-  // USUNIĘTO: STATUS WiFi zgodnie z życzeniem
 }
