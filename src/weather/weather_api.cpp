@@ -1,5 +1,4 @@
 #include "weather/weather_data.h"
-#include "config/weather_config.h"
 #include "config/secrets.h"
 #include "config/location_config.h"
 #include <WiFi.h>

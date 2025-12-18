@@ -10,8 +10,6 @@ MotionSensorManager& getMotionSensorManager() {
   return motionSensorManager;
 }
 
-// ❌ USUNIĘTE: 4 extern variables zastąpione MotionSensorManager class
-
 void initMotionSensor() {
   // Deleguj do MotionSensorManager - OOP style
   getMotionSensorManager().initPIRHardware();

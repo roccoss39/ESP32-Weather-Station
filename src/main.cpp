@@ -10,7 +10,6 @@
 bool isImageDownloadInProgress = false;
 
 // --- KONFIGURACJA ---
-#include "config/weather_config.h"
 #include "config/display_config.h"
 #include "config/secrets.h"
 #include "config/timing_config.h"

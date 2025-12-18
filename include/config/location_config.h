@@ -13,26 +13,26 @@ struct WeatherLocation {
     String timezone;
 };
 
-// Dzielnice i obszary Szczecina
+// Dzielnice i obszary Szczecina (4 miejsca po przecinku)
 const WeatherLocation SZCZECIN_DISTRICTS[] = {
-    {"Szczecin", "PL", "Centrum", 53.44, 14.56, "CET-1CEST,M3.5.0/2,M10.5.0/3"},          // Centrum miasta
-    {"Szczecin", "PL", "Zawadzkiego", 53.459, 14.543, "CET-1CEST,M3.5.0/2,M10.5.0/3"},    // Os. Zawadzkiego
-    {"Szczecin", "PL", "Pogodno", 53.40, 14.61, "CET-1CEST,M3.5.0/2,M10.5.0/3"},          // Pogodno
-    {"Mierzyn", "PL", "Mierzyn", 53.492, 14.613, "CET-1CEST,M3.5.0/2,M10.5.0/3"},         // Mierzyn (gmina)
-    {"Plonia", "PL", "Plonia", 53.506, 14.589, "CET-1CEST,M3.5.0/2,M10.5.0/3"},           // Plonia (gmina)
-    {"Szczecin", "PL", "Gumience", 53.47, 14.60, "CET-1CEST,M3.5.0/2,M10.5.0/3"},         // Gumience
-    {"Szczecin", "PL", "Dabie", 53.38, 14.69, "CET-1CEST,M3.5.0/2,M10.5.0/3"},            // Dabie
-    {"Szczecin", "PL", "Niebuszewo", 53.48, 14.52, "CET-1CEST,M3.5.0/2,M10.5.0/3"},       // Niebuszewo
-    {"Szczecin", "PL", "Prawobreze", 53.46, 14.64, "CET-1CEST,M3.5.0/2,M10.5.0/3"},       // Prawobrzeże
-    {"Szczecin", "PL", "Zelechowa", 53.36, 14.60, "CET-1CEST,M3.5.0/2,M10.5.0/3"},        // Żelechowa
-    {"Szczecin", "PL", "Turzyn", 53.415, 14.515, "CET-1CEST,M3.5.0/2,M10.5.0/3"},         // Turzyn
-    {"Szczecin", "PL", "Klonowica", 53.37, 14.62, "CET-1CEST,M3.5.0/2,M10.5.0/3"},        // Klonowica
-    {"Szczecin", "PL", "Slowianin", 53.455, 14.595, "CET-1CEST,M3.5.0/2,M10.5.0/3"},      // Słowianin
-    {"Szczecin", "PL", "Warszewo", 53.475, 14.535, "CET-1CEST,M3.5.0/2,M10.5.0/3"},       // Warszewo
-    {"Szczecin", "PL", "Arkonia", 53.425, 14.625, "CET-1CEST,M3.5.0/2,M10.5.0/3"}         // Arkonia
+    {"Szczecin", "PL", "Centrum", 53.4289, 14.5530, "CET-1CEST,M3.5.0/2,M10.5.0/3"},          // Centrum miasta (Plac Grunwaldzki)
+    {"Szczecin", "PL", "Zawadzkiego", 53.4590, 14.5430, "CET-1CEST,M3.5.0/2,M10.5.0/3"},    // Os. Zawadzkiego
+    {"Szczecin", "PL", "Pogodno", 53.4000, 14.6100, "CET-1CEST,M3.5.0/2,M10.5.0/3"},          // Pogodno
+    {"Mierzyn", "PL", "Mierzyn", 53.4920, 14.6130, "CET-1CEST,M3.5.0/2,M10.5.0/3"},         // Mierzyn (gmina)
+    {"Plonia", "PL", "Plonia", 53.5060, 14.5890, "CET-1CEST,M3.5.0/2,M10.5.0/3"},           // Plonia (gmina)
+    {"Szczecin", "PL", "Gumience", 53.4700, 14.6000, "CET-1CEST,M3.5.0/2,M10.5.0/3"},         // Gumience
+    {"Szczecin", "PL", "Dabie", 53.3800, 14.6900, "CET-1CEST,M3.5.0/2,M10.5.0/3"},            // Dabie
+    {"Szczecin", "PL", "Niebuszewo", 53.4800, 14.5200, "CET-1CEST,M3.5.0/2,M10.5.0/3"},       // Niebuszewo
+    {"Szczecin", "PL", "Prawobreze", 53.4600, 14.6400, "CET-1CEST,M3.5.0/2,M10.5.0/3"},       // Prawobrzeże
+    {"Szczecin", "PL", "Zelechowa", 53.3600, 14.6000, "CET-1CEST,M3.5.0/2,M10.5.0/3"},        // Żelechowa
+    {"Szczecin", "PL", "Turzyn", 53.4150, 14.5150, "CET-1CEST,M3.5.0/2,M10.5.0/3"},         // Turzyn
+    {"Szczecin", "PL", "Klonowica", 53.3700, 14.6200, "CET-1CEST,M3.5.0/2,M10.5.0/3"},        // Klonowica
+    {"Szczecin", "PL", "Slowianin", 53.4550, 14.5950, "CET-1CEST,M3.5.0/2,M10.5.0/3"},      // Słowianin
+    {"Szczecin", "PL", "Warszewo", 53.4750, 14.5350, "CET-1CEST,M3.5.0/2,M10.5.0/3"},       // Warszewo
+    {"Szczecin", "PL", "Arkonia", 53.4250, 14.6250, "CET-1CEST,M3.5.0/2,M10.5.0/3"}         // Arkonia
 };
 
-// Dzielnice i obszary Poznania
+// Dzielnice i obszary Poznania (4 miejsca po przecinku)
 const WeatherLocation POZNAN_DISTRICTS[] = {
     {"Poznan", "PL", "Centrum", 52.4064, 16.9252, "CET-1CEST,M3.5.0/2,M10.5.0/3"},        // Centrum miasta
     {"Poznan", "PL", "Stare Miasto", 52.4081, 16.9335, "CET-1CEST,M3.5.0/2,M10.5.0/3"},   // Stare Miasto
@@ -48,7 +48,7 @@ const WeatherLocation POZNAN_DISTRICTS[] = {
 
 const int POZNAN_DISTRICTS_COUNT = sizeof(POZNAN_DISTRICTS) / sizeof(POZNAN_DISTRICTS[0]);
 
-// Obszary Złocieńca i okolic
+// Obszary Złocieńca i okolic (4 miejsca po przecinku)
 const WeatherLocation ZLOCIENIEC_AREAS[] = {
     {"Zlocieniec", "PL", "Centrum", 53.5231, 16.0364, "CET-1CEST,M3.5.0/2,M10.5.0/3"},    // Centrum miasta
     {"Zlocieniec", "PL", "Dworcowa", 53.5241, 16.0334, "CET-1CEST,M3.5.0/2,M10.5.0/3"},   // Okolice dworca

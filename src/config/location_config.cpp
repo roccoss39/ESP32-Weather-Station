@@ -145,7 +145,7 @@ String LocationManager::buildWeatherURL(const char* apiKey) const {
     char url[256];
     // Używaj COORDINATES zamiast city name dla większej precyzji  
     snprintf(url, sizeof(url), 
-        "https://api.openweathermap.org/data/2.5/weather?lat=%.2f&lon=%.2f&appid=%s&units=metric&lang=en",
+        "https://api.openweathermap.org/data/2.5/weather?lat=%.4f&lon=%.4f&appid=%s&units=metric&lang=en",
         loc.latitude, loc.longitude, apiKey);
     
     return String(url);
@@ -157,7 +157,7 @@ String LocationManager::buildForecastURL(const char* apiKey) const {
     char url[256];
     // Używaj COORDINATES zamiast city name dla większej precyzji
     snprintf(url, sizeof(url), 
-        "https://api.openweathermap.org/data/2.5/forecast?lat=%.2f&lon=%.2f&appid=%s&units=metric&lang=en",
+        "https://api.openweathermap.org/data/2.5/forecast?lat=%.4f&lon=%.4f&appid=%s&units=metric&lang=en",
         loc.latitude, loc.longitude, apiKey);
     
     return String(url);

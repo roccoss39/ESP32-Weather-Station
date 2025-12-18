@@ -1,7 +1,6 @@
 #include "weather/forecast_api.h"
 #include "weather/forecast_data.h"
 #include "weather/weather_data.h"
-#include "config/weather_config.h"
 #include "config/secrets.h"
 #include "config/location_config.h"
 #include <WiFi.h>
