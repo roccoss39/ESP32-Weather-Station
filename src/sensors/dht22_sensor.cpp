@@ -1,14 +1,19 @@
 #include "sensors/dht22_sensor.h"
+#include <DHT.h>
 
 // === INSTANCJA GLOBALNA ===
 DHT22Sensor dht22;
+
+// === INSTANCJA DHT BIBLIOTEKI ===
+DHT dhtSensor(DHT22_PIN, DHT22);
 
 // === IMPLEMENTACJA KLASY DHT22Sensor ===
 
 void DHT22Sensor::init() {
   Serial.println("🌡️ Inicjalizacja czujnika DHT22...");
   
-  pinMode(DHT22_PIN, INPUT_PULLUP);
+  // Inicjalizuj bibliotekę DHT
+  dhtSensor.begin();
   
   currentData.temperature = -999.0;
   currentData.humidity = -999.0;
@@ -32,30 +37,33 @@ void DHT22Sensor::readSensor() {
   
   Serial.println("🌡️ Odczytywanie danych z DHT22...");
   
-  // TODO: Implementacja odczytu DHT22
-  // Na razie symulowane dane dla testów
+  // PRAWDZIWY ODCZYT Z DHT22
+  float temp = dhtSensor.readTemperature();
+  float hum = dhtSensor.readHumidity();
   
-  // Symulowane dane (losowe w realistycznych zakresach)
-  float simTemp = 20.0 + (random(-50, 150) / 10.0);  // 15-35°C
-  float simHum = 45.0 + (random(-200, 300) / 10.0);  // 25-75%
-  
-  // Sprawdź poprawność danych
-  if (simTemp >= -40.0 && simTemp <= 80.0 && 
-      simHum >= 0.0 && simHum <= 100.0) {
+  // Sprawdź poprawność danych (NaN oznacza błąd odczytu)
+  if (!isnan(temp) && !isnan(hum) && 
+      temp >= -40.0 && temp <= 80.0 && 
+      hum >= 0.0 && hum <= 100.0) {
     
-    currentData.temperature = simTemp;
-    currentData.humidity = simHum;
+    currentData.temperature = temp;
+    currentData.humidity = hum;
     currentData.isValid = true;
     currentData.status = "OK";
     currentData.lastUpdate = millis();
     
-    Serial.printf("🌡️ DHT22 odczyt: %.1f°C, %.1f%%\n", simTemp, simHum);
+    Serial.printf("🌡️ DHT22 prawdziwy odczyt: %.1f°C, %.1f%%\n", temp, hum);
     
   } else {
-    // Błędne dane
+    // Błędne dane lub błąd komunikacji
     currentData.isValid = false;
-    currentData.status = "Blad odczytu";
-    Serial.println("❌ DHT22: Błędne dane z czujnika");
+    if (isnan(temp) || isnan(hum)) {
+      currentData.status = "Blad komunikacji";
+      Serial.println("❌ DHT22: Błąd komunikacji z czujnikiem (sprawdź połączenia)");
+    } else {
+      currentData.status = "Dane poza zakresem";
+      Serial.printf("❌ DHT22: Dane poza zakresem - temp:%.1f°C, hum:%.1f%%\n", temp, hum);
+    }
   }
 }
 

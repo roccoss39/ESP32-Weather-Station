@@ -109,10 +109,10 @@ bool getForecast() {
 }
 
 // === FUNKCJA PRZETWARZANIA 40 PROGNOZ 3H NA 5 DNI ===
+// === POPRAWIONA FUNKCJA DO PLIKU forecast_api.cpp ===
+
 bool generateWeeklyForecast() {
   Serial.println("🗓️ WYWOŁANIE generateWeeklyForecast() - START");
-  Serial.println("🗓️ Generowanie prognozy 5-dniowej z danych 3h...");
-  Serial.println("🔍 DEBUG_WEATHER_API status: ENABLED");
   
   if (WiFi.status() != WL_CONNECTED) {
     Serial.println("❌ WiFi not connected for weekly forecast");
@@ -120,7 +120,6 @@ bool generateWeeklyForecast() {
   }
 
   HTTPClient http;
-  WeatherLocation currentLoc = locationManager.getCurrentLocation();
   String urlString = locationManager.buildForecastURL(WEATHER_API_KEY);
   
   http.begin(urlString);
@@ -134,15 +133,6 @@ bool generateWeeklyForecast() {
   }
   
   String payload = http.getString();
-  
-  // === DEBUG: JSON dump dla weekly forecast ===
-  #ifdef DEBUG_WEATHER_API
-    Serial.println("=== RAW JSON WEEKLY FORECAST API ===");
-    Serial.println(payload);
-    Serial.println("=== KONIEC RAW JSON WEEKLY ===");
-    Serial.println();
-  #endif
-  
   JsonDocument doc;
   
   if (deserializeJson(doc, payload) != DeserializationError::Ok) {
@@ -154,128 +144,91 @@ bool generateWeeklyForecast() {
   JsonArray list = doc["list"];
   Serial.printf("📊 Otrzymano %d prognoz 3h z API\n", list.size());
   
-  // Wyczysc poprzednie dane
+  // Resetujemy dane wyjściowe
   weeklyForecast.count = 0;
   weeklyForecast.isValid = false;
   
-  // Nazwy dni tygodnia bez polskich znakow
   const char* dayNames[] = {"Nie", "Pon", "Wto", "Sro", "Czw", "Pia", "Sob"};
   
-  // Struktura dla grupowania danych na dzien
+  // 1. ZWIĘKSZONY BUFOR TYMCZASOWY
   struct DayGroup {
     int dayOfWeek = -1;
     float tempMin = 999;
     float tempMax = -999;
     float windMin = 999;
     float windMax = -999;
-    bool hasData = false;  // Flaga czy dzień ma jakiekolwiek dane
-    String icons[8];  // max 8 ikon na dzien
+    bool hasData = false;
+    String icons[8];
     int iconCounts[8] = {0};
     int iconIndex = 0;
     int precipSum = 0;
     int itemCount = 0;
   };
   
-  DayGroup dayGroups[4];  // Maksymalnie 4 dni
-  int currentDayIndex = -1;
+  DayGroup tempGroups[6]; // Bufor na surowe dane (max 6 dni w JSON)
+  int tempGroupsCount = 0;
   
-  // Przetwarz do 32 prognoz (4 dni × 8 prognoz)
-  for (int i = 0; i < min(32, (int)list.size()) && weeklyForecast.count < 4; i++) {
+  // 2. PRZETWARZANIE WSZYSTKICH DANYCH
+  for (int i = 0; i < list.size(); i++) {
     JsonObject item = list[i];
     
     long timestamp = item["dt"];
     struct tm* timeinfo = localtime((time_t*)&timestamp);
     int dayOfWeek = timeinfo->tm_wday;
     
-    // Sprawdz czy to nowy dzien
-    if (currentDayIndex == -1 || dayGroups[currentDayIndex].dayOfWeek != dayOfWeek) {
-      if (weeklyForecast.count < 4) {
-        currentDayIndex = weeklyForecast.count;
-        dayGroups[currentDayIndex].dayOfWeek = dayOfWeek;
-        weeklyForecast.count++;
-        Serial.printf("📅 Nowy dzien %d: %s\n", weeklyForecast.count, dayNames[dayOfWeek]);
+    // Sprawdz czy to nowy dzien w stosunku do ostatnio przetwarzanego
+    int currentGroupIdx = -1;
+    
+    if (tempGroupsCount == 0 || tempGroups[tempGroupsCount - 1].dayOfWeek != dayOfWeek) {
+      if (tempGroupsCount < 6) {
+        currentGroupIdx = tempGroupsCount;
+        tempGroups[currentGroupIdx].dayOfWeek = dayOfWeek;
+        tempGroupsCount++;
       }
+    } else {
+      currentGroupIdx = tempGroupsCount - 1;
     }
     
-    if (currentDayIndex >= 0 && currentDayIndex < 4) {
-      DayGroup& group = dayGroups[currentDayIndex];
+    // Jeśli mamy valid index, zbieramy dane
+    if (currentGroupIdx >= 0) {
+      DayGroup& group = tempGroups[currentGroupIdx];
       
-      // Zbierz dane pogodowe
-      float temp = item["main"]["temp"];
-      float wind = item["wind"]["speed"];
-      wind = wind * 3.6; // m/s na km/h
+      // --- POPRAWKA TUTAJ: Dodano .as<float>() ---
+      float temp = item["main"]["temp"].as<float>();
+      float wind = item["wind"]["speed"].as<float>() * 3.6; // km/h
+      // -------------------------------------------
+
       String icon = item["weather"][0]["icon"].as<String>();
-      int precipChance = 0;
-      if (item["pop"]) {
-        precipChance = (int)(item["pop"].as<float>() * 100);
-      }
+      int precipChance = (int)(item["pop"].as<float>() * 100);
       
-      // Aktualizuj min/max temp - dla pierwszego dnia uwzględnij current weather
       if (!group.hasData) {
-        group.tempMin = temp;  // Inicjalizuj pierwszą prawdziwą temperaturą
+        group.tempMin = temp;
         group.tempMax = temp;
         group.windMin = wind;
         group.windMax = wind;
         group.hasData = true;
         
-        // SPECJALNA LOGIKA: Dla dzisiejszego dnia (pierwszego) dodaj current weather
-        if (currentDayIndex == 0 && weather.isValid) {
-          float currentTemp = weather.temperature;
-          if (currentTemp < group.tempMin) {
-            group.tempMin = currentTemp;
-            Serial.printf("🌡️ Current weather MIN dla dzisiejszego dnia: %.1f°C\n", currentTemp);
-          }
-          if (currentTemp > group.tempMax) {
-            group.tempMax = currentTemp;
-            Serial.printf("🌡️ Current weather MAX dla dzisiejszego dnia: %.1f°C\n", currentTemp);
-          }
-          Serial.printf("🌡️ Inicjalizacja dnia %s z current weather: temp=%.1f°C (current=%.1f°C), wiatr=%.0fkm/h\n", 
-                       dayNames[dayOfWeek], temp, currentTemp, wind);
-        } else {
-          Serial.printf("🌡️ Inicjalizacja dnia %s: temp=%.1f°C, wiatr=%.0fkm/h\n", 
-                       dayNames[dayOfWeek], temp, wind);
+        // Specjalna logika dla "Dziś"
+        if (currentGroupIdx == 0 && weather.isValid) {
+             float currentTemp = weather.temperature;
+             if (currentTemp < group.tempMin) group.tempMin = currentTemp;
+             if (currentTemp > group.tempMax) group.tempMax = currentTemp;
         }
       } else {
-        Serial.printf("📊 Aktualizacja dnia %s: temp=%.1f°C (min=%.1f, max=%.1f), wiatr=%.0fkm/h (min=%.0f, max=%.0f)\n", 
-                     dayNames[dayOfWeek], temp, group.tempMin, group.tempMax, wind, group.windMin, group.windMax);
+        // Logika Min/Max
+        if (temp < group.tempMin) group.tempMin = temp;
+        if (temp > group.tempMax) group.tempMax = temp;
+        if (wind < group.windMin) group.windMin = wind;
+        if (wind > group.windMax) group.windMax = wind;
         
-        // Normalne porównywanie min/max dla kolejnych prognoz
-        // Dla dzisiejszego dnia (pierwszego) zawsze uwzględniaj current weather
-        if (currentDayIndex == 0 && weather.isValid) {
-          float currentTemp = weather.temperature;
-          float realMin = min(min(temp, group.tempMin), currentTemp);
-          float realMax = max(max(temp, group.tempMax), currentTemp);
-          
-          if (realMin != group.tempMin) {
-            group.tempMin = realMin;
-            Serial.printf("❄️ Nowa temp MIN dla dzisiejszego dnia %s: %.1f°C (uwzględnia current weather)\n", dayNames[dayOfWeek], realMin);
-          }
-          if (realMax != group.tempMax) {
-            group.tempMax = realMax;
-            Serial.printf("🔥 Nowa temp MAX dla dzisiejszego dnia %s: %.1f°C (uwzględnia current weather)\n", dayNames[dayOfWeek], realMax);
-          }
-        } else {
-          // Dla przyszłych dni - normalne porównywanie
-          if (temp < group.tempMin) {
-            group.tempMin = temp;
-            Serial.printf("❄️ Nowa temp MIN dla %s: %.1f°C\n", dayNames[dayOfWeek], temp);
-          }
-          if (temp > group.tempMax) {
-            group.tempMax = temp;
-            Serial.printf("🔥 Nowa temp MAX dla %s: %.1f°C\n", dayNames[dayOfWeek], temp);
-          }
-        }
-        if (wind < group.windMin) {
-          group.windMin = wind;
-          Serial.printf("🍃 Nowy wiatr MIN dla %s: %.0fkm/h\n", dayNames[dayOfWeek], wind);
-        }
-        if (wind > group.windMax) {
-          group.windMax = wind;
-          Serial.printf("💨 Nowy wiatr MAX dla %s: %.0fkm/h\n", dayNames[dayOfWeek], wind);
+        if (currentGroupIdx == 0 && weather.isValid) {
+             float currentTemp = weather.temperature;
+             if (currentTemp < group.tempMin) group.tempMin = currentTemp;
+             if (currentTemp > group.tempMax) group.tempMax = currentTemp;
         }
       }
       
-      // Zlicz ikony (znajdz dominujaca)
+      // Ikony
       bool iconFound = false;
       for (int j = 0; j < group.iconIndex; j++) {
         if (group.icons[j] == icon) {
@@ -295,89 +248,55 @@ bool generateWeeklyForecast() {
     }
   }
   
-  // NOWA LOGIKA: USUŃ DNI Z < 4 PROGNOZAMI (za mało danych)
-  int finalDays = 0;
-  for (int i = 0; i < weeklyForecast.count; i++) {
-    if (dayGroups[i].itemCount >= 4) {
-      if (finalDays != i) {
-        // Przesuń dzień do właściwej pozycji
-        dayGroups[finalDays] = dayGroups[i];
-      }
-      finalDays++;
-    } else {
-      Serial.printf("⚠️ Usuwam dzień %s - za mało prognoz (%d < 4)\n", 
-                    dayNames[dayGroups[i].dayOfWeek], dayGroups[i].itemCount);
-    }
-  }
-  weeklyForecast.count = finalDays;
+  // 3. FILTROWANIE I PRZEPISYWANIE
+  Serial.println("🧹 Filtrowanie dni (wymagane min. 4 prognozy)...");
   
-  // Ogranicz do maksymalnie 4 dni dla lepszej czytelności
-  if (weeklyForecast.count > 4) {
-    weeklyForecast.count = 4;
-    Serial.printf("📅 Ograniczono do 4 dni dla lepszej czytelności\n");
-  }
-  
-  Serial.printf("📊 Finalna liczba dni: %d (dni z ≥4 prognozami)\n", weeklyForecast.count);
-  
-  // Przekonwertuj zgrupowane dane na finalna strukture
-  for (int i = 0; i < weeklyForecast.count; i++) {
-    DayGroup& group = dayGroups[i];
-    DailyForecast& day = weeklyForecast.days[i];
+  for (int i = 0; i < tempGroupsCount; i++) {
+    if (weeklyForecast.count >= 4) break;
     
-    day.dayName = String(dayNames[group.dayOfWeek]);
-    
-    // Sprawdź czy dzień ma prawidłowe dane
-    if (!group.hasData || group.tempMin == 999 || group.tempMax == -999) {
-      Serial.printf("⚠️ BŁĄD: Dzień %s ma nieprawidłowe dane temp: min=%.1f, max=%.1f\n", 
-                   day.dayName.c_str(), group.tempMin, group.tempMax);
-      // Ustaw wartości domyślne/sensowne
-      day.tempMin = 0;
-      day.tempMax = 0;
-    } else {
-      day.tempMin = group.tempMin;
-      day.tempMax = group.tempMax;
-    }
-    day.windMin = group.windMin;
-    day.windMax = group.windMax;
-    day.precipitationChance = group.itemCount > 0 ? group.precipSum / group.itemCount : 0;
-    
-    // ULEPSZONA LOGIKA: Priorytetyzuj ikony opadów przy wysokim prawdopodobieństwie
-    day.icon = "01d"; // Domyślnie słońce
-    bool precipIconFound = false;
-    
-    if (day.precipitationChance >= 40) {
-      // Przy wysokim prawdopodobieństwie opadów (≥40%) szukaj ikon opadów w kolejności priorytetów
-      String precipIcons[] = {"11", "10", "09", "13"}; // burza > deszcz > mżawka > śnieg
+    if (tempGroups[i].itemCount >= 4) {
+      DayGroup& src = tempGroups[i];
+      DailyForecast& dest = weeklyForecast.days[weeklyForecast.count];
       
-      for (int p = 0; p < 4 && !precipIconFound; p++) {
-        for (int j = 0; j < group.iconIndex; j++) {
-          if (group.icons[j].indexOf(precipIcons[p]) >= 0) {
-            day.icon = group.icons[j];
-            precipIconFound = true;
-            Serial.printf("🌧️ Wybrano ikonę opadów %s (prawdopodobieństwo: %d%%)\n", 
-                         day.icon.c_str(), day.precipitationChance);
-            break; // Znaleziono odpowiednią ikonę opadów
+      dest.dayName = String(dayNames[src.dayOfWeek]);
+      dest.tempMin = src.tempMin;
+      dest.tempMax = src.tempMax;
+      dest.windMin = src.windMin;
+      dest.windMax = src.windMax;
+      dest.precipitationChance = src.itemCount > 0 ? src.precipSum / src.itemCount : 0;
+      
+      // Wybór ikony
+      dest.icon = "01d";
+      bool precipIconFound = false;
+      if (dest.precipitationChance >= 40) {
+        String precipIcons[] = {"11", "10", "09", "13"};
+        for (int p = 0; p < 4 && !precipIconFound; p++) {
+          for (int j = 0; j < src.iconIndex; j++) {
+            if (src.icons[j].indexOf(precipIcons[p]) >= 0) {
+              dest.icon = src.icons[j];
+              precipIconFound = true;
+              break;
+            }
           }
         }
       }
-    }
-    
-    // Jeśli brak ikon opadów lub niskie prawdopodobieństwo, użyj dominującej ikony
-    if (!precipIconFound) {
-      int maxCount = 0;
-      for (int j = 0; j < group.iconIndex; j++) {
-        if (group.iconCounts[j] > maxCount) {
-          maxCount = group.iconCounts[j];
-          day.icon = group.icons[j];
+      if (!precipIconFound) {
+        int maxCount = 0;
+        for (int j = 0; j < src.iconIndex; j++) {
+          if (src.iconCounts[j] > maxCount) {
+            maxCount = src.iconCounts[j];
+            dest.icon = src.icons[j];
+          }
         }
       }
+      
+      Serial.printf("✅ Dodano dzień: %s (prognoz: %d)\n", dest.dayName.c_str(), src.itemCount);
+      weeklyForecast.count++;
+    } else {
+      Serial.printf("❌ Odrzucono dzień: %s (za mało prognoz: %d)\n", dayNames[tempGroups[i].dayOfWeek], tempGroups[i].itemCount);
     }
-    
-    Serial.printf("✅ Dzien %d: %s, %.1f'-%.1f'C, %.0f-%.0fkm/h, %s, %d%% (%d prognoz)\n", 
-                  i+1, day.dayName.c_str(), day.tempMin, day.tempMax, 
-                  day.windMin, day.windMax, day.icon.c_str(), day.precipitationChance, group.itemCount);
   }
-  
+
   weeklyForecast.isValid = true;
   weeklyForecast.lastUpdate = millis();
   

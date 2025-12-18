@@ -6,6 +6,7 @@
 #include "display/github_image.h"
 #include "config/display_config.h"
 #include "sensors/motion_sensor.h"
+#include "sensors/dht22_sensor.h"
 #include "managers/WeatherCache.h"
 #include "managers/TimeDisplayCache.h"
 #include "config/location_config.h"
@@ -222,12 +223,14 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
   tft.fillScreen(COLOR_BACKGROUND);
   
   // === NAGŁÓWEK ===
-  tft.setTextColor(TFT_CYAN);
+  tft.setTextColor(TFT_MAGENTA );
   tft.setTextSize(2);
   tft.setTextDatum(TC_DATUM);
   tft.drawString("LOKALNE CZUJNIKI", 160, 10);
   
-  // === INFORMACJE O DHT22 (BEZ ZMIAN NA RAZIE - PLACEHOLDERY) ===
+  // === INFORMACJE O DHT22 (PRAWDZIWE DANE) ===
+  DHT22Data dhtData = getDHT22Data();
+  
   tft.setTextSize(2);
   tft.setTextDatum(TL_DATUM);
   
@@ -236,14 +239,22 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
   tft.setCursor(20, 60);
   tft.print("Temp. lokalna: ");
   tft.setTextColor(TFT_YELLOW);
-  tft.print("--.-'C");  
+  if (dhtData.isValid) {
+    tft.printf("%.1f'C", dhtData.temperature);
+  } else {
+    tft.print("--.-'C");
+  }
   
   // 2. Wilgotność
   tft.setTextColor(TFT_WHITE);
   tft.setCursor(20, 110);
   tft.print("Wilg. lokalna: ");
   tft.setTextColor(TFT_CYAN);
-  tft.print("--%");     
+  if (dhtData.isValid) {
+    tft.printf("%.1f%%", dhtData.humidity);
+  } else {
+    tft.print("--.-%");
+  }     
   
   // === FOOTER z informacjami o aktualizacjach ===
   // Tutaj wprowadzamy zmiany z kolorowaniem czasu
@@ -258,9 +269,11 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
   tft.setTextColor(TFT_CYAN);
   tft.drawString("STATUS SYSTEMU:", 160, UPDATES_TITLE_Y);
   
-  // 1. Status DHT22
-  tft.setTextColor(TFT_GREEN);
-  tft.drawString("DHT22: Gotowy", 160, UPDATES_DHT22_Y);
+  // 1. Status DHT22 (prawdziwy status)
+  String dhtStatus = "DHT22: " + dhtData.status;
+  uint16_t statusColor = dhtData.isValid ? TFT_GREEN : TFT_RED;
+  tft.setTextColor(statusColor);
+  tft.drawString(dhtStatus, 160, UPDATES_DHT22_Y);
   
   // 2. Czujnik odczyt
   tft.setTextColor(TFT_DARKGREY);

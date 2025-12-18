@@ -31,8 +31,9 @@
 - **Show/Hide password toggle** for easy credential verification
 
 ### 🎨 **Advanced Display System**
-- **320x240 TFT display** (ILI9341) with touch support
-- **3-screen rotation**: Weather → Forecast → NASA Images
+- **320x240 TFT display** (ILI9341) with touch support in landscape mode
+- **4-screen rotation**: Weather → Forecast → Weekly Forecast → Local Sensors
+- **Real-time local sensors** with DHT22 temperature/humidity display
 - **Intelligent caching** prevents unnecessary redraws
 - **Dynamic font sizing** for optimal information display
 - **Professional color schemes** with weather-dependent themes
@@ -48,20 +49,23 @@
 
 ### 🔧 **Hardware Configuration**
 ```cpp
-// Display (TFT_eSPI)
-#define TFT_WIDTH  320
-#define TFT_HEIGHT 240
-#define TFT_CS     5
-#define TFT_DC     15
-#define TFT_RST    -1
-#define TFT_BL     25
+// Display (ILI9341 TFT)
+#define TFT_WIDTH   320    // Landscape width
+#define TFT_HEIGHT  240    // Landscape height
+#define TFT_CS      5      // Chip Select
+#define TFT_DC      15     // Data/Command
+#define TFT_RST     -1     // Reset (disabled - connect to VCC/EN)
+#define TFT_BL      25     // Backlight control
+#define TFT_MOSI    23     // SPI Data (Master Out Slave In)
+#define TFT_SCLK    18     // SPI Clock
 
 // Touch Interface
-#define TOUCH_CS   21
-#define SPI_MISO   19
+#define TOUCH_CS    22     // Touch Chip Select
+#define SPI_MISO    19     // SPI Data In (Master In Slave Out)
 
-// PIR Motion Sensor
-#define PIR_PIN    27
+// Sensors
+#define DHT22_PIN   4      // DHT22 Temperature/Humidity sensor
+#define PIR_PIN     27     // PIR Motion sensor
 
 // Built-in LED
 #define LED_BUILTIN 2
@@ -100,11 +104,47 @@ All timeouts centralized in `include/config/timing_config.h`:
 ## 🔧 **Setup Instructions**
 
 ### 1. **Hardware Assembly**
+
+#### **🔌 Complete Wiring Diagram**
+
+| **Component** | **Pin** | **ESP32 GPIO** | **Notes** |
+|---------------|---------|----------------|-----------|
+| **ILI9341 TFT Display** |  |  |  |
+| VCC | VCC | 3.3V | Power supply |
+| GND | GND | GND | Ground |
+| CS | CS | GPIO 5 | Chip Select |
+| DC | DC | GPIO 15 | Data/Command |
+| MOSI | DIN | GPIO 23 | SPI Data Out |
+| SCK | CLK | GPIO 18 | SPI Clock |
+| RST | RST | VCC/EN | Reset (or 3.3V) |
+| BL | BL | GPIO 25 | Backlight control |
+| **Touch Interface** |  |  |  |
+| T_CS | T_CS | GPIO 22 | Touch Chip Select |
+| T_DIN | T_DIN | GPIO 23 | Shared with MOSI |
+| T_DO | T_DO | GPIO 19 | Touch Data Out |
+| T_CLK | T_CLK | GPIO 18 | Shared with SCK |
+| **DHT22 Sensor** |  |  |  |
+| VCC | VCC | 3.3V or 5V | Power supply |
+| GND | GND | GND | Ground |
+| DATA | DATA | GPIO 4 | Data signal |
+| **PIR Motion Sensor** |  |  |  |
+| VCC | VCC | 5V (or 3.3V) | Power supply |
+| GND | GND | GND | Ground |
+| OUT | OUT | GPIO 27 | Motion signal |
+
+#### **⚡ Recommended Components**
 ```
-ESP32 Development Board
-├── ILI9341 TFT Display (320x240) with Touch
-├── PIR Motion Sensor (GPIO 27)
-└── Power Supply (USB or external)
+Required:
+├── ESP32 Development Board (ESP32-WROOM-32)
+├── ILI9341 TFT Display 320x240 with Touch (landscape mode)
+├── DHT22 Temperature/Humidity Sensor
+├── PIR Motion Sensor (HC-SR501)
+└── Breadboard + Jumper Wires
+
+Optional:
+├── 10kΩ Pull-up Resistor (DHT22 DATA line)
+├── 100nF Capacitors (power filtering)
+└── External 5V Power Supply
 ```
 
 ### 2. **Software Configuration**
@@ -177,11 +217,13 @@ build_flags =
 | Component | Details |
 |-----------|---------|
 | **Microcontroller** | ESP32-WROOM-32 (240MHz, 320KB RAM) |
-| **Display** | ILI9341 TFT 320x240 with resistive touch |
-| **Sensors** | PIR motion sensor, built-in WiFi |
+| **Display** | ILI9341 TFT 320x240 with resistive touch (landscape) |
+| **Temperature/Humidity** | DHT22 sensor (±0.5°C, ±2% RH accuracy) |
+| **Motion Detection** | PIR sensor HC-SR501 (3-7m detection range) |
+| **Connectivity** | Built-in WiFi 802.11 b/g/n |
 | **Storage** | 4MB Flash with SPIFFS for fallback images |
 | **Power** | USB 5V or external 3.3V-5V supply |
-| **Libraries** | TFT_eSPI, ArduinoJson, TJpg_Decoder |
+| **Libraries** | TFT_eSPI, ArduinoJson, TJpg_Decoder, DHT sensor library |
 
 ## 🏆 **Project Status**
 
