@@ -3,6 +3,13 @@
 
 #include <Arduino.h>
 #include <TFT_eSPI.h>
+
+// === ENUM STANU WYŚWIETLACZA ===
+enum DisplayState {
+  DISPLAY_SLEEPING = 0,   // Wyświetlacz wyłączony, czeka na ruch
+  DISPLAY_ACTIVE = 1,     // Wyświetlacz aktywny, pokazuje dane
+  DISPLAY_TIMEOUT = 2     // Przejście do sleep mode
+};
 #include "config/timing_config.h"
 #include "config/hardware_config.h" // Używamy configu
 #include "managers/SystemManager.h" // Używamy SystemManagera
@@ -96,7 +103,7 @@ public:
         currentDisplayState = DISPLAY_SLEEPING;
 
         // KROK 1: Zawsze gaś ekran (Light Sleep)
-        sysManager.setBrightness(0);
+        sysManager.fadeBacklight(sysManager.getCurrentBrightness(), 0);
         tft.writecommand(TFT_DISPOFF);
         Serial.println("🌑 Ekran wygaszony.");
 

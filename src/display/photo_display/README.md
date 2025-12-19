@@ -35,15 +35,10 @@ Automatyczny wyświetlacz obrazków NASA na ESP32 z TFT ekranem. Projekt pobiera
 - **Testowane na**: JC2432S028 (Cheap Yellow Display)
 - **Touch**: opcjonalne (projekt nie używa)
 
-### Połączenie pinów (domyślne TFT_eSPI):
-```
-TFT_CS    = 15   // Chip Select
-TFT_DC    = 2    // Data/Command
-TFT_MOSI  = 13   // SPI Data
-TFT_SCLK  = 14   // SPI Clock
-TFT_RST   = 12   // Reset (opcjonalne)
-TFT_BL    = 21   // Backlight (opcjonalne)
-```
+### Połączenie pinów:
+**Wszystkie definicje pinów znajdują się w:** `include/config/hardware_config.h`
+
+Główny projekt README.md zawiera kompletny schemat połączeń.
 
 ## 📂 Struktura projektu
 
@@ -235,11 +230,8 @@ const char* WIFI_PASSWORD = "poprawne_haslo";
 
 ### Problem: Wyświetlacz nie działa
 ```cpp
-// Sprawdź piny w User_Setup.h w TFT_eSPI
-#define TFT_CS    15  // Chip Select
-#define TFT_DC    2   // Data Command
-#define TFT_MOSI  13  // SPI Data
-#define TFT_SCLK  14  // SPI Clock
+// Sprawdź piny w include/config/hardware_config.h
+// oraz w głównym README.md - sekcja Hardware Configuration
 ```
 
 ### Problem: Brak pamięci

@@ -11,8 +11,8 @@ extern bool weatherErrorModeGlobal;  // <-- DODAJ TĘ LINIĘ
 extern bool forecastErrorModeGlobal; // <-- DODAJ TĘ LINIĘ
 extern bool weeklyErrorModeGlobal;
 
-// Hardware pins - moved from header
-#define TFT_BL   25  // Backlight
+// Hardware pins - moved to hardware_config.h
+#include "config/hardware_config.h"  // For TFT_BL pin definition
 
 // Colors
 #define BLACK   0x0000

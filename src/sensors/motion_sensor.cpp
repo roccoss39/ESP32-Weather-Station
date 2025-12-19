@@ -1,6 +1,6 @@
 #include "sensors/motion_sensor.h"
+#include "config/hardware_config.h"
 #include "config/display_config.h"
-#include "config/hardware_config.h" // <--- WAŻNE
 #include "managers/MotionSensorManager.h"
 #include <esp_sleep.h>
 

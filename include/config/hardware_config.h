@@ -7,6 +7,7 @@
 #endif
 
 // === 2. PINY SENSORÓW ===
+#define DHT22_PIN       4       // DHT22 Temperature/Humidity sensor
 #define PIR_PIN         27      // Czujnik ruchu
 #define LED_STATUS_PIN  2       // Wbudowana niebieska dioda
 

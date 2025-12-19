@@ -3,17 +3,14 @@
 
 #include <Arduino.h>
 #include <TFT_eSPI.h>
+#include "managers/MotionSensorManager.h"  // For DisplayState enum
 
 // --- KONFIGURACJA PRZENIESIONA DO MotionSensorManager.h ---
 // PIR_PIN, MOTION_TIMEOUT, DEBOUNCE_TIME, DisplayState enum
 // są teraz w MotionSensorManager class
 
 // --- DODAJEMY ENUM TUTAJ dla backward compatibility ---
-enum DisplayState {
-  DISPLAY_SLEEPING = 0,   // Wyświetlacz wyłączony, czeka na ruch
-  DISPLAY_ACTIVE = 1,     // Wyświetlacz aktywny, pokazuje dane
-  DISPLAY_TIMEOUT = 2     // Przejście do sleep mode
-};
+// DisplayState enum moved to MotionSensorManager.h
 
 // --- NOWY OOP SYSTEM ---
 // Zastąpiono 4 extern variables MotionSensorManager class

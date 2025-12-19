@@ -1,5 +1,6 @@
 #include "sensors/dht22_sensor.h"
 #include <DHT.h>
+#include "config/hardware_config.h"
 
 // === INSTANCJA GLOBALNA ===
 DHT22Sensor dht22;
