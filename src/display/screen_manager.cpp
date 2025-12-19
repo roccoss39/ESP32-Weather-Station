@@ -345,6 +345,23 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
   tft.setTextDatum(TC_DATUM);
   tft.setTextColor(TFT_DARKGREY);
   tft.drawString(wifiStatus, 160, UPDATES_WIFI_Y);
+
+  // ============================================
+  // STOPKA: Wersja oprogramowania (Prawy Dolny Róg)
+  // ============================================
+  
+  // Ustawienie punktu odniesienia na prawy dolny róg (Bottom Right)
+  tft.setTextDatum(BR_DATUM); 
+  tft.setTextSize(1); // Mała, dyskretna czcionka
+  
+  // Kolor szary (TFT_SILVER lub TFT_DARKGREY), żeby nie raziło w oczy
+  tft.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND); 
+
+  // Pobieramy wersję z hardware_config.h i tworzymy napis np. "v1.1"
+  String versionText = "v" + String(FIRMWARE_VERSION);
+
+  // Rysujemy: Szerokość ekranu - 5px marginesu, Wysokość - 5px marginesu
+  tft.drawString(versionText, tft.width() - 5, tft.height() - 5);
 }
 
 void ScreenManager::renderImageScreen(TFT_eSPI& tft) {

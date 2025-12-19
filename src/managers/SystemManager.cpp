@@ -1,4 +1,5 @@
 #include "managers/SystemManager.h"
+#include "timing_config.h"
 
 // Zmienne zewnętrzne (z main.cpp)
 extern bool isImageDownloadInProgress; 

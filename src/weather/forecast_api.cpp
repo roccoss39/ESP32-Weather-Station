@@ -12,7 +12,7 @@
 ForecastData forecast;
 WeeklyForecastData weeklyForecast;
 unsigned long lastForecastUpdate = 0;
-unsigned long lastWeeklyUpdate = 0;
+//unsigned long lastWeeklyUpdate = 0;
 
 bool getForecast() {
   if (WiFi.status() != WL_CONNECTED) {

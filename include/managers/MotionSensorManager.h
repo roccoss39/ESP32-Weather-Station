@@ -7,39 +7,74 @@
 #include "config/hardware_config.h" 
 #include "managers/SystemManager.h" 
 
+// Deklarujemy, że sysManager istnieje (zdefiniowany w main.cpp)
 extern SystemManager sysManager;
 
-// Enum stanów
+// ==========================================
+// DEFINICJA ENUMA (Musi być poza klasą)
+// ==========================================
 enum DisplayState {
-  DISPLAY_SLEEPING = 0,
-  DISPLAY_ACTIVE = 1,
-  DISPLAY_TIMEOUT = 2
+  DISPLAY_SLEEPING = 0,   // Wyświetlacz wyłączony, czeka na ruch
+  DISPLAY_ACTIVE = 1,     // Wyświetlacz aktywny, pokazuje dane
+  DISPLAY_TIMEOUT = 2     // Przejście do sleep mode
 };
 
 class MotionSensorManager {
+// ==========================================
+// SEKCJA PRYWATNA (Zmienne i funkcja pomocnicza)
+// ==========================================
 private:
     volatile bool motionDetected = false;
     DisplayState currentDisplayState = DISPLAY_SLEEPING;
     unsigned long lastMotionTime = 0;
     unsigned long lastDebounce = 0;
     unsigned long ledFlashStartTime = 0;
-    unsigned long lastSleepTime = 0; // Dla Ghost Touch Protection
     bool ledFlashActive = false;
+    unsigned long lastSleepTime = 0; // Dla Ghost Touch Protection
 
-    // Pomocnicza funkcja do wchodzenia w Deep Sleep (wspólna dla obu trybów)
+    // Pomocnicza funkcja do wchodzenia w Deep Sleep (wewnętrzna)
     void enterDeepSleep() {
-        Serial.println("💤 DEEP SLEEP START (Reset RAM, CPU OFF)");
+        Serial.println("💤 DEEP SLEEP START...");
         Serial.flush();
+        
         // Konfiguracja wybudzania PIR
         esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
+
+        // === NASTAWIENIE BUDZIKA NA 3:00 RANO (Dla GithubUpdateManager) ===
+        // Obliczamy ile czasu zostało do 3:00 w nocy
+        struct tm timeinfo;
+        if (getLocalTime(&timeinfo)) {
+            int targetMinutes = 3 * 60; // 3:00 = 180 minuta dnia
+            int currentMinutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+            
+            long secondsToSleep = 0;
+            
+            if (currentMinutes < targetMinutes) {
+                // Jest np. 01:00, budzimy się za 2h
+                secondsToSleep = (targetMinutes - currentMinutes) * 60;
+            } else {
+                // Jest np. 23:00, budzimy się jutro o 03:00 (doba ma 1440 min)
+                secondsToSleep = ((24 * 60) - currentMinutes + targetMinutes) * 60;
+            }
+            
+            // Odejmij sekundy dla precyzji
+            secondsToSleep -= timeinfo.tm_sec;
+
+            if (secondsToSleep > 0) {
+                Serial.printf("⏰ Timer ustawiony na 3:00 (za %ld s)\n", secondsToSleep);
+                esp_sleep_enable_timer_wakeup(secondsToSleep * 1000000ULL);
+            }
+        }
+
         // Dobranoc
         esp_deep_sleep_start();
     }
 
+// ==========================================
+// SEKCJA PUBLICZNA (Funkcje dostępne dla main.cpp)
+// ==========================================
 public:
     MotionSensorManager() {
-        // Przy Deep Sleep (Full Mode) każde wybudzenie to restart, więc
-        // zawsze startujemy jako ACTIVE.
         currentDisplayState = DISPLAY_ACTIVE;
         lastMotionTime = millis();
         
@@ -47,10 +82,11 @@ public:
         digitalWrite(LED_STATUS_PIN, LOW);
     }
 
+    // Gettery i Settery
     bool isMotionActive() const { return (millis() - lastMotionTime) <= SCREEN_AUTO_OFF_MS; }
     DisplayState getDisplayState() const { return currentDisplayState; }
     
-    // Ghost Touch Protection (blokada dotyku przez 1.5s po wygaszeniu)
+    // Ghost Touch Protection
     bool isGhostTouchProtectionActive() const {
         if (currentDisplayState == DISPLAY_SLEEPING) {
             if (millis() - lastSleepTime < 1500) return true;
@@ -58,6 +94,11 @@ public:
         return false;
     }
 
+    void initPIRHardware() {
+        pinMode(PIR_PIN, INPUT);
+        pinMode(LED_STATUS_PIN, OUTPUT);
+    }
+    
     void handleMotionInterrupt() {
         unsigned long currentTime = millis();
         if (currentTime - lastDebounce < PIR_DEBOUNCE_TIME) return;
@@ -71,6 +112,7 @@ public:
         ledFlashStartTime = currentTime;
     }
 
+    // --- GŁÓWNA PĘTLA LOGIKI HYBRYDOWEJ ---
     void updateDisplayPowerState(TFT_eSPI& tft, bool isConfigModeActive = false) {
         
         // 1. Obsługa LED
@@ -82,14 +124,14 @@ public:
         // 2. Obsługa wykrytego ruchu
         if (motionDetected) {
             motionDetected = false;
+            // Jeśli ekran wygaszony -> obudź go (Light Sleep Wakeup)
             if (currentDisplayState == DISPLAY_SLEEPING) {
                 wakeUpDisplay(tft);
             }
             lastMotionTime = millis();
         }
 
-        // 3. Specyficzna logika dla trybu HYBRYDOWEGO
-        // ZMIANA: Używamy #if zamiast #ifdef i sprawdzamy czy == 1
+        // 3. Logika Hybrydowa
         #if USE_HYBRID_SLEEP == 1
             if (currentDisplayState == DISPLAY_SLEEPING) {
                 if (sysManager.isNightDeepSleepTime()) {
@@ -121,18 +163,17 @@ public:
 
     void sleepDisplay(TFT_eSPI& tft) {
         currentDisplayState = DISPLAY_SLEEPING;
-        lastSleepTime = millis();
+        lastSleepTime = millis(); // Zapisz czas dla Ghost Touch
 
-        // KROK 1: Wygaś ekran (wspólne dla obu trybów)
+        // KROK 1: Wygaś ekran (Fade Out)
         sysManager.fadeBacklight(sysManager.getCurrentBrightness(), 0);
         tft.writecommand(TFT_DISPOFF);
         Serial.println("🌑 Ekran wygaszony.");
 
         // KROK 2: DECYZJA - Hybryda czy Full Sleep?
-        
-        // ZMIANA: Używamy #if zamiast #ifdef
         #if USE_HYBRID_SLEEP == 1
             // === TRYB HYBRYDOWY (1) ===
+            // Tylko w nocy idziemy w Deep Sleep. W dzień CPU czuwa.
             if (sysManager.isNightDeepSleepTime()) {
                 enterDeepSleep();
             } else {
@@ -140,14 +181,10 @@ public:
             }
         #else
             // === TRYB FULL SLEEP (0) ===
-            Serial.println("💤 FULL SLEEP MODE: Going to Deep Sleep immediately.");
+            // Zawsze idziemy w Deep Sleep
+            Serial.println("💤 FULL SLEEP MODE: Going to Deep Sleep.");
             enterDeepSleep();
         #endif
-    }
-
-    void initPIRHardware() {
-        pinMode(PIR_PIN, INPUT);
-        pinMode(LED_STATUS_PIN, OUTPUT);
     }
 };
 
