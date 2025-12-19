@@ -60,8 +60,22 @@ bool SystemManager::isNightDeepSleepTime() {
 }
 
 void SystemManager::setBrightness(uint8_t value) {
-    currentBrightness = value; // Aktualizujemy zmienną śledzącą!
-    ledcWrite(BACKLIGHT_PWM_CHANNEL, value);
+    currentBrightness = value;
+    
+    if (value == 0) {
+        // Twarde wyłączenie - odłącz PWM i ustaw stan niski
+        ledcDetachPin(TFT_BL);
+        pinMode(TFT_BL, OUTPUT);
+        digitalWrite(TFT_BL, LOW); // Całkowite odcięcie prądu
+    } else {
+        // Jeśli wcześniej było 0, musimy ponownie podłączyć PWM
+        if (ledcRead(BACKLIGHT_PWM_CHANNEL) == 0 && value > 0) {
+             ledcAttachPin(TFT_BL, BACKLIGHT_PWM_CHANNEL);
+        }
+        // Upewnij się, że PWM jest podpięty (dla bezpieczeństwa przy każdym wywołaniu > 0)
+        ledcAttachPin(TFT_BL, BACKLIGHT_PWM_CHANNEL);
+        ledcWrite(BACKLIGHT_PWM_CHANNEL, value);
+    }
 }
 
 void SystemManager::restoreCorrectBrightness() {

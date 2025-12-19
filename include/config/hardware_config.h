@@ -26,10 +26,12 @@
 #define HYBRID_SLEEP_END_HOUR   5   // Do 05:00 (Deep Sleep)
 
 // Timery
-#define SCREEN_AUTO_OFF_MS      30000   // 30 sekund do wygaszenia
+#define SCREEN_AUTO_OFF_MS      10000   // 10 sekund do wygaszenia
 #define PIR_DEBOUNCE_TIME       500     
 #define LED_FLASH_DURATION      200     
 #define CONFIG_MODE_TIMEOUT_MS  600000  
 #define WDT_TIMEOUT_SECONDS     15      
+
+#define USE_HYBRID_SLEEP  1
 
 #endif

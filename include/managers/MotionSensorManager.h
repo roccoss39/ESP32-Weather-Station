@@ -3,19 +3,18 @@
 
 #include <Arduino.h>
 #include <TFT_eSPI.h>
-
-// === ENUM STANU WYŚWIETLACZA ===
-enum DisplayState {
-  DISPLAY_SLEEPING = 0,   // Wyświetlacz wyłączony, czeka na ruch
-  DISPLAY_ACTIVE = 1,     // Wyświetlacz aktywny, pokazuje dane
-  DISPLAY_TIMEOUT = 2     // Przejście do sleep mode
-};
 #include "config/timing_config.h"
-#include "config/hardware_config.h" // Używamy configu
-#include "managers/SystemManager.h" // Używamy SystemManagera
+#include "config/hardware_config.h" 
+#include "managers/SystemManager.h" 
 
-// Deklarujemy, że sysManager istnieje (zdefiniowany w main.cpp)
 extern SystemManager sysManager;
+
+// Enum stanów
+enum DisplayState {
+  DISPLAY_SLEEPING = 0,
+  DISPLAY_ACTIVE = 1,
+  DISPLAY_TIMEOUT = 2
+};
 
 class MotionSensorManager {
 private:
@@ -24,11 +23,23 @@ private:
     unsigned long lastMotionTime = 0;
     unsigned long lastDebounce = 0;
     unsigned long ledFlashStartTime = 0;
+    unsigned long lastSleepTime = 0; // Dla Ghost Touch Protection
     bool ledFlashActive = false;
-    unsigned long lastSleepTime = 0;
+
+    // Pomocnicza funkcja do wchodzenia w Deep Sleep (wspólna dla obu trybów)
+    void enterDeepSleep() {
+        Serial.println("💤 DEEP SLEEP START (Reset RAM, CPU OFF)");
+        Serial.flush();
+        // Konfiguracja wybudzania PIR
+        esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
+        // Dobranoc
+        esp_deep_sleep_start();
+    }
 
 public:
     MotionSensorManager() {
+        // Przy Deep Sleep (Full Mode) każde wybudzenie to restart, więc
+        // zawsze startujemy jako ACTIVE.
         currentDisplayState = DISPLAY_ACTIVE;
         lastMotionTime = millis();
         
@@ -39,6 +50,14 @@ public:
     bool isMotionActive() const { return (millis() - lastMotionTime) <= SCREEN_AUTO_OFF_MS; }
     DisplayState getDisplayState() const { return currentDisplayState; }
     
+    // Ghost Touch Protection (blokada dotyku przez 1.5s po wygaszeniu)
+    bool isGhostTouchProtectionActive() const {
+        if (currentDisplayState == DISPLAY_SLEEPING) {
+            if (millis() - lastSleepTime < 1500) return true;
+        }
+        return false;
+    }
+
     void handleMotionInterrupt() {
         unsigned long currentTime = millis();
         if (currentTime - lastDebounce < PIR_DEBOUNCE_TIME) return;
@@ -52,7 +71,6 @@ public:
         ledFlashStartTime = currentTime;
     }
 
-    // --- GŁÓWNA PĘTLA LOGIKI HYBRYDOWEJ ---
     void updateDisplayPowerState(TFT_eSPI& tft, bool isConfigModeActive = false) {
         
         // 1. Obsługa LED
@@ -64,21 +82,23 @@ public:
         // 2. Obsługa wykrytego ruchu
         if (motionDetected) {
             motionDetected = false;
-            // Jeśli ekran wygaszony -> obudź go (Light Sleep Wakeup)
             if (currentDisplayState == DISPLAY_SLEEPING) {
                 wakeUpDisplay(tft);
             }
             lastMotionTime = millis();
         }
 
-        // 3. Logika Nocna (Light Sleep -> Deep Sleep)
-        // Jeśli ekran śpi, sprawdź czy nie przyszła noc
-        if (currentDisplayState == DISPLAY_SLEEPING) {
-            if (sysManager.isNightDeepSleepTime()) {
-                sleepDisplay(tft); // To wywoła Deep Sleep
+        // 3. Specyficzna logika dla trybu HYBRYDOWEGO
+        // ZMIANA: Używamy #if zamiast #ifdef i sprawdzamy czy == 1
+        #if USE_HYBRID_SLEEP == 1
+            if (currentDisplayState == DISPLAY_SLEEPING) {
+                if (sysManager.isNightDeepSleepTime()) {
+                    Serial.println("🌑 Noc nadeszła w trakcie czuwania -> Deep Sleep");
+                    sleepDisplay(tft); 
+                }
+                return;
             }
-            return;
-        }
+        #endif
 
         // 4. Timeout (Aktywny -> Uśpij)
         unsigned long timeout = isConfigModeActive ? CONFIG_MODE_TIMEOUT_MS : SCREEN_AUTO_OFF_MS;
@@ -93,47 +113,42 @@ public:
         currentDisplayState = DISPLAY_ACTIVE;
         lastMotionTime = millis();
 
-        // Włącz sterownik i przywróć jasność przez PWM
         tft.writecommand(TFT_DISPON);
         sysManager.restoreCorrectBrightness();
         
-        Serial.println("🔆 WAKE UP (Light Sleep)");
+        Serial.println("🔆 WAKE UP");
     }
 
     void sleepDisplay(TFT_eSPI& tft) {
         currentDisplayState = DISPLAY_SLEEPING;
         lastSleepTime = millis();
-        // KROK 1: Zawsze gaś ekran (Light Sleep)
+
+        // KROK 1: Wygaś ekran (wspólne dla obu trybów)
         sysManager.fadeBacklight(sysManager.getCurrentBrightness(), 0);
         tft.writecommand(TFT_DISPOFF);
         Serial.println("🌑 Ekran wygaszony.");
 
-        // KROK 2: Sprawdź czy to Noc (Deep Sleep)
-        if (sysManager.isNightDeepSleepTime()) {
-            Serial.println("💤 NOC: Przechodzę w DEEP SLEEP (Reset RAM)");
-            Serial.flush();
-            esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
-            esp_deep_sleep_start();
-        } else {
-            Serial.println("☁️ DZIEŃ: Tryb Standby (CPU działa, ekran off)");
-        }
+        // KROK 2: DECYZJA - Hybryda czy Full Sleep?
+        
+        // ZMIANA: Używamy #if zamiast #ifdef
+        #if USE_HYBRID_SLEEP == 1
+            // === TRYB HYBRYDOWY (1) ===
+            if (sysManager.isNightDeepSleepTime()) {
+                enterDeepSleep();
+            } else {
+                Serial.println("☁️ DZIEŃ: Light Sleep (CPU on, Screen off)");
+            }
+        #else
+            // === TRYB FULL SLEEP (0) ===
+            Serial.println("💤 FULL SLEEP MODE: Going to Deep Sleep immediately.");
+            enterDeepSleep();
+        #endif
     }
 
     void initPIRHardware() {
         pinMode(PIR_PIN, INPUT);
         pinMode(LED_STATUS_PIN, OUTPUT);
     }
-    // Sprawdza, czy aktywna jest ochrona przed "duchami" (1.5 sekundy po uśpieniu)
-    bool isGhostTouchProtectionActive() const {
-        if (currentDisplayState == DISPLAY_SLEEPING) {
-            // Jeśli minęło mniej niż 1500ms od zaśnięcia -> ignoruj dotyk
-            if (millis() - lastSleepTime < 1500) {
-                return true;
-            }
-        }
-        return false;
-    }
-    
 };
 
 #endif

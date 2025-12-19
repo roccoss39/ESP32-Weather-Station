@@ -108,8 +108,8 @@ void initWiFiTouchInterface() {
   preferences.begin("wifi", false);
   
   // Initialize backlight
-  pinMode(TFT_BL, OUTPUT);
-  digitalWrite(TFT_BL, HIGH);
+  // pinMode(TFT_BL, OUTPUT);
+  // digitalWrite(TFT_BL, HIGH);
   
   Serial.println("Hardware initialized");
   
