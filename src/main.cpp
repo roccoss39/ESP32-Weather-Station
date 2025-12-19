@@ -327,12 +327,39 @@ void loop() {
   }
   
   // --- OBSŁUGA KOMEND SERIAL ---
+ // --- OBSŁUGA KOMEND SERIAL ---
   if (Serial.available()) {
     char command = Serial.read();
+    
+    // Sprawdzamy WiFi raz dla wszystkich komend wymagających Internetu
     if (WiFi.status() == WL_CONNECTED) {
-        if (command == 'f' || command == 'F') getForecast();
-        if (command == 'w' || command == 'W') getWeather();
-        if (command == 'x' || command == 'X') generateWeeklyForecast();
+        
+        if (command == 'f' || command == 'F') {
+            getForecast();
+        }
+        else if (command == 'w' || command == 'W') {
+            getWeather();
+        }
+        else if (command == 'x' || command == 'X') {
+            generateWeeklyForecast();
+        }
+        else if (command == 'u' || command == 'U') {
+            // === TEST AKTUALIZACJI ===
+            Serial.println("🧪 TEST: Wymuszam sprawdzenie aktualizacji z GitHuba...");
+          
+            GithubUpdateManager updateMgr;
+            updateMgr.checkForUpdate(); 
+          
+            // Jeśli update się uda, procesor zresetuje się wewnątrz checkForUpdate()
+            // Jeśli dotarliśmy tutaj, to znaczy, że nie było nowej wersji lub wystąpił błąd
+            Serial.println("🏁 Koniec testu aktualizacji (brak nowej wersji lub błąd).");
+        }
+        
+    } else {
+        // Opcjonalnie: Info, że nie ma sieci
+        if (strchr("fwxuFWXU", command)) { // Jeśli wciśnięto jedną z komend sieciowych
+            Serial.println("❌ Ignoruję komendę: Brak połączenia WiFi");
+        }
     }
   }
 
