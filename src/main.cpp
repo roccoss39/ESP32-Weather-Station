@@ -5,6 +5,8 @@
 #include <TFT_eSPI.h>
 #include <esp_sleep.h>
 #include <Preferences.h>
+#include "managers/SystemManager.h"
+#include "config/hardware_config.h"
 
 // === FLAGA BLOKADY WiFi PODCZAS POBIERANIA OBRAZKA ===
 bool isImageDownloadInProgress = false;
@@ -44,6 +46,7 @@ void onWiFiConnectedTasks();
 
 // --- GLOBALNE OBIEKTY ---
 TFT_eSPI tft = TFT_eSPI();
+SystemManager sysManager;
 
 // --- GLOBALNE FLAGI ERROR MODE ---
 bool weatherErrorModeGlobal = false;
@@ -96,6 +99,8 @@ void setup() {
   tft.drawString("WEATHER STATION", tft.width() / 2, tft.height() / 2 - 20);
   tft.drawString("Laczenie WiFi...", tft.width() / 2, tft.height() / 2 + 20);
   
+  sysManager.init();
+
   // --- AUTO-CONNECT: Spróbuj najpierw zapisanych danych z WiFi Touch Interface ---
   String savedSSID = "";
   String savedPassword = "";
@@ -249,11 +254,14 @@ void setup() {
 }
 
 void loop() {
+
+  sysManager.loop();
   // --- OBSŁUGA CZUJNIKA RUCHU PIR (NAJWYŻSZY PRIORYTET) ---
   updateDisplayPowerState(tft, isWiFiConfigActive());
 
   // --- AKTUALIZACJA DHT22 (NIEBLOKUJĄCA) ---
   updateDHT22(); // <--- DODANO: Odczyt czujnika w pętli
+
 
   // Jeśli display śpi, nie wykonuj reszty operacji
   if (getDisplayState() == DISPLAY_SLEEPING) {
