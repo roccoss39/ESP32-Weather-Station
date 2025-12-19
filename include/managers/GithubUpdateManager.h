@@ -5,6 +5,7 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <HTTPUpdate.h>
+#include <esp_task_wdt.h> // <--- DODANO: Biblioteka Watchdoga
 #include "config/hardware_config.h"
 #include "config/secrets.h"
 
@@ -19,24 +20,26 @@ public:
 
         Serial.println("🔄 Sprawdzam aktualizacje na GitHub...");
         
+        // === FIX WATCHDOG: Wydłużamy czas timeoutu na 60 sekund na czas update'u ===
+        // SSL Handshake i pobieranie mogą chwilę potrwać
+        esp_task_wdt_init(60, true); 
+        esp_task_wdt_add(NULL); // Upewniamy się, że obecny wątek jest monitorowany
+
         // Klient bezpieczny (HTTPS)
         WiFiClientSecure client;
-        client.setInsecure(); // Ignorujemy certyfikaty (łatwiejsze, choć mniej bezpieczne)
-        // Jeśli chcesz pełne bezpieczeństwo, musiałbyś wgrać certyfikat Root CA GitHuba
-
-        // Konfiguracja HTTP Update
-        httpUpdate.setLedPin(LED_STATUS_PIN, LOW); // Mrugaj diodą przy pobieraniu
+        client.setInsecure(); // Ignorujemy certyfikaty
         
-        // Callbacki (co robić w trakcie)
+        // Konfiguracja HTTP Update
+        httpUpdate.setLedPin(LED_STATUS_PIN, LOW); 
+        httpUpdate.rebootOnUpdate(true); // Restartuj po sukcesie
+        
+        // Callbacki
         httpUpdate.onStart(update_started);
         httpUpdate.onEnd(update_finished);
         httpUpdate.onProgress(update_progress);
         httpUpdate.onError(update_error);
 
         // === PRÓBA AKTUALIZACJI ===
-        // Ta funkcja sama pobierze, sprawdzi i zrestartuje ESP jeśli się uda!
-        // Uwaga: Można tu dodać logikę sprawdzania wersji w pliku tekstowym przed pobraniem .bin,
-        // ale dla uproszczenia - HTTPUpdate po prostu spróbuje pobrać plik.
         t_httpUpdate_return ret = httpUpdate.update(client, GITHUB_FIRMWARE_URL);
 
         switch (ret) {
@@ -50,18 +53,34 @@ public:
                 Serial.println("✅ AKTUALIZACJA ZAKOŃCZONA SUKCESEM!");
                 break;
         }
+        
+        // Po wszystkim (jeśli nie było resetu) przywracamy standardowy watchdog (opcjonalne, bo reboot i tak wyczyści)
+        esp_task_wdt_init(5, true);
     }
 
 private:
     static void update_started() {
         Serial.println("⬇️ ROZPOCZYNAM POBIERANIE FIRMWARE...");
     }
+
     static void update_finished() {
         Serial.println("\n✅ POBIERANIE ZAKOŃCZONE. Restart...");
     }
+
     static void update_progress(int cur, int total) {
-        Serial.printf("⏳ Postęp: %d%%\r", (cur * 100) / total);
+        // Wyświetlaj kropkę co jakiś czas, żeby nie zalewać logów, albo procenty
+        static int lastPercent = -1;
+        int percent = (cur * 100) / total;
+        
+        if (percent != lastPercent) {
+            Serial.printf("⏳ Postęp: %d%%\r", percent);
+            lastPercent = percent;
+        }
+        
+        // === FIX WATCHDOG: Karmimy psa w trakcie pobierania! ===
+        esp_task_wdt_reset(); 
     }
+
     static void update_error(int err) {
         Serial.printf("❌ Błąd OTA: %d\n", err);
     }
