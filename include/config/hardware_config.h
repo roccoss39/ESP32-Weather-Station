@@ -9,8 +9,8 @@
  */
 
  // UPDATE:
- #define FIRMWARE_VERSION  1.1  // Zmieniaj to przy każdej nowej wersji!
- #define GITHUB_FIRMWARE_URL "https://raw.githubusercontent.com/TwojUser/TwojeRepo/main/firmware.bin"
+#define FIRMWARE_VERSION  1.1 // Zmieniaj to przy każdej nowej wersji!
+#define GITHUB_FIRMWARE_URL "https://raw.githubusercontent.com/roccoss39/ESP32-Weather-Station/main/firmware.bin"
 
 // === 1. PINY EKRANU (TFT ILI9341) ===
 // Definicje zgodne z biblioteką TFT_eSPI
