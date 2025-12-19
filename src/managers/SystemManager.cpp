@@ -34,28 +34,28 @@ void SystemManager::loop() {
 }
 
 // Sprawdza czy jest czas na Deep Sleep (00:00 - 05:00)
+// Sprawdza czy jest czas na Deep Sleep (00:00 - 05:00)
 bool SystemManager::isNightDeepSleepTime() {
     struct tm timeinfo;
     
-    // Pobierz czas (0ms czekania, bo chcemy tylko sprawdzić to co mamy w pamięci)
+    // Pobierz czas (0ms czekania, bo sprawdzamy tylko stan pamięci)
     if (getLocalTime(&timeinfo, 0)) {
         
         // === ZABEZPIECZENIE 1970 ===
-        // tm_year to lata od 1900 roku. 
-        // Rok 2023 to 123 (2023 - 1900).
-        // Jeśli rok jest mniejszy niż 2023, to znaczy, że NTP jeszcze nie zadziałało.
+        // Jeśli rok jest mniejszy niż 2023 (czyli 123 lata od 1900),
+        // to znaczy, że NTP jeszcze nie zadziałało po resecie.
+        // Wtedy NIE WOLNO usypiać, bo wpadniemy w pętlę restartów.
         if (timeinfo.tm_year < (2023 - 1900)) {
             Serial.println("⚠️ Czas niezsynchronizowany (Rok < 2023). Blokuję Deep Sleep.");
-            return false; // NIE POZWÓL usnąć, dopóki nie pobierzesz aktualnej daty!
+            return false; 
         }
 
         int hour = timeinfo.tm_hour;
-        // Sprawdź przedział godzinowy (np. 00:00 - 05:00)
         if (hour >= HYBRID_SLEEP_START_HOUR && hour < HYBRID_SLEEP_END_HOUR) {
             return true;
         }
     }
-    
+    // Jeśli w ogóle nie ma czasu, też nie ryzykuj usypiania
     return false;
 }
 

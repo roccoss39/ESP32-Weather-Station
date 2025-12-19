@@ -25,6 +25,7 @@ private:
     unsigned long lastDebounce = 0;
     unsigned long ledFlashStartTime = 0;
     bool ledFlashActive = false;
+    unsigned long lastSleepTime = 0;
 
 public:
     MotionSensorManager() {
@@ -101,7 +102,7 @@ public:
 
     void sleepDisplay(TFT_eSPI& tft) {
         currentDisplayState = DISPLAY_SLEEPING;
-
+        lastSleepTime = millis();
         // KROK 1: Zawsze gaś ekran (Light Sleep)
         sysManager.fadeBacklight(sysManager.getCurrentBrightness(), 0);
         tft.writecommand(TFT_DISPOFF);
@@ -122,6 +123,17 @@ public:
         pinMode(PIR_PIN, INPUT);
         pinMode(LED_STATUS_PIN, OUTPUT);
     }
+    // Sprawdza, czy aktywna jest ochrona przed "duchami" (1.5 sekundy po uśpieniu)
+    bool isGhostTouchProtectionActive() const {
+        if (currentDisplayState == DISPLAY_SLEEPING) {
+            // Jeśli minęło mniej niż 1500ms od zaśnięcia -> ignoruj dotyk
+            if (millis() - lastSleepTime < 1500) {
+                return true;
+            }
+        }
+        return false;
+    }
+    
 };
 
 #endif

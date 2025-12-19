@@ -207,6 +207,13 @@ void handleWiFiTouchLoop(TFT_eSPI& tft) {
   // Use built-in calibrated TFT_eSPI touch function
   if (tft.getTouch(&x, &y)) {
 
+    // === GHOST TOUCH PROTECTION ===
+    extern MotionSensorManager& getMotionSensorManager();
+    if (getMotionSensorManager().isGhostTouchProtectionActive()) {
+        Serial.println("👻 Ghost Touch Detected & Ignored (Voltage spike)");
+        return; // IGNORUJ TEN DOTYK!
+    }
+    
     // Dopóki dotykasz ekranu, resetuj timer zmiany slajdów!
     extern ScreenManager& getScreenManager();
     getScreenManager().resetScreenTimer();
