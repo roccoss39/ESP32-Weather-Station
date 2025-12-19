@@ -16,6 +16,21 @@ extern TFT_eSPI tft;
 // --- INCLUDE ULTIMATE NASA COLLECTION ---
 #include "photo_display/esp32_nasa_ultimate.h"
 
+// === HELPER FUNCTION: Generate Title from Filename ===
+String generateTitleFromFilename(const String& filename) {
+  String title = filename;
+  
+  // Remove .jpg extension
+  if (title.endsWith(".jpg")) {
+    title = title.substring(0, title.length() - 4);
+  }
+  
+  // Replace underscores with spaces
+  title.replace("_", " ");
+  
+  return title;
+}
+
 // --- KONFIGURACJA CZASU ---
 const unsigned long IMAGE_CHANGE_INTERVAL = 2000;  // Interwał zmiany (2 sekundy po zakończeniu poprzedniego)
 
@@ -110,9 +125,10 @@ void initNASAImageSystem() {
   
   // Zainicjalizuj pierwszy obraz
   currentImage.imageNumber = 0; 
-  currentImage.url = String(nasa_ultimate_collection[currentImage.imageNumber].url);
-  currentImage.title = String(nasa_ultimate_collection[currentImage.imageNumber].title);
-  currentImage.date = String(nasa_ultimate_collection[currentImage.imageNumber].filename);
+  String filename = String(nasa_ultimate_collection[currentImage.imageNumber].filename);
+  currentImage.url = String(NASA_BASE_URL) + filename;
+  currentImage.title = generateTitleFromFilename(filename);
+  currentImage.date = filename;
   currentImage.isValid = false;
   currentImage.lastUpdate = 0;
   
@@ -131,9 +147,10 @@ bool getRandomNASAImage() {
   // LOSOWY WYBÓR ze wszystkich obrazków
   currentImage.imageNumber = random(0, num_nasa_images); 
   
-  currentImage.url = String(nasa_ultimate_collection[currentImage.imageNumber].url);
-  currentImage.title = String(nasa_ultimate_collection[currentImage.imageNumber].title);
-  currentImage.date = String(nasa_ultimate_collection[currentImage.imageNumber].filename); 
+  String filename = String(nasa_ultimate_collection[currentImage.imageNumber].filename);
+  currentImage.url = String(NASA_BASE_URL) + filename;
+  currentImage.title = generateTitleFromFilename(filename);
+  currentImage.date = filename; 
   currentImage.lastUpdate = millis();
   
   Serial.println("=== 🎲 RANDOM NASA " + String(currentImage.imageNumber + 1) + "/" + String(num_nasa_images) + " ===");
@@ -221,6 +238,7 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
   if (imageIndex >= num_nasa_images || imageIndex < 0) return false;
   
   NASAImage selectedImage = nasa_ultimate_collection[imageIndex];
+  String fullImageURL = String(NASA_BASE_URL) + String(selectedImage.filename);
   
   // Pokaż loading screen z animowanym spinnerem
   tft.fillScreen(TFT_BLACK);
@@ -239,11 +257,11 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
   // Test Mode Override
   if (TEST_ONE_IMG == 1) {
      Serial.println("⚠️ TEST MODE: Podmieniam URL na testowy");
-     selectedImage.url = "https://roccoss39.github.io/nasa.github.io-/nasa-images/NGC_3628_The_Hamburger_Galaxy.jpg";
+     fullImageURL = "https://roccoss39.github.io/nasa.github.io-/nasa-images/NGC_3628_The_Hamburger_Galaxy.jpg";
   }
 
-  if (DEBUG_IMAGES) Serial.printf("🌐 Connecting to: %s\n", selectedImage.url);
-  http.begin(selectedImage.url);
+  if (DEBUG_IMAGES) Serial.printf("🌐 Connecting to: %s\n", fullImageURL.c_str());
+  http.begin(fullImageURL);
   
   int httpCode = http.GET();
   
@@ -339,7 +357,7 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
     
     // Próba #2
     http.setTimeout(15000); 
-    http.begin(selectedImage.url);
+    http.begin(fullImageURL);
     if (http.GET() != HTTP_CODE_OK) { http.end(); return false; }
     
     int retryLen = http.getSize();
@@ -386,7 +404,7 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
     tft.setTextSize(1);
     tft.setTextDatum(MC_DATUM);
     
-    String titleStr = String(selectedImage.title);
+    String titleStr = generateTitleFromFilename(String(selectedImage.filename));
     if (titleStr.length() > 45) titleStr = titleStr.substring(0, 42) + "...";
     tft.drawString(titleStr, tft.width() / 2, 225);
     
