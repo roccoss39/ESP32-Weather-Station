@@ -147,7 +147,7 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
   
   // Temp: z małą czcionką - przesunięty o 10 pikseli wyżej
   tft.setTextSize(1);
-  tft.drawString("Temp:", 10, y - 10);
+  tft.drawString("TEMP:", 10, y - 10);
   
   // Wartości temperatury z normalną czcionką - dynamiczne formatowanie
   tft.setTextSize(2);
@@ -185,7 +185,7 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
   // Wiatr.max: z małą czcionką - przesunięty o 10 pikseli wyżej
   tft.setTextSize(1);
   tft.setTextColor(TFT_LIGHTGREY, COLOR_BACKGROUND);
-  tft.drawString("Wiatr.max:", 160, y - 10);
+  tft.drawString("WIATR.MAX:", 160, y - 10);
   
   // Wartości wiatru z normalną czcionką (biały dla max wartości)
   tft.setTextSize(2);
@@ -213,7 +213,7 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
     // Wschód słońca - etykiety mała, godziny większa czcionka (obniżone o 5px)
     tft.setTextSize(1);
     tft.setTextColor(TFT_YELLOW, COLOR_BACKGROUND);
-    tft.drawString("Wschod: ", 10, y + 15);
+    tft.drawString("WSCHOD: ", 10, y + 15);
     
     // Godzina wschodu - większa czcionka (obniżona o 5px)
     tft.setTextSize(2);
@@ -221,7 +221,7 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
     
     // Zachód słońca - etykieta mała czcionka (obniżona o 5px)
     tft.setTextSize(1);
-    tft.drawString("Zachod: ", 160, y + 15);
+    tft.drawString("ZACHOD: ", 160, y + 15);
     
     // Godzina zachodu - większa czcionka (obniżona o 5px)
     tft.setTextSize(2);

@@ -242,7 +242,7 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(LABEL_COLOR, TEXT_BG);
     tft.setTextSize(1);
-    tft.drawString("WILGOTNOSC", rightX + 5, y1 + 5);
+    tft.drawString("WILGOTNOSC", rightX + 5, y1 + 5);  // Już CAPS
 
     tft.setTextColor(LABEL_COLOR, TEXT_BG);
     tft.setTextSize(1);
@@ -270,7 +270,7 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(LABEL_COLOR, TEXT_BG);
     tft.setTextSize(1);
-    tft.drawString("WIATR", rightX + 5, y2 + 5);
+    tft.drawString("WIATR", rightX + 5, y2 + 5);  // Już CAPS
     float windKmh = weather.windSpeed * 3.6;
     tft.setTextDatum(TR_DATUM);
     tft.setTextColor(local_getWindColor(windKmh), TEXT_BG);
@@ -287,7 +287,7 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(LABEL_COLOR, TEXT_BG);
     tft.setTextSize(1);
-    tft.drawString("CISNIENIE", rightX + 5, y3 + 5);
+    tft.drawString("CISNIENIE", rightX + 5, y3 + 5);  // Już CAPS
     tft.setTextDatum(TR_DATUM);
     tft.setTextColor(local_getPressureColor(weather.pressure), TEXT_BG);
     tft.setTextSize(3);
@@ -361,30 +361,41 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     
     drawWeatherIcon(tft, iconX, iconY, condition, day.icon);
     
-    // 3. Temperatury Min/Max
+    // 3. Temperatury Min/Max - dynamiczne pozycjonowanie bez spacji
     tft.setTextSize(2);
-    tft.setTextColor(TFT_DARKGREY); 
     tft.setTextDatum(TL_DATUM);
-    tft.drawString(String((int)round(day.tempMin)) + "'", 120, y);
     
+    int tempX = 120;  // Start position
+    
+    // Min temp
+    String minStr = String((int)round(day.tempMin));
+    tft.setTextColor(TFT_DARKGREY);
+    tft.drawString(minStr, tempX, y);
+    tempX += tft.textWidth(minStr);  // Przesuń za tekst
+    
+    // Separator
     tft.setTextColor(TFT_WHITE);
-    tft.drawString("/", 155, y);
+    tft.drawString("/", tempX, y);
+    tempX += tft.textWidth("/");  // Przesuń za separator
     
-    tft.setTextColor(TFT_WHITE); 
-    tft.drawString(String((int)round(day.tempMax)) + "'", 170, y);
+    // Max temp
+    String maxStr = String((int)round(day.tempMax));
+    tft.setTextColor(TFT_WHITE);
+    tft.drawString(maxStr, tempX, y);
     
-    // 4. Skalowanie czcionki dla Wiatru/Opadów
+    // 4. Skalowanie czcionki dla Wiatru/Opadów (uproszczone - bez warunku minusów)
     int tMinInt = (int)round(day.tempMin);
     int tMaxInt = (int)round(day.tempMax);
+    
     bool useSmallFont = (abs(tMinInt) >= 10 && abs(tMaxInt) >= 10) || 
                         (day.windMin >= 10 && day.windMax >= 10 && day.precipitationChance >= 10);
     
     int dataTextSize = useSmallFont ? 1 : 2;
     int yOffsetData = useSmallFont ? 5 : 0;
 
-    // 5. Wiatr
-    tft.setTextSize(dataTextSize); 
-    int currentX = 200; 
+    // 5. Wiatr - stała pozycja (temperatury bez apostrofów są krótsze)
+    tft.setTextSize(dataTextSize);
+    int currentX = 200;  // Stała pozycja wystarczy bez apostrofów
 
     tft.setTextColor(TFT_DARKGREY); 
     String minWind = String((int)round(day.windMin));
@@ -405,10 +416,10 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     int unitCorrection = useSmallFont ? 0 : 5; 
     tft.drawString("km/h", currentX + 2, y + yOffsetData + unitCorrection);
     
-    // 6. Opady
+    // 6. Opady - ZAWSZE normalna czcionka (size 2)
     tft.setTextColor(0x001F);
     tft.setTextDatum(TR_DATUM);
-    tft.setTextSize(dataTextSize);
+    tft.setTextSize(2);  // Stała czcionka 2, niezależnie od bothTempsNegative
     tft.drawString(String(day.precipitationChance) + "%", 315, y + yOffsetData);
     tft.setTextDatum(TL_DATUM); 
   }
