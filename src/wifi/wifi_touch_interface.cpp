@@ -10,6 +10,7 @@ extern bool isLocationSavePending;
 extern bool weatherErrorModeGlobal;  // <-- DODAJ TĘ LINIĘ
 extern bool forecastErrorModeGlobal; // <-- DODAJ TĘ LINIĘ
 extern bool weeklyErrorModeGlobal;
+extern bool isOfflineMode;
 
 // Hardware pins - moved to hardware_config.h
 #include "config/hardware_config.h"  // For TFT_BL pin definition
@@ -697,57 +698,59 @@ void drawConfigModeScreen() {
   tft.setCursor(10, 5);
   tft.println("TRYB KONFIGURACJI");
   
-  // Draw refresh button
-  tft.fillRect(10, 200, 65, 40, BLUE);
-  tft.setTextColor(WHITE);
-  tft.setTextSize(1);
-  tft.setCursor(17, 218);
-  tft.println("ODSWIEZ");
-  
-  // Draw location button
-  tft.fillRect(85, 200, 65, 40, GREEN);
-  tft.setTextColor(WHITE);
-  tft.setTextSize(1);
-  tft.setCursor(92, 218);
-  tft.println("LOKACJA");
-  
-  // Draw exit button
-  tft.fillRect(160, 200, 65, 40, RED);
-  tft.setTextColor(WHITE);
-  tft.setTextSize(1);
-  tft.setCursor(170, 218);
-  tft.println("WYJSCIE");
-  
-  // Draw network list
+  // Rysowanie listy sieci (skrócona lista, bo doszedł przycisk)
   int yPos = 35;
-  int maxNetworks = min(networkCount, 6); // Fewer networks due to header
+  int maxNetworks = min(networkCount, 5); // Zmniejszamy do 5, żeby nie zasłaniać przycisków
   
   for (int i = 0; i < maxNetworks; i++) {
     tft.setTextColor(WHITE);
     tft.setCursor(10, yPos + 5);
     
-    // Security indicator
-    if (networkSecure[i]) {
-      tft.print("[*] ");
-    } else {
-      tft.print("[ ] ");
-    }
+    // Kłódka
+    if (networkSecure[i]) tft.print("[*] ");
+    else tft.print("[ ] ");
     
-    // Network name (truncate if too long)
+    // Nazwa
     String displayName = networkNames[i];
-    if (displayName.length() > 30) {
-      displayName = displayName.substring(0, 30) + "...";
-    }
+    if (displayName.length() > 25) displayName = displayName.substring(0, 25) + "...";
     tft.print(displayName);
     
-    // Signal strength
+    // Sygnał
     tft.setCursor(270, yPos + 5);
     tft.print(networkRSSI[i]);
     
     yPos += 25;
   }
   
-  Serial.printf("Config mode screen drawn with %d networks\n", maxNetworks);
+  // === RYSOWANIE 4 PRZYCISKÓW NA DOLE (Y=190-230) ===
+  int btnY = 190;
+  int btnH = 45;
+  int btnW = 75; // Szerokość przycisku
+  int gap = 3;   // Odstęp
+  
+  // 1. ODSWIEZ (Niebieski) - X: 2
+  tft.fillRect(2, btnY, btnW, btnH, BLUE);
+  tft.setTextColor(WHITE);
+  tft.setTextSize(1);
+  tft.setTextDatum(MC_DATUM);
+  tft.drawString("ODSWIEZ", 2 + btnW/2, btnY + btnH/2);
+  
+  // 2. LOKACJA (Zielony) - X: 80
+  tft.fillRect(2 + btnW + gap, btnY, btnW, btnH, GREEN);
+  tft.drawString("LOKACJA", 2 + btnW + gap + btnW/2, btnY + btnH/2);
+  
+  // 3. OFFLINE (Pomarańczowy) - X: 158 <--- NOWOŚĆ
+  tft.fillRect(2 + 2*(btnW + gap), btnY, btnW, btnH, ORANGE);
+  tft.setTextColor(BLACK); // Czarny tekst na pomarańczowym
+  tft.drawString("OFFLINE", 2 + 2*(btnW + gap) + btnW/2, btnY + btnH/2);
+  
+  // 4. WYJSCIE (Czerwony) - X: 236
+  tft.fillRect(2 + 3*(btnW + gap), btnY, btnW, btnH, RED);
+  tft.setTextColor(WHITE);
+  tft.drawString("WYJSCIE", 2 + 3*(btnW + gap) + btnW/2, btnY + btnH/2);
+  
+  // Reset ustawień tekstu
+  tft.setTextDatum(TL_DATUM);
 }
 
 // Function to check if WiFi is lost (for main.cpp screen rotation pause)
@@ -1099,84 +1102,95 @@ void handleTouchInput(int16_t x, int16_t y) {
   else if (currentState == STATE_CONFIG_MODE) {
     Serial.printf("CONFIG MODE TOUCH: X=%d, Y=%d\n", x, y);
     
-    // Check network list (adjusted for landscape mode)
-    if (y >= 35 && y <= 185) { // Network list area
-      int selectedIndex = (y - 35) / 25; // 25px per network in config mode
-      if (selectedIndex >= 0 && selectedIndex < min(networkCount, 6)) {
+    // Lista sieci (Y: 35 - 180)
+    if (y >= 35 && y <= 180) { 
+      int selectedIndex = (y - 35) / 25; 
+      if (selectedIndex >= 0 && selectedIndex < min(networkCount, 5)) {
         selectedNetworkIndex = selectedIndex;
         currentSSID = networkNames[selectedIndex];
-        Serial.printf("CONFIG MODE - NETWORK SELECTED: %s (index %d)\n", currentSSID.c_str(), selectedIndex);
         
-        // Visual feedback for selection
+        // Feedback
         tft.fillRect(0, 35 + selectedIndex * 25, 320, 25, GREEN);
-        delay(500);
+        delay(300);
         
         if (networkSecure[selectedIndex]) {
           currentState = STATE_ENTER_PASSWORD;
           enteredPassword = "";
           drawPasswordScreen();
-          Serial.println("CONFIG MODE - PASSWORD SCREEN SHOWN");
         } else {
           connectToWiFi();
         }
       }
     }
-    // Refresh button in config mode
-    else if (y >= 200 && y <= 240 && x >= 10 && x <= 75) {
-      Serial.println("CONFIG MODE - REFRESH BUTTON PRESSED");
-      
-      // Visual feedback
-      tft.fillRect(10, 200, 65, 40, YELLOW);
-      tft.setTextColor(WHITE);
-      tft.setTextSize(1);
-      tft.setCursor(20, 218);
-      tft.println("SCANNING");
-      delay(500);
-      
-      // Clear selected network and rescan
-      selectedNetworkIndex = -1;
-      scanNetworks();
-      drawConfigModeScreen();
-      
-      Serial.printf("CONFIG MODE - Network list refreshed - found %d networks\n", networkCount);
-    }
-    // Location selection button
-    else if (y >= 200 && y <= 240 && x >= 85 && x <= 150) {
-      Serial.println("CONFIG MODE - LOCATION BUTTON PRESSED");
-      
-      // Visual feedback
-      tft.fillRect(85, 200, 65, 40, YELLOW);
-      tft.setTextColor(WHITE);
-      tft.setTextSize(1);
-      tft.setCursor(95, 218);
-      tft.println("OPENING");
-      delay(500);
-      
-      // Enter location selection mode
-      enterLocationSelectionMode(tft);
-    }
-    // Exit config mode button (adjusted coordinates for landscape)
-    else if (y >= 200 && y <= 240 && x >= 160 && x <= 225) {
-      Serial.println("EXIT CONFIG MODE - Button pressed");
-      currentState = STATE_CONNECTED; // (1) Wyjdź z menu
-      
-      // (2) Wyczyść ekran, aby pokazać, że coś się dzieje
-      tft.fillScreen(COLOR_BACKGROUND);
-      tft.setTextColor(TFT_YELLOW, COLOR_BACKGROUND);
-      tft.setTextSize(2);
-      tft.setTextDatum(MC_DATUM);
-      tft.drawString("Ponowne laczenie...", tft.width() / 2, tft.height() / 2);
-      
-      // (3) Aktywuj logikę auto-reconnect i OMIŃ timer
-      wifiLostDetected = true;
-      wifiLostTime = millis();
-      // Ustaw timer tak, jakby właśnie minęło 19 sekund
-      lastReconnectAttempt = millis() - WIFI_RECONNECT_INTERVAL; // <-- POPRAWKA: Wymuś natychmiastowe działanie
-      wifiWasConnected = true;
-    }
-    // Debug: show all touch attempts in config mode
-    else {
-      Serial.printf("CONFIG MODE - Touch outside active areas: X=%d, Y=%d\n", x, y);
+    
+    // === OBSŁUGA DOLNYCH PRZYCISKÓW (Y > 190) ===
+    else if (y >= 190 && y <= 240) {
+        
+        int btnW = 75; // Musi pasować do drawConfigModeScreen
+        int gap = 3;
+        
+        // 1. REFRESH (X: 2 - 77)
+        if (x >= 2 && x <= 2 + btnW) {
+             Serial.println("BTN: REFRESH");
+             tft.fillRect(2, 190, btnW, 45, YELLOW); // Feedback
+             tft.setTextColor(BLACK);
+             tft.setTextDatum(MC_DATUM);
+             tft.drawString("SCAN...", 2 + btnW/2, 190 + 22);
+             tft.setTextDatum(TL_DATUM);
+             delay(300);
+             
+             selectedNetworkIndex = -1;
+             scanNetworks();
+             drawConfigModeScreen();
+        }
+        
+        // 2. LOCATION (X: 80 - 155)
+        else if (x >= 2 + btnW + gap && x <= 2 + 2*btnW + gap) {
+             Serial.println("BTN: LOCATION");
+             tft.fillRect(2 + btnW + gap, 190, btnW, 45, YELLOW);
+             delay(300);
+             enterLocationSelectionMode(tft);
+        }
+        
+        // 3. OFFLINE (X: 158 - 233) <--- NOWA LOGIKA
+        else if (x >= 2 + 2*(btnW + gap) && x <= 2 + 3*btnW + 2*gap) {
+             Serial.println("BTN: OFFLINE MODE");
+             
+             // Feedback
+             tft.fillRect(2 + 2*(btnW + gap), 190, btnW, 45, YELLOW);
+             tft.setTextColor(BLACK);
+             tft.setTextDatum(MC_DATUM);
+             tft.drawString("OK!", 2 + 2*(btnW + gap) + btnW/2, 190 + 22);
+             delay(500);
+             
+             // AKTYWACJA TRYBU OFFLINE
+             isOfflineMode = true;       // Ustaw flagę globalną
+             WiFi.disconnect(true);      // Rozłącz i wyłącz WiFi
+             WiFi.mode(WIFI_OFF);        // Wyłącz radio
+             
+             currentState = STATE_CONNECTED; // Wychodzimy z configu
+             
+             
+             // Wymuś przejście do ekranu głównego (który teraz pokaże status offline)
+             tft.fillScreen(BLACK);
+             // main.cpp wykryje flagę isOfflineMode i obsłuży resztę
+        }
+        
+        // 4. EXIT (X: 236 - 311)
+        else if (x >= 2 + 3*(btnW + gap)) {
+             Serial.println("BTN: EXIT");
+             tft.fillRect(2 + 3*(btnW + gap), 190, btnW, 45, YELLOW);
+             delay(300);
+             
+             currentState = STATE_CONNECTED; 
+             tft.fillScreen(BLACK);
+             
+             // Wymuś próbę połączenia (jak w starym kodzie)
+             wifiLostDetected = true;
+             wifiLostTime = millis();
+             lastReconnectAttempt = millis() - WIFI_RECONNECT_INTERVAL; 
+             wifiWasConnected = true;
+        }
     }
   }
 }

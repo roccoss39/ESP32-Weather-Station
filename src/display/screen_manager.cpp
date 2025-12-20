@@ -43,8 +43,57 @@ void updateScreenManager() {
   getScreenManager().updateScreenManager();
 }
 
+extern bool isOfflineMode;
+extern void drawNASAImage(TFT_eSPI& tft, bool forceFallback); 
+extern void displaySystemStatus(TFT_eSPI& tft);
+
+
 void switchToNextScreen(TFT_eSPI& tft) {
-  getScreenManager().renderCurrentScreen(tft);
+    ScreenManager& mgr = getScreenManager();
+
+    // === 1. TRYB OFFLINE (BEZ WIFI) ===
+    if (isOfflineMode) {
+        
+        ScreenType originalScreen = mgr.getCurrentScreen(); 
+        
+        // Parzyste = Sensory (2x dłużej), Nieparzyste = Obrazek
+        if ((int)originalScreen % 2 == 0) {
+            // === RYSOWANIE SENSORÓW ===
+            mgr.setCurrentScreen(SCREEN_LOCAL_SENSORS); 
+            mgr.renderCurrentScreen(tft);               
+            
+            displayTime(tft); // Narysuj zegar
+            
+            // ZAMAZANIE STOPKI AKTUALIZACJI POGODY
+            // Rysujemy czarny pasek na samym dole (ostatnie 20 pikseli), 
+            // żeby zakryć tekst typu "Zaktualizowano: 12:30"
+            tft.fillRect(0, tft.height() - 20, tft.width(), 20, TFT_BLACK);
+            
+            // Rysujemy napis OFFLINE w tym miejscu (ZAMIAST daty aktualizacji)
+            tft.setTextSize(1);
+            tft.setTextDatum(BC_DATUM); // Bottom Center (Dół Środek)
+            tft.setTextColor(TFT_ORANGE, TFT_BLACK); 
+            tft.drawString("TRYB OFFLINE - SENSORY LOKALNE", tft.width() / 2, tft.height() - 5);
+
+        } else {
+            // === RYSOWANIE OBRAZKA ===
+            mgr.setCurrentScreen(SCREEN_IMAGE);         
+            drawNASAImage(tft, true);                   
+            
+            // Na obrazku też dajemy info na dole (opcjonalnie)
+            tft.fillRect(0, tft.height() - 20, tft.width(), 20, TFT_BLACK);
+            tft.setTextSize(1);
+            tft.setTextDatum(BC_DATUM);
+            tft.setTextColor(TFT_ORANGE, TFT_BLACK); 
+            tft.drawString("TRYB OFFLINE - GALERIA", tft.width() / 2, tft.height() - 5);
+        }
+        
+        mgr.setCurrentScreen(originalScreen); // Przywróć licznik
+        return;
+    }
+
+    // === 2. TRYB ONLINE (NORMALNY) ===
+    mgr.renderCurrentScreen(tft);
 }
 
 void forceScreenRefresh(TFT_eSPI& tft) {

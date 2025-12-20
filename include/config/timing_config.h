@@ -1,13 +1,13 @@
 #ifndef TIMING_CONFIG_H
 #define TIMING_CONFIG_H
 
-// === MOTION & POWER TIMEOUTS (Przeniesione z hardware!) ===
+// === MOTION & POWER TIMEOUTS ===
 #define SCREEN_AUTO_OFF_MS      30000   // 30s - wygaszanie ekranu
 #define PIR_DEBOUNCE_TIME       500     // 500ms - stabilizacja PIR
 #define LED_FLASH_DURATION      200     // 200ms - mrugnięcie diodą
 #define MOTION_CONFIG_TIMEOUT   600000  // 10 min - timeout w menu config
 #define WDT_TIMEOUT_SECONDS     25     // 25s - Watchdog
-
+#define OFFLINE_MODE_TIMEOUT    30000
 
 // === WIFI TOUCH INTERFACE ===
 #define WIFI_LOSS_TIMEOUT           60000   

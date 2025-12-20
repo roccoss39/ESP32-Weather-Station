@@ -418,3 +418,25 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
     return false;
   }
 }
+// ================================================================
+// FUNKCJA WRAPPER DLA OFFLINE MODE (Dla switchToNextScreen)
+// ================================================================
+void drawNASAImage(TFT_eSPI& tft, bool forceFallback) {
+    if (forceFallback) {
+        // Wymuszenie trybu offline - ładuj bezpośrednio z LittleFS
+        if (loadFallbackImageFromLittleFS()) {
+            // Jeśli się udało, dodaj napis informacyjny
+            tft.setTextDatum(TC_DATUM);
+            tft.setTextColor(TFT_ORANGE);
+            // Napis dodajemy w main.cpp/screen_manager, więc tu wystarczy sam obrazek
+        } else {
+            // Jeśli nawet plik z pamięci nie zadziałał
+            tft.fillScreen(TFT_BLACK);
+            tft.setTextColor(TFT_RED);
+            tft.drawString("BRAK PLIKU IMAGE", 10, 100);
+        }
+    } else {
+        // Normalny tryb - wywołaj istniejącą logikę
+        displayGitHubImage(tft);
+    }
+}

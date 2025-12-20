@@ -6,6 +6,9 @@
 
 #define TEST_MODE 0
 #define SCREEN_SWITCH_INTERVAL_ 2000
+
+extern bool isOfflineMode;
+
 // ScreenType enum definition - musi być tutaj dla ScreenManager
 enum ScreenType {
   SCREEN_CURRENT_WEATHER = 0,
@@ -56,7 +59,15 @@ public:
      * @return true jeśli minął SCREEN_SWITCH_INTERVAL
      */
     bool shouldSwitchScreen() const {
-        return (millis() - lastScreenSwitch) >= SCREEN_SWITCH_INTERVAL;
+        unsigned long interval = SCREEN_SWITCH_INTERVAL;
+
+        // Jeśli jesteśmy OFFLINE i wyświetlamy SENSORY (czyli parzysty numer ekranu w naszej sztuczce)
+        if (isOfflineMode && ((int)currentScreen % 2 == 0)) {
+             // Ustawiamy czas 2x dłuższy (np. 20 sekund zamiast 10)
+             interval = SCREEN_SWITCH_INTERVAL * 2;
+        }
+
+        return (millis() - lastScreenSwitch) >= interval;
     }
     
     /**
