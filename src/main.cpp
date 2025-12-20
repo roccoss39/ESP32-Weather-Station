@@ -275,6 +275,15 @@ void setup() {
     }
   }
   
+  // === RENDERUJ PIERWSZY EKRAN ===
+  // Bez tego ekran pozostaje pusty przez pierwsze 10 sekund!
+  getScreenManager().renderCurrentScreen(tft);  // Renderuj bieżący ekran (WEATHER) bez przełączania
+  
+  // === RESET TIMERA EKRANU ===
+  // Timer zaczyna liczyć od TERAZ, a nie od momentu włączenia ESP
+  getScreenManager().resetScreenTimer();
+  Serial.println("📱 Timer ekranu zresetowany - 10s do następnego przełączenia");
+  
   Serial.println("=== STACJA POGODOWA GOTOWA ===");
 }
 
@@ -426,7 +435,7 @@ void loop() {
             displayTime(tft);
           }
           if (weather.isValid) {
-            displayWeather(tft);
+            //displayWeather(tft);
           } else {
             tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
             tft.setTextDatum(MC_DATUM);

@@ -3,9 +3,10 @@
 
 #include <Arduino.h>
 #include <TFT_eSPI.h>
+#include <timing_config.h>
 
 #define TEST_MODE 0
-#define SCREEN_SWITCH_INTERVAL_ 2000
+
 
 extern bool isOfflineMode;
 
