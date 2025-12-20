@@ -103,7 +103,7 @@ void setup() {
           WiFi.begin(ssid.c_str(), pass.c_str());
           
           int retries = 0;
-          while (WiFi.status() != WL_CONNECTED && retries < 20) {
+          while (WiFi.status() != WL_CONNECTED && retries < 40) {
               delay(500);
               Serial.print(".");
               retries++;
@@ -146,6 +146,42 @@ void setup() {
   
   tft.fillScreen(COLOR_BACKGROUND);
   
+  // Sprawdzamy, czy obudził nas czujnik ruchu (EXT0)
+  if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
+      
+      // Pobieramy godzinę z zegara RTC (który działał podczas snu)
+      struct tm timeinfo;
+      // Timeout 10ms wystarczy, bo RTC ma czas w pamięci
+      if (getLocalTime(&timeinfo, 10)) { 
+          
+          // Warunek: Wyświetl tylko jeśli jest rano (od 05:00 do 11:00)
+          // Dzięki temu w nocy (np. 03:00) nie będzie razić napisem.
+          if (timeinfo.tm_hour >= 5 && timeinfo.tm_hour < 11) {
+              
+              Serial.println("☀️ Poranne wybudzenie - wyświetlam powitanie!");
+              
+              // Rysowanie powitania
+              tft.setTextColor(TFT_ORANGE, COLOR_BACKGROUND); // Pomarańczowy jak słońce
+              tft.setTextDatum(MC_DATUM); // Centrowanie
+              
+              // "Dobrego"
+              tft.setTextSize(2);
+              tft.drawString("Dobrego", tft.width() / 2, tft.height() / 2 - 25);
+              
+              // "dnia!" (większe)
+              tft.setTextSize(3);
+              tft.drawString("dnia!", tft.width() / 2, tft.height() / 2 + 15);
+              
+              // Wyświetlaj przez 3 sekundy
+              delay(3000);
+              
+              // Wyczyść ekran przed dalszym ładowaniem
+              tft.fillScreen(COLOR_BACKGROUND);
+          }
+      }
+  }
+  // === KONIEC EKRANU POWITALNEGO ===
+
   // Włączamy podświetlenie (jasność startowa)
   sysManager.restoreCorrectBrightness();
 
