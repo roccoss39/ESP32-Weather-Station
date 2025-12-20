@@ -415,7 +415,7 @@ void loop() {
   } // Koniec if (!isOfflineMode)
 
   // --- ODŚWIEŻANIE ZAWARTOŚCI EKRANU ---
-  static ScreenType previousScreen = SCREEN_CURRENT_WEATHER;
+  static ScreenType previousScreen = SCREEN_IMAGE;
   static unsigned long lastDisplayUpdate = 0;
   
   if (!isWiFiLost() || isOfflineMode) {
