@@ -5,7 +5,7 @@
 #include <TFT_eSPI.h>
 #include <timing_config.h>
 
-#define TEST_MODE 0
+#define TEST_MODE 1
 
 
 extern bool isOfflineMode;
@@ -79,13 +79,10 @@ public:
         ScreenType previousScreen = currentScreen;
         lastScreenSwitch = millis();
 
+
         if (TEST_MODE == 1) {
-            static int nr = 0;
-            nr++;
-            if(nr%2)
-            currentScreen = SCREEN_FORECAST;  // W trybie testowym tylko IMAGE
-            else 
-            currentScreen = SCREEN_CURRENT_WEATHER;
+            previousScreen = SCREEN_IMAGE;  // W trybie testowym tylko IMAGE
+            return previousScreen;
         }
 
         switch(currentScreen) {
