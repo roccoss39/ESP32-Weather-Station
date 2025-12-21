@@ -180,8 +180,8 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     }
 
     tft.setTextFont(1);
-    int startY = 40;
-    int height = 140;
+
+    int height = 175; //(+40)
 
     // STYL: Ciemny Grafit (0x1082)
     uint16_t CARD_BG = 0x1082;
@@ -190,6 +190,8 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     uint16_t BORDER_COLOR = TFT_DARKGREY;
     uint16_t LABEL_COLOR = TFT_SILVER;
 
+    int startY = 5;
+    int startX = 60;
     // =========================================================
     // LEWA KARTA Z TEMPERATURĄ (Tło CZARNE)
     // =========================================================
@@ -199,7 +201,8 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     String polishDesc = local_shortenDescription(weather.description);
     polishDesc.toUpperCase();
 
-    drawWeatherIcon(tft, 80, startY + 20, weather.description, weather.icon);
+    tft.setTextDatum(MC_DATUM);
+    drawWeatherIcon(tft, startX - 10, WEATHER_CARD_TEMP_Y_OFFSET - 10, weather.description, weather.icon);
 
     uint16_t tempColor = TFT_WHITE;
     if (weather.temperature < 0 || weather.feelsLike < 0) tempColor = TFT_CYAN;
@@ -211,11 +214,11 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     tft.setTextSize(5);
     tft.setTextDatum(MC_DATUM);
     String tempStr = String((int)round(weather.temperature));
-    tft.drawString(tempStr, 80, startY + 60);
+    tft.drawString(tempStr, 80, startY + 60 + WEATHER_CARD_TEMP_Y_OFFSET);
 
     tft.setTextSize(2);
     int tempWidth = tft.textWidth(tempStr) * 5;
-    tft.drawString("C", 80 + (tempWidth/2) + 10, startY + 50);
+    tft.drawString("C", 80 + (tempWidth/2) + 10, startY + 50 + WEATHER_CARD_TEMP_Y_OFFSET);
 
     uint16_t descColor = TFT_CYAN;
     if (polishDesc.indexOf("BURZA") >= 0) descColor = TFT_RED;
@@ -227,23 +230,23 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     tft.setTextSize(2);
     if (tft.textWidth(polishDesc) > 140) tft.setTextSize(1);
     tft.setTextDatum(MC_DATUM);
-    tft.drawString(polishDesc, 80, startY + 95);
+    tft.drawString(polishDesc, 80, startY + 95 + WEATHER_CARD_TEMP_Y_OFFSET);
 
     // Jawnie TFT_BLACK
     tft.setTextColor(LABEL_COLOR, TFT_BLACK);
     tft.setTextSize(1);
     tft.setTextDatum(MC_DATUM);
-    tft.drawString("ODCZUWALNA:", 80, startY + 116);
+    tft.drawString("ODCZUWALNA:", 80, startY + 116 + WEATHER_CARD_TEMP_Y_OFFSET);
     
     // Jawnie TFT_BLACK
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
     tft.setTextSize(2);
-    tft.drawString(String((int)round(weather.feelsLike)) + " C", 80, startY + 130);
+    tft.drawString(String((int)round(weather.feelsLike)), 80, startY + 135 + WEATHER_CARD_TEMP_Y_OFFSET);
 
     // =========================================================
     // PRAWA KOLUMNA (Tło GRAFITOWE - CARD_BG)
     // =========================================================
-    int rowH = 42; int gap = 6; int rightX = 165; int rightW = 150;
+    int rowH = 39; int gap = 6; int rightX = 165; int rightW = 150;
 
     // --- 1. WILGOTNOŚĆ ---
     int y1 = startY;
@@ -256,20 +259,20 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     tft.setTextSize(1);
     tft.drawString("WILGOTNOSC", rightX + 5, y1 + 5);
 
-    tft.setTextColor(LABEL_COLOR, TEXT_BG);
-    tft.setTextSize(1);
-    tft.drawString("OPADY:", rightX + 5, y1 + 25);
+    // tft.setTextColor(LABEL_COLOR, TEXT_BG);
+    // tft.setTextSize(1);
+    // tft.drawString("SZANSA NA OPADY:", rightX + 5, y1 + 25);
     
-    String rainVal = "--";
-    uint16_t rainColor = LABEL_COLOR;
-    if (forecast.isValid && forecast.count > 0) {
-        int chance = forecast.items[0].precipitationChance;
-        rainVal = String(chance) + "%";
-        rainColor = (chance > 0) ? TFT_SKYBLUE : LABEL_COLOR;
-    }
-    tft.setTextColor(rainColor, TEXT_BG);
-    tft.setTextSize(2);
-    tft.drawString(rainVal, rightX + 50, y1 + 20);
+    // String rainVal = "--";
+    // uint16_t rainColor = LABEL_COLOR;
+    // if (forecast.isValid && forecast.count > 0) {
+    //     int chance = forecast.items[0].precipitationChance;
+    //     rainVal = String(chance) + "%";
+    //     rainColor = (chance > 0) ? TFT_SKYBLUE : LABEL_COLOR;
+    // }
+    // tft.setTextColor(rainColor, TEXT_BG);
+    // tft.setTextSize(2);
+    // tft.drawString(rainVal, rightX + 50, y1 + 20);
 
     tft.setTextDatum(TR_DATUM);
     tft.setTextColor(local_getHumidityColor(weather.humidity), TEXT_BG);
@@ -317,6 +320,34 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     tft.drawString("hPa", rightX + rightW - 5, y3 + 22);
 
     tft.setTextSize(1);
+
+        // --- 4. OPADY ---
+    int y4 = y3 + rowH + gap;
+    tft.fillRoundRect(rightX, y4, rightW, rowH , 6, CARD_BG);
+    tft.drawRoundRect(rightX, y4, rightW, rowH , 6, BORDER_COLOR);
+    
+    tft.setTextDatum(TL_DATUM);
+    tft.setTextColor(LABEL_COLOR, TEXT_BG);
+    tft.setTextSize(1);
+    tft.drawString("SZANSA NA OPADY:", rightX + 5, y4 + 5);
+
+    String rainVal = "--";
+    uint16_t rainColor = LABEL_COLOR;
+    if (forecast.isValid && forecast.count > 0) {
+        int chance = forecast.items[0].precipitationChance;
+        rainVal = String(chance) + "%";
+        rainColor = (chance > 0) ? TFT_SKYBLUE : LABEL_COLOR;
+    }
+    // tft.setTextColor(rainColor, TEXT_BG);
+    // tft.setTextSize(2);
+    // tft.drawString(rainVal, rightX + rightW - 35, y4+ 12);
+
+    tft.setTextDatum(TR_DATUM);
+
+    tft.setTextSize(2);
+    tft.drawString(rainVal, rightX + rightW - 5, y4 + 12);
+
+
     updateWeatherCache();
 }
 
