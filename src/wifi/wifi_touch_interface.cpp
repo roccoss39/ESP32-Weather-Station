@@ -279,8 +279,8 @@ void drawConnectedScreen(TFT_eSPI& tft) {
     // Jeśli WiFi utracone: Piszemy na POMARAŃCZOWO/CZERWONO "UTRACONO WIFI"
     tft.setTextColor(ORANGE); // Używamy zdefiniowanego wcześniej koloru ORANGE
     tft.setTextSize(2);
-    tft.setCursor(30, 50);
-    tft.println("UTRACONO WIFI!");
+    tft.setTextDatum(MC_DATUM);
+    tft.drawString("UTRACONO POLACZENIE WIFI!", 160, 41);
   } else {
     // Jeśli wszystko OK: Piszemy na BIAŁO "POLACZONY!"
     tft.setTextColor(WHITE);

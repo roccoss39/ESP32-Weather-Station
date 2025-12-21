@@ -185,13 +185,16 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
 
     // STYL: Ciemny Grafit (0x1082)
     uint16_t CARD_BG = 0x1082;
-    uint16_t TEXT_BG = CARD_BG;
+    // POPRAWKA: Tło tekstu domyślne to CARD_BG (dla prawej kolumny)
+    uint16_t TEXT_BG = CARD_BG;  
     uint16_t BORDER_COLOR = TFT_DARKGREY;
     uint16_t LABEL_COLOR = TFT_SILVER;
 
-    // --- LEWA KARTA ---
-    tft.fillRoundRect(5, startY, 150, height, 8, CARD_BG);
-    tft.drawRoundRect(5, startY, 150, height, 8, BORDER_COLOR);
+    // =========================================================
+    // LEWA KARTA Z TEMPERATURĄ (Tło CZARNE)
+    // =========================================================
+    tft.fillRoundRect(5, startY, 150, height, 8, TFT_BLACK);  
+    tft.drawRoundRect(5, startY, 150, height, 8, BORDER_COLOR); 
 
     String polishDesc = local_shortenDescription(weather.description);
     polishDesc.toUpperCase();
@@ -203,7 +206,8 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     else if (weather.temperature > 30) tempColor = TFT_RED;
     else if (weather.temperature > 25) tempColor = TFT_ORANGE;
 
-    tft.setTextColor(tempColor, TEXT_BG);
+    // Tutaj używamy jawnie TFT_BLACK, bo karta jest czarna
+    tft.setTextColor(tempColor, TFT_BLACK); 
     tft.setTextSize(5);
     tft.setTextDatum(MC_DATUM);
     String tempStr = String((int)round(weather.temperature));
@@ -218,35 +222,44 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     else if (polishDesc == "BEZCHMURNIE") descColor = TFT_YELLOW;
     else if (polishDesc == "MGLA") descColor = TFT_WHITE;
 
-    tft.setTextColor(descColor, TEXT_BG);
+    // Jawnie TFT_BLACK
+    tft.setTextColor(descColor, TFT_BLACK);
     tft.setTextSize(2);
     if (tft.textWidth(polishDesc) > 140) tft.setTextSize(1);
     tft.setTextDatum(MC_DATUM);
     tft.drawString(polishDesc, 80, startY + 95);
 
-    tft.setTextColor(LABEL_COLOR, TEXT_BG);
+    // Jawnie TFT_BLACK
+    tft.setTextColor(LABEL_COLOR, TFT_BLACK);
     tft.setTextSize(1);
     tft.setTextDatum(MC_DATUM);
     tft.drawString("ODCZUWALNA:", 80, startY + 116);
-    tft.setTextColor(TFT_WHITE, TEXT_BG);
+    
+    // Jawnie TFT_BLACK
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
     tft.setTextSize(2);
     tft.drawString(String((int)round(weather.feelsLike)) + " C", 80, startY + 130);
 
-    // --- PRAWA KOLUMNA ---
+    // =========================================================
+    // PRAWA KOLUMNA (Tło GRAFITOWE - CARD_BG)
+    // =========================================================
     int rowH = 42; int gap = 6; int rightX = 165; int rightW = 150;
 
-    // 1. Wilgotność
+    // --- 1. WILGOTNOŚĆ ---
     int y1 = startY;
     tft.fillRoundRect(rightX, y1, rightW, rowH, 6, CARD_BG);
     tft.drawRoundRect(rightX, y1, rightW, rowH, 6, BORDER_COLOR);
+    
+    // Tutaj używamy TEXT_BG (który teraz jest równy CARD_BG), więc kwadraty znikną!
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(LABEL_COLOR, TEXT_BG);
     tft.setTextSize(1);
-    tft.drawString("WILGOTNOSC", rightX + 5, y1 + 5);  // Już CAPS
+    tft.drawString("WILGOTNOSC", rightX + 5, y1 + 5);
 
     tft.setTextColor(LABEL_COLOR, TEXT_BG);
     tft.setTextSize(1);
     tft.drawString("OPADY:", rightX + 5, y1 + 25);
+    
     String rainVal = "--";
     uint16_t rainColor = LABEL_COLOR;
     if (forecast.isValid && forecast.count > 0) {
@@ -263,36 +276,42 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     tft.setTextSize(3);
     tft.drawString(String((int)weather.humidity) + "%", rightX + rightW - 5, y1 + 12);
 
-    // 2. Wiatr
+    // --- 2. WIATR ---
     int y2 = y1 + rowH + gap;
     tft.fillRoundRect(rightX, y2, rightW, rowH, 6, CARD_BG);
     tft.drawRoundRect(rightX, y2, rightW, rowH, 6, BORDER_COLOR);
+    
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(LABEL_COLOR, TEXT_BG);
     tft.setTextSize(1);
-    tft.drawString("WIATR", rightX + 5, y2 + 5);  // Już CAPS
+    tft.drawString("WIATR", rightX + 5, y2 + 5);
+
     float windKmh = weather.windSpeed * 3.6;
     tft.setTextDatum(TR_DATUM);
     tft.setTextColor(local_getWindColor(windKmh), TEXT_BG);
     tft.setTextSize(3);
     tft.drawString(String((int)round(windKmh)), rightX + rightW - 35, y2 + 12);
+    
     tft.setTextSize(1);
     tft.setTextColor(TFT_WHITE, TEXT_BG);
     tft.drawString("km/h", rightX + rightW - 5, y2 + 22);
 
-    // 3. Ciśnienie
+    // --- 3. CIŚNIENIE ---
     int y3 = y2 + rowH + gap;
     tft.fillRoundRect(rightX, y3, rightW, rowH, 6, CARD_BG);
     tft.drawRoundRect(rightX, y3, rightW, rowH, 6, BORDER_COLOR);
+    
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(LABEL_COLOR, TEXT_BG);
     tft.setTextSize(1);
-    tft.drawString("CISNIENIE", rightX + 5, y3 + 5);  // Już CAPS
+    tft.drawString("CISNIENIE", rightX + 5, y3 + 5);
+    
     tft.setTextDatum(TR_DATUM);
     tft.setTextColor(local_getPressureColor(weather.pressure), TEXT_BG);
     tft.setTextSize(3);
     if (weather.pressure > 999) tft.setTextSize(2);
     tft.drawString(String((int)weather.pressure), rightX + rightW - 30, y3 + 12);
+    
     tft.setTextSize(1);
     tft.setTextColor(TFT_WHITE, TEXT_BG);
     tft.drawString("hPa", rightX + rightW - 5, y3 + 22);
