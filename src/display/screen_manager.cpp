@@ -401,6 +401,7 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     String maxStr = String((int)round(day.tempMax));
     tft.setTextColor(TFT_WHITE);
     tft.drawString(maxStr, tempX, y);
+    tempX += tft.textWidth(maxStr);  // Oblicz koniec temperatur
     
     // 4. Skalowanie czcionki dla Wiatru/Opadów (uproszczone - bez warunku minusów)
     int tMinInt = (int)round(day.tempMin);
@@ -412,9 +413,9 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     int dataTextSize = useSmallFont ? 1 : 2;
     int yOffsetData = useSmallFont ? 5 : 0;
 
-    // 5. Wiatr - stała pozycja (temperatury bez apostrofów są krótsze)
+    // 5. Wiatr - dynamiczna pozycja PO temperaturach (z marginesem)
     tft.setTextSize(dataTextSize);
-    int currentX = 200;  // Stała pozycja wystarczy bez apostrofów
+    int currentX = tempX + 10;  // Start 10px po końcu temperatur (dynamicznie!)
 
     tft.setTextColor(TFT_DARKGREY); 
     String minWind = String((int)round(day.windMin));
