@@ -216,9 +216,10 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     String tempStr = String((int)round(weather.temperature));
     tft.drawString(tempStr, 80, startY + 60 + WEATHER_CARD_TEMP_Y_OFFSET);
 
-    tft.setTextSize(2);
-    int tempWidth = tft.textWidth(tempStr) * 5;
-    tft.drawString("C", 80 + (tempWidth/2) + 10, startY + 50 + WEATHER_CARD_TEMP_Y_OFFSET);
+    // Symbol "C" usunięty na żądanie użytkownika
+    // tft.setTextSize(2);
+    // int tempWidth = tft.textWidth(tempStr) * 5;
+    // tft.drawString("C", 80 + (tempWidth/2) + 10, startY + 50 + WEATHER_CARD_TEMP_Y_OFFSET);
 
     uint16_t descColor = TFT_CYAN;
     if (polishDesc.indexOf("BURZA") >= 0) descColor = TFT_RED;
@@ -238,7 +239,7 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     tft.setTextDatum(MC_DATUM);
     tft.drawString("ODCZUWALNA:", 80, startY + 116 + WEATHER_CARD_TEMP_Y_OFFSET);
     
-    // Jawnie TFT_BLACK
+    // Jawnie TFT_BLACK (bez jednostki "C" - usunięta na żądanie użytkownika)
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
     tft.setTextSize(2);
     tft.drawString(String((int)round(weather.feelsLike)), 80, startY + 135 + WEATHER_CARD_TEMP_Y_OFFSET);
@@ -575,7 +576,7 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
       tft.setTextFont(4); 
       tft.drawString(String(temp, 1), card1_X + cardW/2, valY);
       
-      // Jednostka
+      // Jednostka (PRZYWRÓCONA - jest miejsce w LOCAL SENSORS)
       tft.setTextFont(2); 
       if (isCompactMode) {
           // W trybie kompaktowym jednostka obok liczby

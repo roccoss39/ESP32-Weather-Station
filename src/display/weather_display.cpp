@@ -252,14 +252,8 @@ void displayWeather(TFT_eSPI& tft) {
   }
   tft.setTextColor(tempColor, COLOR_BACKGROUND);
   
-  // Skrócony format dla bardzo niskich temperatur (bez 'C)
-  String tempStr;
-  if (weather.temperature <= -5.0 || weather.feelsLike <= -5.0) {
-    tempStr = formatTemperature(weather.temperature, 1) + "(" + formatTemperature(weather.feelsLike, 1) + ")";  // Bez 'C
-    Serial.println("Uzywam skroconego formatu dla niskiej temperatury: " + formatTemperature(weather.temperature, 1) + "°C");
-  } else {
-    tempStr = formatTemperature(weather.temperature, 1) + "'C(" + formatTemperature(weather.feelsLike, 1) + "'C)";  // Z 'C
-  }
+  // Format temperatury bez znaku 'C (usunięty na żądanie użytkownika)
+  String tempStr = formatTemperature(weather.temperature, 1) + "(" + formatTemperature(weather.feelsLike, 1) + ")";
   
   tft.setTextSize(FONT_SIZE_LARGE);   // Zawsze duża czcionka
   tft.drawString(tempStr, x + TEMP_X_OFFSET, y + TEMP_Y_OFFSET);
