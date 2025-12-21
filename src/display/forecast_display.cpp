@@ -167,7 +167,7 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
     
     // Max temp (biały)
     tft.setTextColor(TFT_WHITE, COLOR_BACKGROUND);
-    tft.drawString(maxTempStr, 45 + (minTempStr.length() * 12) + 6, y - 10);
+    tft.drawString(maxTempStr, 45 + (minTempStr.length() * 12) + 7, y - 10);
     
   } else {
     String minTempStr = formatTemperature(minTemp, 0) + "'C";

@@ -423,40 +423,55 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     int tMinInt = (int)round(day.tempMin);
     int tMaxInt = (int)round(day.tempMax);
     
-    bool useSmallFont = (abs(tMinInt) >= 10 && abs(tMaxInt) >= 10) || 
-                        (day.windMin >= 10 && day.windMax >= 10 && day.precipitationChance >= 10);
-    
+    int wideValuesCount = (abs(tMinInt) >= 10) + 
+                          (abs(tMaxInt) >= 10) + 
+                          (day.windMin >= 10) + 
+                          (day.windMax >= 10) + 
+                          (day.precipitationChance >= 10);
+
+    // Jeśli 4 lub więcej wartości jest szerokich -> użyj małej czcionki
+    bool useSmallFont = (wideValuesCount >= 4);
+
     int dataTextSize = useSmallFont ? 1 : 2;
     int yOffsetData = useSmallFont ? 5 : 0;
+    int unitCorrection = useSmallFont ? 0 : 5; 
 
     // 5. Wiatr - dynamiczna pozycja PO temperaturach (z marginesem)
-    tft.setTextSize(2);
+    tft.setTextSize(dataTextSize);
     int currentX = tempX + 10;  // Start 10px po końcu temperatur (dynamicznie!)
+
+    int windY = y;
+    if (useSmallFont)
+    windY = y + yOffsetData + unitCorrection;
 
     tft.setTextColor(TFT_DARKGREY); 
     String minWind = String((int)round(day.windMin));
-    tft.drawString(minWind, currentX, y + yOffsetData);
+    tft.drawString(minWind, currentX, windY);
     currentX += tft.textWidth(minWind); 
 
     tft.setTextColor(TFT_WHITE);
     String sep = "-"; 
-    tft.drawString(sep, currentX, y + yOffsetData);
+    tft.drawString(sep, currentX, windY);
     currentX += tft.textWidth(sep);
 
     String maxWind = String((int)round(day.windMax));
-    tft.drawString(maxWind, currentX, y + yOffsetData);
+    tft.drawString(maxWind, currentX, windY);
     currentX += tft.textWidth(maxWind);
 
-    tft.setTextSize(dataTextSize);
+    tft.setTextSize(1);
     tft.setTextColor(TFT_SILVER);
-    int unitCorrection = useSmallFont ? 0 : 5; 
+    
     tft.drawString("km/h", currentX + 2, y + yOffsetData + unitCorrection);
     
     // 6. Opady - ZAWSZE normalna czcionka (size 2)
     tft.setTextColor(0x001F);
     tft.setTextDatum(TR_DATUM);
-    tft.setTextSize(2);  // Stała czcionka 2, niezależnie od bothTempsNegative
-    tft.drawString(String(day.precipitationChance) + "%", 315, y + yOffsetData);
+    if ((day.precipitationChance) >= 100)
+    tft.setTextSize(1); 
+    else   
+    tft.setTextSize(2); 
+
+    tft.drawString(String(day.precipitationChance) + "%", 315, y );
     tft.setTextDatum(TL_DATUM); 
   }
   
@@ -465,7 +480,7 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
   tft.setTextSize(2);
   tft.setTextDatum(TC_DATUM); // Punkt odniesienia: Środek Góry tekstu
   
-  // Czyścimy dół ekranu (od Y=200 do końca)
+  // Czyścimy dół ekranu (od Y=210 do końca)
   tft.fillRect(0, 210, 320, 40, COLOR_BACKGROUND);
   
   if (locationManager.isLocationSet()) {

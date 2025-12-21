@@ -5,8 +5,8 @@
 #include <TFT_eSPI.h>
 #include <timing_config.h>
 
-#define TEST_MODE 0
-
+#define TEST_MODE 1
+#define TEST_SCREEN SCREEN_CURRENT_WEATHER
 
 extern bool isOfflineMode;
 
@@ -81,7 +81,7 @@ public:
 
 
         if (TEST_MODE == 1) {
-            previousScreen = SCREEN_LOCAL_SENSORS;  // W trybie testowym tylko IMAGE
+            currentScreen = TEST_SCREEN;  // W trybie testowym tylko IMAGE
             return previousScreen;
         }
 
@@ -137,15 +137,9 @@ public:
         // Reset cache dla aktualnego ekranu (coordination z Phase 1+2)
         resetCacheForScreen(currentScreen);
         
-        // Renderuj odpowiedni ekran
-        // if (TEST_MODE == 1) {
-        //     static int nr = 0;
-        //     nr++;
-        //     if(nr%2)
-        //     currentScreen = SCREEN_IMAGE;  // W trybie testowym tylko IMAGE
-        //     else 
-        //     currentScreen = SCREEN_CURRENT_WEATHER;
-        // }
+        if (TEST_MODE == 1) {
+            currentScreen = TEST_SCREEN;  // W trybie testowym tylko IMAGE
+        }
 
         switch(currentScreen) {
             case SCREEN_CURRENT_WEATHER:
