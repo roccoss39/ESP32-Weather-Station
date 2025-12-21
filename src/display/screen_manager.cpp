@@ -466,7 +466,7 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
   tft.setTextDatum(TC_DATUM); // Punkt odniesienia: Środek Góry tekstu
   
   // Czyścimy dół ekranu (od Y=200 do końca)
-  tft.fillRect(0, 200, 320, 40, COLOR_BACKGROUND);
+  tft.fillRect(0, 210, 320, 40, COLOR_BACKGROUND);
   
   if (locationManager.isLocationSet()) {
     WeatherLocation loc = locationManager.getCurrentLocation();
@@ -483,13 +483,9 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     // Sprawdzamy szerokość tekstu w pikselach, a nie w znakach.
     // Max szerokość = 310px (zostawiamy 5px marginesu po bokach)
     int maxWidth = 310;
-    if (tft.textWidth(locationText) > maxWidth) {
-       // Dopóki tekst jest za szeroki, ucinaj ostatni znak i dodawaj "..."
-       while (tft.textWidth(locationText + "...") > maxWidth && locationText.length() > 0) {
-          locationText = locationText.substring(0, locationText.length() - 1);
-       }
-       locationText += "...";
-    }
+    if (tft.textWidth(locationText) > maxWidth) 
+      tft.setTextSize(1);
+
     
     // Rysowanie obniżone o 10px (było 205, jest 215)
     tft.drawString(locationText, 160, 215); 
