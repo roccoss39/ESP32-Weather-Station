@@ -743,35 +743,46 @@ void drawConfigModeScreen() {
     yPos += 25;
   }
   
-  // === RYSOWANIE 4 PRZYCISKÓW NA DOLE (Y=190-230) ===
+  // RYSOWANIE DOLNYCH PRZYCISKÓW
   int btnY = 190;
   int btnH = 45;
-  int btnW = 75; // Szerokość przycisku
-  int gap = 3;   // Odstęp
+  int btnW = 75;
+  int gap = 3;
   
-  // 1. ODSWIEZ (Niebieski) - X: 2
-  tft.fillRect(2, btnY, btnW, btnH, BLUE);
-  tft.setTextColor(WHITE);
   tft.setTextSize(1);
   tft.setTextDatum(MC_DATUM);
+  
+  // 1. REFRESH
+  tft.fillRect(2, btnY, btnW, btnH, BLUE);
+  tft.setTextColor(WHITE);
   tft.drawString("ODSWIEZ", 2 + btnW/2, btnY + btnH/2);
   
-  // 2. LOKACJA (Zielony) - X: 80
-  tft.fillRect(2 + btnW + gap, btnY, btnW, btnH, GREEN);
-  tft.drawString("LOKACJA", 2 + btnW + gap + btnW/2, btnY + btnH/2);
+  // 2. LOCATION
+  tft.fillRect(2 + btnW + gap, btnY, btnW, btnH, MAGENTA);
+  tft.setTextColor(WHITE);
+  tft.drawString("MIASTO", 2 + btnW + gap + btnW/2, btnY + btnH/2);
   
-  // 3. OFFLINE (Pomarańczowy) - X: 158 <--- NOWOŚĆ
-  tft.fillRect(2 + 2*(btnW + gap), btnY, btnW, btnH, ORANGE);
-  tft.setTextColor(BLACK); // Czarny tekst na pomarańczowym
-  tft.drawString("OFFLINE", 2 + 2*(btnW + gap) + btnW/2, btnY + btnH/2);
+  // 3. OFFLINE / ONLINE (PRZEŁĄCZNIK)
+  extern bool isOfflineMode; // Pobierz flagę globalną
   
-  // 4. WYJSCIE (Czerwony) - X: 236
-  tft.fillRect(2 + 3*(btnW + gap), btnY, btnW, btnH, RED);
+  if (isOfflineMode) {
+      // Jeśli jesteśmy Offline -> Pokaż przycisk "ONLINE" (Zielony)
+      tft.fillRect(2 + 2*(btnW + gap), btnY, btnW, btnH, GREEN);
+      tft.setTextColor(BLACK); // Czarny tekst dla kontrastu
+      tft.drawString("ONLINE", 2 + 2*(btnW + gap) + btnW/2, btnY + btnH/2);
+  } else {
+      // Jeśli jesteśmy Online -> Pokaż przycisk "OFFLINE" (Pomarańczowy)
+      tft.fillRect(2 + 2*(btnW + gap), btnY, btnW, btnH, ORANGE);
+      tft.setTextColor(BLACK);
+      tft.drawString("OFFLINE", 2 + 2*(btnW + gap) + btnW/2, btnY + btnH/2);
+  }
+  
+  // 4. EXIT
+  tft.fillRect(2 + 3*(btnW + gap), btnY, btnW, btnH, DARKGRAY);
   tft.setTextColor(WHITE);
   tft.drawString("WYJSCIE", 2 + 3*(btnW + gap) + btnW/2, btnY + btnH/2);
   
-  // Reset ustawień tekstu
-  tft.setTextDatum(TL_DATUM);
+  tft.setTextDatum(TL_DATUM); // Reset ustawień
 }
 
 // Function to check if WiFi is lost (for main.cpp screen rotation pause)
@@ -1199,28 +1210,110 @@ if (currentState == STATE_SCAN_NETWORKS) {
              enterLocationSelectionMode(tft);
         }
         
-        // 3. OFFLINE (X: 158 - 233) <--- NOWA LOGIKA
+        // 3. OFFLINE / ONLINE (X: 158 - 233)
         else if (x >= 2 + 2*(btnW + gap) && x <= 2 + 3*btnW + 2*gap) {
-             Serial.println("BTN: OFFLINE MODE");
+             extern bool isOfflineMode;
              
-             // Feedback
-             tft.fillRect(2 + 2*(btnW + gap), 190, btnW, 45, YELLOW);
-             tft.setTextColor(BLACK);
-             tft.setTextDatum(MC_DATUM);
-             tft.drawString("OK!", 2 + 2*(btnW + gap) + btnW/2, 190 + 22);
-             delay(500);
-             
-             // AKTYWACJA TRYBU OFFLINE
-             isOfflineMode = true;       // Ustaw flagę globalną
-             WiFi.disconnect(true);      // Rozłącz i wyłącz WiFi
-             WiFi.mode(WIFI_OFF);        // Wyłącz radio
-             
-             currentState = STATE_CONNECTED; // Wychodzimy z configu
-             
-             
-             // Wymuś przejście do ekranu głównego (który teraz pokaże status offline)
-             tft.fillScreen(BLACK);
-             // main.cpp wykryje flagę isOfflineMode i obsłuży resztę
+             if (isOfflineMode) {
+                 // === AKCJA: WŁĄCZ TRYB ONLINE (Z NAPRAWĄ) ===
+                 Serial.println("BTN: SWITCHING TO ONLINE");
+                 
+                 // 1. Feedback na przycisku
+                 tft.fillRect(2 + 2*(btnW + gap), 190, btnW, 45, GREEN);
+                 tft.setTextColor(BLACK);
+                 tft.setTextDatum(MC_DATUM);
+                 tft.drawString("WIFI ON", 2 + 2*(btnW + gap) + btnW/2, 190 + 22);
+                 delay(200);
+
+                 // 2. Zmieniamy flagę i włączamy radio
+                 isOfflineMode = false;
+                 WiFi.mode(WIFI_STA);
+                 
+                 // 3. Sprawdzamy zapisane dane
+                 String savedSSID = preferences.getString("ssid", "");
+                 String savedPass = preferences.getString("password", "");
+                 
+                 if (savedSSID.length() > 0) {
+                     // === FIX: POKAŻ EKRAN ŁĄCZENIA I CZEKAJ ===
+                     tft.fillScreen(BLACK);
+                     tft.setTextColor(WHITE);
+                     tft.setTextSize(2);
+                     tft.setTextDatum(MC_DATUM);
+                     tft.drawString("Wznawianie WiFi...", tft.width()/2, tft.height()/2 - 20);
+                     tft.setTextSize(1);
+                     tft.drawString(savedSSID, tft.width()/2, tft.height()/2 + 10);
+
+                     WiFi.begin(savedSSID.c_str(), savedPass.c_str());
+                     
+                     // Czekamy aktywnie do 15 sekund (30 prób po 500ms)
+                     int wait = 0;
+                     while (WiFi.status() != WL_CONNECTED && wait < 30) {
+                         delay(500);
+                         Serial.print(".");
+                         wait++;
+                     }
+                     
+                     if (WiFi.status() == WL_CONNECTED) {
+                         // SUKCES!
+                         Serial.println("\nUdalo sie polaczyc!");
+                         onWiFiConnectedTasks(); // Pobierz czas NTP i dane
+                         
+                         currentState = STATE_CONNECTED;
+                         tft.fillScreen(BLACK);
+                         
+                         // Reset błędów
+                         extern bool wifiLostDetected;
+                         wifiLostDetected = false;
+                         
+                         extern ScreenManager& getScreenManager();
+                         getScreenManager().resetScreenTimer();
+                         return; // Wyjdź, jest OK
+                     } else {
+                         // PORAŻKA - Idź do listy sieci
+                         Serial.println("\nBlad polaczenia - skanowanie...");
+                         currentState = STATE_SCAN_NETWORKS;
+                         scanNetworks();
+                         drawNetworkList(tft);
+                         
+                         // Pasek informacyjny
+                         tft.fillRect(10, 210, 300, 25, RED);
+                         tft.setTextColor(WHITE);
+                         tft.setCursor(20, 220);
+                         tft.print("Blad polaczenia - wybierz siec");
+                         return; // Wyjdź, zostań w liście sieci
+                     }
+                 } else {
+                     // Brak zapisanej sieci -> Wymuś skanowanie
+                     Serial.println("Brak zapisanej sieci, skanuje...");
+                     currentState = STATE_SCAN_NETWORKS; // Zmień stan na listę (nie config)
+                     scanNetworks();
+                     drawNetworkList(tft);
+                     return;
+                 }
+
+             } else {
+                 // === AKCJA: WŁĄCZ TRYB OFFLINE (BEZ ZMIAN) ===
+                 Serial.println("BTN: SWITCHING TO OFFLINE");
+                 
+                 tft.fillRect(2 + 2*(btnW + gap), 190, btnW, 45, ORANGE);
+                 tft.setTextColor(BLACK);
+                 tft.setTextDatum(MC_DATUM);
+                 tft.drawString("OFF..", 2 + 2*(btnW + gap) + btnW/2, 190 + 22);
+                 delay(500);
+
+                 isOfflineMode = true;
+                 WiFi.disconnect(true);
+                 WiFi.mode(WIFI_OFF);
+                 
+                 currentState = STATE_CONNECTED;
+                 tft.fillScreen(BLACK);
+                 
+                 extern bool wifiLostDetected;
+                 wifiLostDetected = false; 
+                 
+                 extern ScreenManager& getScreenManager();
+                 getScreenManager().resetScreenTimer();
+             }
         }
         
 // 4. EXIT (X: 236 - 311)
@@ -1529,7 +1622,7 @@ void drawLocationScreen(TFT_eSPI& tft) {
   
   // Wskazówka przewijania
   if (cityCount > 5) {
-    tft.setTextColor(TFT_DARKGREY);
+    tft.setTextColor(DARKGRAY);
     tft.setTextSize(1);
     tft.setCursor(10, 185);
     if (currentMenuState == MENU_MAIN) {

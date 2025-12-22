@@ -8,7 +8,7 @@
 #define MOTION_CONFIG_TIMEOUT   600000  // 10 min - timeout w menu config
 #define WDT_TIMEOUT_SECONDS     35     // 35s - Watchdog
 #define OFFLINE_MODE_TIMEOUT    30000
-#define SCREEN_SWITCH_INTERVAL_ 5000
+#define SCREEN_SWITCH_INTERVAL_ 3000
 
 // === WIFI TOUCH INTERFACE ===
 #define WIFI_LOSS_TIMEOUT           60000   

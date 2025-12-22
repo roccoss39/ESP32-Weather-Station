@@ -252,6 +252,7 @@ void displayLocalSensors(TFT_eSPI& tft) {
         else quality = 2 * (rssi + 100);
         wifiStatus = "WiFi: " + String(WiFi.SSID()) + " (" + String(quality) + "%)";
       } else {
+        tft.setTextColor(TFT_RED);
         wifiStatus = "WiFi: Rozlaczony";
       }
       
