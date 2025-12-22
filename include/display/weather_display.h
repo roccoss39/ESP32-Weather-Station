@@ -4,18 +4,16 @@
 #include <TFT_eSPI.h>
 #include "weather/weather_data.h"
 
-// --- FUNKCJE WYŚWIETLANIA POGODY ---
-void displayWeather(TFT_eSPI& tft);
-String shortenDescription(String description);
-
-// --- FUNKCJE CACHE ---
+// --- FUNKCJE CACHE (AKTYWNE) ---
 bool hasWeatherChanged();
 void updateWeatherCache();
 
-// --- FUNKCJE KOLORÓW ---
-uint16_t getWindColor(float windKmh);
-uint16_t getPressureColor(float pressure);
-uint16_t getHumidityColor(float humidity);
+// ❌ FUNKCJE USUNIĘTE - nieużywane (zastąpione przez local_* w screen_manager.cpp):
+// void displayWeather(TFT_eSPI& tft);
+// String shortenDescription(String description);
+// uint16_t getWindColor(float windKmh);
+// uint16_t getPressureColor(float pressure);
+// uint16_t getHumidityColor(float humidity);
 
 // --- NOWY OOP CACHE SYSTEM ---
 // Zastąpiono 7 extern variables WeatherCache class
