@@ -28,7 +28,7 @@ bool isOfflineMode = false; // <--- NOWOŚĆ: Kontroluje tryb "na działkę"
 #include "weather/forecast_api.h"
 
 // --- WYŚWIETLANIE ---
-#include "display/weather_display.h"
+#include "display/current_weather_display.h"
 #include "display/forecast_display.h"
 #include "display/time_display.h"
 #include "managers/ScreenManager.h"
