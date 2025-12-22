@@ -277,15 +277,33 @@ void setup() {
   
   // === RENDERUJ PIERWSZY EKRAN ===
   // Bez tego ekran pozostaje pusty przez pierwsze 10 sekund!
-  getScreenManager().renderCurrentScreen(tft);  // Renderuj bieżący ekran (WEATHER) bez przełączania
+  // getScreenManager().renderCurrentScreen(tft);  // Renderuj bieżący ekran (WEATHER) bez przełączania
+  
+  // // === RESET TIMERA EKRANU ===
+  // // Timer zaczyna liczyć od TERAZ, a nie od momentu włączenia ESP
+  // getScreenManager().resetScreenTimer();
+  // Serial.println("📱 Timer ekranu zresetowany - 10s do następnego przełączenia");
+  
+  // Serial.println("=== STACJA POGODOWA GOTOWA ===");
+  // ... (wcześniejsza część setupu bez zmian) ...
+  
+  // === RENDERUJ PIERWSZY EKRAN (FIX: Tylko jeśli NIE ma konfiguracji WiFi) ===
+  // Jeśli initWiFiTouchInterface wykrył brak sieci i wyświetlił listę,
+  // to NIE możemy teraz tego nadpisać ekranem pogodowym!
+  if (!isWiFiConfigActive()) {
+     // getScreenManager().renderCurrentScreen(tft);
+      Serial.println("📱 Pierwszy ekran wyrenderowany");
+  } else {
+      Serial.println("📱 Pominieto renderowanie ekranu (Trwa konfiguracja WiFi)");
+  }
   
   // === RESET TIMERA EKRANU ===
-  // Timer zaczyna liczyć od TERAZ, a nie od momentu włączenia ESP
   getScreenManager().resetScreenTimer();
   Serial.println("📱 Timer ekranu zresetowany - 10s do następnego przełączenia");
   
   Serial.println("=== STACJA POGODOWA GOTOWA ===");
 }
+
 
 void loop() {
   sysManager.loop(); // Watchdog i zadania systemowe
@@ -430,7 +448,7 @@ void loop() {
     else if (millis() - lastDisplayUpdate > DISPLAY_UPDATE_INTERVAL) {
       
       // 1. PRZYPADEK: Normalny tryb Online (Ekran główny pogody)
-      if (!isOfflineMode && currentScreen == SCREEN_CURRENT_WEATHER) {
+      if (!isOfflineMode && currentScreen == SCREEN_CURRENT_WEATHER && !isWiFiConfigActive()) {
           if (WiFi.status() == WL_CONNECTED) {
             displayTime(tft);
           }
@@ -439,7 +457,7 @@ void loop() {
           } else {
             tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
             tft.setTextDatum(MC_DATUM);
-            tft.drawString("BRAK DANYCH", tft.width() / 2, 50);
+            tft.drawString("BRAK DANYCH!", tft.width() / 2, 50);
           }
       }
       

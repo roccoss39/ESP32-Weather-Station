@@ -345,51 +345,70 @@ void scanNetworks() {
 }
 
 void drawNetworkList(TFT_eSPI& tft) {
+  // 1. Wyczyść ekran
   tft.fillScreen(BLACK);
-  tft.setTextColor(WHITE);
-  tft.setTextSize(1);
+  
+  // === FIX: RESET USTAWIEŃ TEKSTU (To naprawia "niewidzialną listę") ===
+  tft.setTextDatum(TL_DATUM);     // Wyrównanie: Lewy-Górny Róg (Kluczowe!)
+  tft.setTextColor(WHITE, BLACK); // Biały tekst na czarnym tle
+  tft.setTextSize(1);             // Rozmiar standardowy
+  tft.setFreeFont(NULL);          // Reset czcionki do domyślnej
+  // =====================================================================
+
   tft.setCursor(10, 10);
   tft.println("Wybierz siec WiFi:");
   
   int yPos = 30;
-  int maxNetworks = min(networkCount, 7);  // Reduced from 8 to 7 to make space for REFRESH button
+  int maxNetworks = min(networkCount, 7);
   
   for (int i = 0; i < maxNetworks; i++) {
-    // Highlight selected network
+    // Podświetlenie wybranej
     if (i == selectedNetworkIndex) {
       tft.fillRect(0, yPos - 2, 240, 30, BLUE);
     }
     
     tft.setTextColor(WHITE);
+    // Ustawienie kursora jest ważne przy TL_DATUM
     tft.setCursor(10, yPos + 5);
     
-    // Security indicator
+    // Kłódka
     if (networkSecure[i]) {
       tft.print("[*] ");
     } else {
       tft.print("[ ] ");
     }
     
-    // Network name (truncate if too long)
+    // Nazwa sieci
     String displayName = networkNames[i];
     if (displayName.length() > 25) {
       displayName = displayName.substring(0, 25) + "...";
     }
     tft.print(displayName);
     
-    // Signal strength
+    // Sygnał (wyrównanie ręczne kursorem)
     tft.setCursor(200, yPos + 5);
     tft.print(networkRSSI[i]);
     
     yPos += 30;
   }
   
-  // Refresh button - RIGHT SIDE MIDDLE, no overlap with WiFi names
-  tft.fillRect(240, 120, 75, 30, BLUE);  // Right side, middle Y position
+  // === PRAWA KOLUMNA PRZYCISKÓW ===
+  
+  // 1. Przycisk OFFLINE (Y=80)
+  tft.fillRect(240, 80, 75, 30, ORANGE);
+  tft.setTextColor(BLACK); // Czarny tekst na pomarańczowym
+  
+  // Dla przycisków używamy MC_DATUM (środek), ale potem musimy wrócić do TL_DATUM!
+  tft.setTextDatum(MC_DATUM); 
+  tft.drawString("OFFLINE", 240 + 75/2, 80 + 30/2);
+
+  // 2. Przycisk ODSWIEZ (Y=120)
+  tft.fillRect(240, 120, 75, 30, BLUE); 
   tft.setTextColor(WHITE);
-  tft.setTextSize(1);
-  tft.setCursor(250, 130);
-  tft.println("ODSWIEZ");
+  tft.drawString("ODSWIEZ", 240 + 75/2, 120 + 30/2);
+  
+  // === WAŻNE: Przywróć ustawienia domyślne na koniec ===
+  tft.setTextDatum(TL_DATUM); 
 }
 
 void drawPasswordScreen() {

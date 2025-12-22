@@ -1,5 +1,9 @@
 #include "display/current_weather_display.h"
 #include "managers/WeatherCache.h"
+#include "wifi/wifi_touch_interface.h"
+#include "display/weather_icons.h"
+#include "config/display_config.h"
+#include "weather/forecast_data.h"
 
 // Singleton instance WeatherCache  
 static WeatherCache weatherCache;
@@ -7,10 +11,6 @@ static WeatherCache weatherCache;
 WeatherCache& getWeatherCache() {
   return weatherCache;
 }
-#include "display/weather_icons.h"
-#include "config/display_config.h"
-#include "weather/forecast_data.h"
-
 
 bool hasWeatherChanged() {
   return getWeatherCache().hasChanged(weather);
@@ -19,8 +19,6 @@ bool hasWeatherChanged() {
 void updateWeatherCache() {
   getWeatherCache().updateCache(weather);
 }
-
-
 
 // ================================================================
 // FUNKCJE POMOCNICZE (przeniesione z screen_manager.cpp)
@@ -74,12 +72,16 @@ uint16_t getHumidityColor(float humidity) {
 
 void displayCurrentWeather(TFT_eSPI& tft) {
     // Sprawdzenie poprawności danych
+    if (isWiFiConfigActive()) {
+        return; 
+    }
+    
     if (!weather.isValid) {
         tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
         tft.setTextDatum(MC_DATUM);
         tft.setTextFont(1);
         tft.setTextSize(2);
-        tft.drawString("BRAK DANYCH", 160, 100);
+        tft.drawString("BRAK DANYCH..", 160, 100);
         return;
     }
 
