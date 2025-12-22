@@ -150,8 +150,8 @@ void displayWeeklyForecast(TFT_eSPI& tft) {
   tft.setTextSize(2);
   tft.setTextDatum(TC_DATUM); // Punkt odniesienia: Środek Góry tekstu
   
-  // Czyścimy dół ekranu (od Y=210 do końca)
-  tft.fillRect(0, 210, 320, 40, COLOR_BACKGROUND);
+  // Czyścimy dół ekranu (od Y=218 do końca)
+  tft.fillRect(0, 218, 320, 40, COLOR_BACKGROUND);
   
   if (locationManager.isLocationSet()) {
     WeatherLocation loc = locationManager.getCurrentLocation();
@@ -170,9 +170,9 @@ void displayWeeklyForecast(TFT_eSPI& tft) {
       tft.setTextSize(1);
     
     // Rysowanie
-    tft.drawString(locationText, 160, 215); 
+    tft.drawString(locationText, 160, 220); 
     
   } else {
-    tft.drawString("Brak lokalizacji", 160, 215);
+    tft.drawString("Brak lokalizacji", 160, 220);
   }
 }

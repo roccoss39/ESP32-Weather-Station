@@ -2,8 +2,10 @@
 #include <SPI.h>
 #include "managers/ScreenManager.h"
 #include "sensors/motion_sensor.h"
-#include "managers/MotionSensorManager.h" // Upewnij się, że masz ten include
+#include "managers/MotionSensorManager.h" 
 #include "config/location_config.h"
+#include "weather/weather_data.h"   
+#include "weather/forecast_data.h"  
 
 extern bool isNtpSyncPending;
 extern bool isLocationSavePending;
@@ -1176,20 +1178,67 @@ void handleTouchInput(int16_t x, int16_t y) {
              // main.cpp wykryje flagę isOfflineMode i obsłuży resztę
         }
         
-        // 4. EXIT (X: 236 - 311)
+// 4. EXIT (X: 236 - 311)
         else if (x >= 2 + 3*(btnW + gap)) {
              Serial.println("BTN: EXIT");
+             // 1. Feedback wizualny
              tft.fillRect(2 + 3*(btnW + gap), 190, btnW, 45, YELLOW);
-             delay(300);
-             
+             delay(100);
+
+             // 2. Pobierz zapisane dane logowania
+             String savedSSID = preferences.getString("ssid", "");
+             String savedPass = preferences.getString("password", "");
+
+             // 3. Jeśli mamy dane, próbujemy się połączyć PRZED zmianą stanu
+             if (savedSSID.length() > 0) {
+                 // Pokaż ekran łączenia zamiast błędu
+                 tft.fillScreen(BLACK);
+                 tft.setTextColor(WHITE);
+                 tft.setTextSize(2);
+                 tft.setTextDatum(MC_DATUM);
+                 tft.drawString("Wznawianie...", tft.width()/2, tft.height()/2 - 20);
+                 tft.setTextSize(1);
+                 tft.drawString(savedSSID, tft.width()/2, tft.height()/2 + 10);
+                 
+                 // Rozpocznij łączenie
+                 WiFi.begin(savedSSID.c_str(), savedPass.c_str());
+                 
+                 // Krótkie oczekiwanie (max 4 sekundy), żeby uniknąć czerwonego paska "Lost WiFi"
+                 // Jeśli połączy się szybciej, pętla przerwie
+                 int wait = 0;
+                 while (WiFi.status() != WL_CONNECTED && wait < 8) { // 8 * 500ms = 4s
+                     delay(500);
+                     wait++;
+                     Serial.print(".");
+                 }
+             }
+
+             // 4. Powrót do normalnego stanu
              currentState = STATE_CONNECTED; 
              tft.fillScreen(BLACK);
              
-             // Wymuś próbę połączenia (jak w starym kodzie)
-             wifiLostDetected = true;
-             wifiLostTime = millis();
-             lastReconnectAttempt = millis() - WIFI_RECONNECT_INTERVAL; 
-             wifiWasConnected = true;
+             // 5. Sprawdzenie rezultatu
+             if (WiFi.status() == WL_CONNECTED) {
+                 // Jest OK - resetujemy flagi błędów
+                 wifiLostDetected = false;
+                 wifiLostTime = 0;
+                 reconnectAttemptInProgress = false;
+                 backgroundReconnectActive = false;
+                 
+                 extern ScreenManager& getScreenManager();
+                 getScreenManager().resetScreenTimer();
+                 
+                 // Wymuś odświeżenie ekranu (np. pogody)
+                 getScreenManager().forceScreenRefresh(tft);
+             } else {
+                 // Nadal brak połączenia - dopiero teraz uznajemy to za "Lost WiFi"
+                 Serial.println("Nie udalo sie wznowic polaczenia przy wyjsciu.");
+                 wifiLostDetected = true;
+                 wifiLostTime = millis();
+                 // Ustawiamy timer tak, by auto-reconnect spróbował ponownie za chwilę
+                 lastReconnectAttempt = millis(); 
+                 wifiWasConnected = true;
+             }
         }
     }
   }
@@ -1454,12 +1503,10 @@ void drawLocationScreen(TFT_eSPI& tft) {
 void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
   Serial.printf("Location Touch: X=%d, Y=%d\n", x, y);
   
-  // Category selection
-  // Obsługa wyboru elementów z listy (kliknięcie na element)
+  // Category selection (kliknięcie na listę)
   if (y >= 60 && y <= 185) {
-    int clickedIndex = (y - 60) / 25; // 25px na element
+    int clickedIndex = (y - 60) / 25;
     
-    // Oblicz scroll offset (musi być taki sam jak w drawLocationScreen!)
     int scrollOffset = 0;
     if (currentLocationIndex >= 5) {
       scrollOffset = currentLocationIndex - 5 + 1;
@@ -1467,50 +1514,44 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
     
     int realIndex = clickedIndex + scrollOffset;
     
-    // --- OBSŁUGA GŁÓWNEGO MENU ---
     if (currentMenuState == MENU_MAIN) {
       if (realIndex >= 0 && realIndex < 4) {
         currentLocationIndex = realIndex;
         selectedCityIndex = realIndex;
         
         if (realIndex == 3) {
-          // "Własny GPS"
           enterCoordinatesMode(tft);
           return;
         } else {
-          // Wybrano miasto - przejdź do dzielnic
           currentMenuState = MENU_DISTRICTS;
-          currentLocationIndex = 0; // Reset na górę listy
+          currentLocationIndex = 0; 
           Serial.printf("Wybrano miasto: %s\n", mainMenuOptions[selectedCityIndex]);
         }
         drawLocationScreen(tft);
         return;
       }
     } 
-    // --- FIX: DODANA OBSŁUGA DZIELNIC ---
     else if (currentMenuState == MENU_DISTRICTS) {
-       // Pobierz liczbę dzielnic dla wybranego miasta
        int maxItems = 0;
        if (selectedCityIndex == 0) maxItems = SZCZECIN_DISTRICTS_COUNT;
        else if (selectedCityIndex == 1) maxItems = POZNAN_DISTRICTS_COUNT;
        else if (selectedCityIndex == 2) maxItems = ZLOCIENIEC_AREAS_COUNT;
 
        if (realIndex >= 0 && realIndex < maxItems) {
-          currentLocationIndex = realIndex; // Tylko zaznacz (nie zatwierdzaj od razu, żeby uniknąć pomyłek)
+          currentLocationIndex = realIndex;
           drawLocationScreen(tft);
           return;
        }
     }
   }
   
-  // City selection
-  if (y >= 90 && y <= 210) {
+  // City selection shortcut (kliknięcie w nagłówek)
+  if (y >= 90 && y <= 210) { // To wygląda na stary fragment logiki, ale zostawiam jak było
     int cityIndex = (y - 90) / 25;
     int maxCities = min((int)SZCZECIN_DISTRICTS_COUNT, 5);
     
     if (cityIndex >= 0 && cityIndex < maxCities) {
       currentLocationIndex = cityIndex;
-      Serial.printf("City selected: %d\n", cityIndex);
       drawLocationScreen(tft);
       return;
     }
@@ -1528,10 +1569,8 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
     // DOWN button
     else if (x >= 70 && x <= 120) {
       int maxItems = 0;
-      
-      if (currentMenuState == MENU_MAIN) {
-        maxItems = 4; // Szczecin, Poznan, Zlocieniec, Wlasny GPS
-      } else if (currentMenuState == MENU_DISTRICTS) {
+      if (currentMenuState == MENU_MAIN) maxItems = 4;
+      else if (currentMenuState == MENU_DISTRICTS) {
         if (selectedCityIndex == 0) maxItems = SZCZECIN_DISTRICTS_COUNT;
         else if (selectedCityIndex == 1) maxItems = POZNAN_DISTRICTS_COUNT;
         else if (selectedCityIndex == 2) maxItems = ZLOCIENIEC_AREAS_COUNT;
@@ -1540,28 +1579,22 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       if (currentLocationIndex < maxItems - 1) {
         currentLocationIndex++;
         drawLocationScreen(tft);
-        Serial.printf("DOWN: currentLocationIndex = %d (max: %d)\n", currentLocationIndex, maxItems - 1);
       }
     }
-    // SELECT button
+    // SELECT button (TUTAJ JEST KLUCZOWA ZMIANA)
     else if (x >= 130 && x <= 190) {
       if (currentMenuState == MENU_MAIN) {
-        // W głównym menu
         if (currentLocationIndex == 3) {
-          // "Własny GPS"
           enterCoordinatesMode(tft);
           return;
         } else {
-          // Wybrano miasto - przejdź do dzielnic
           selectedCityIndex = currentLocationIndex;
           currentMenuState = MENU_DISTRICTS;
           currentLocationIndex = 0;
-          Serial.printf("Wybrano miasto: %s\n", mainMenuOptions[selectedCityIndex]);
           drawLocationScreen(tft);
           return;
         }
       } else if (currentMenuState == MENU_DISTRICTS) {
-        // W menu dzielnic - ustaw lokalizację
         const WeatherLocation* cityList = nullptr;
         if (selectedCityIndex == 0) cityList = SZCZECIN_DISTRICTS;
         else if (selectedCityIndex == 1) cityList = POZNAN_DISTRICTS;
@@ -1573,75 +1606,66 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
           isLocationSavePending = true;
           Serial.printf("Location set to: %s\n", selectedLocation.displayName);
           
+          // === FIX: RESETUJEMY DANE POGODOWE ===
+          // To usuwa "duchy" starego miasta
+          weather.isValid = false;
+          weeklyForecast.isValid = false;
+          forecast.isValid = false;
+          // =====================================
+          
           // Visual feedback
           tft.fillRect(130, 210, 60, 25, YELLOW);
           tft.setTextColor(BLACK);
           tft.setCursor(145, 218);
           tft.print("SET!");
           delay(100);
-      tft.setTextColor(WHITE);
-      tft.setCursor(140, 218);
-      tft.print("SAFE");
+          tft.setTextColor(WHITE);
+          tft.setCursor(140, 218);
+          tft.print("SAFE");
       
-      // SAFE: Delayed refresh instead of immediate (prevents WiFi crash)
-      extern unsigned long lastWeatherCheckGlobal;
-      extern unsigned long lastForecastCheckGlobal;
+          // Wymuszenie odświeżenia
+          extern bool weatherErrorModeGlobal;
+          extern bool forecastErrorModeGlobal;
+          extern bool weeklyErrorModeGlobal;
+          weatherErrorModeGlobal = true; 
+          forecastErrorModeGlobal = true;
+          weeklyErrorModeGlobal = true;
 
-      // (1) Włącz tryb błędu, aby wymusić szybki interwał (5s)
-      weatherErrorModeGlobal = true; 
-      forecastErrorModeGlobal = true;
-      weeklyErrorModeGlobal = true;
+          extern unsigned long lastWeatherCheckGlobal;
+          extern unsigned long lastForecastCheckGlobal;
+          lastWeatherCheckGlobal = millis() - 20000; // Użyj stałej jeśli masz zdefiniowaną
+          lastForecastCheckGlobal = millis() - 20000;
 
-      // Ustawiamy timery tak, jakby właśnie wygasły (używając wartości z configu, np. 20000)
-      lastWeatherCheckGlobal = millis() - WEATHER_UPDATE_ERROR; 
-      lastForecastCheckGlobal = millis() - WEATHER_UPDATE_ERROR;
+          extern unsigned long lastWeeklyUpdate;
+          lastWeeklyUpdate = millis() - 15000000;
 
-      extern unsigned long lastWeeklyUpdate;
-      lastWeeklyUpdate = millis() - 15000000; // Wymuś natychmiastowy start
-
-      Serial.println("⏰ FORCING immediate weather refresh in main loop...");
-      
-      delay(150);
-      
-     drawLocationScreen(tft);
+          Serial.println("⏰ FORCING immediate weather refresh in main loop...");
+          delay(150);
+          drawLocationScreen(tft);
         }
       }
     }
-    // BACK button (POWROT)
+    // BACK button
     else if (x >= 200 && x <= 250) {
       if (currentMenuState == MENU_DISTRICTS) {
-        // W menu dzielnic - wróć do głównego menu
         currentMenuState = MENU_MAIN;
-        currentLocationIndex = selectedCityIndex; // Ustaw selekcję na wybrane miasto
-        Serial.println("Powrót do głównego menu miast");
+        currentLocationIndex = selectedCityIndex;
         drawLocationScreen(tft);
         return;
       } else {
-        // W głównym menu - wyjdź z menu lokalizacji
-        Serial.println("BACK to config mode");
         currentState = STATE_CONFIG_MODE;
         drawConfigModeScreen();
         return;
       }
     }
-    // BACK button - OLD CODE
-    else if (x >= 200 && x <= 250 && false) {
-      Serial.println("Returning to CONFIG MODE");
-      currentState = STATE_CONFIG_MODE;
-      drawConfigModeScreen();
-    }
     // SAVE button
     else if (x >= 260 && x <= 315) {
-      // Location save will be executed when exiting WiFi config mode
-      
-      // Visual feedback
       tft.fillRect(260, 210, 55, 25, YELLOW);
       tft.setTextColor(BLACK);
       tft.setCursor(270, 218);
       tft.print("ZAPISANO");
       delay(100);
       
-      // Return to config mode
       currentState = STATE_CONFIG_MODE;
       drawConfigModeScreen();
     }
@@ -1649,20 +1673,14 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
   
   // Custom GPS coordinates button
   if (y >= 240 && y <= 265 && x >= 10 && x <= 110) {
-    Serial.println("CUSTOM GPS button pressed");
-    
-    // Visual feedback
     tft.fillRect(10, 240, 100, 25, YELLOW);
     tft.setTextColor(BLACK);
     tft.setCursor(25, 248);
     tft.print("OPENING");
     delay(100);
-    
     enterCoordinatesMode(tft);
   }
-} // Koniec funkcji handleLocationTouch
-
-// === CUSTOM COORDINATES IMPLEMENTATION ===
+}
 
 void enterCoordinatesMode(TFT_eSPI& tft) {
   Serial.println("Entering CUSTOM COORDINATES MODE");
@@ -1979,9 +1997,12 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
        WeatherLocation customLocation;
        customLocation.cityName = "Wlasne wsp";
        customLocation.countryCode = "XX";
+       
+       // Dynamiczna nazwa z numerami (formatowanie)
        static char tempDisplayName[64];
        snprintf(tempDisplayName, sizeof(tempDisplayName), "GPS %.4f,%.4f", lat, lon);
        customLocation.displayName = tempDisplayName;
+       
        customLocation.latitude = lat;
        customLocation.longitude = lon;
        static char tempTimezone[32] = "UTC0";
@@ -1989,6 +2010,13 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
        
        locationManager.setLocation(customLocation);
        isLocationSavePending = true;
+
+       // === FIX: RESET DANYCH POGODOWYCH (DODANE) ===
+       // Usuwamy stare dane, aby nie mieszały się z nowymi
+       weather.isValid = false;
+       weeklyForecast.isValid = false;
+       forecast.isValid = false;
+       // ============================================
        
        // Force refresh flags
        extern bool weatherErrorModeGlobal;
@@ -2002,6 +2030,9 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
        extern unsigned long lastForecastCheckGlobal;
        lastWeatherCheckGlobal = millis() - 20000;
        lastForecastCheckGlobal = millis() - 20000;
+       
+       extern unsigned long lastWeeklyUpdate;
+       lastWeeklyUpdate = millis() - 15000000;
        
        Serial.println("✅ Custom GPS Set & Refresh Triggered");
        
