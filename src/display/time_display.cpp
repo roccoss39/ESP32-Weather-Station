@@ -44,7 +44,7 @@ void displayTime(TFT_eSPI& tft) {
   // Przygotuj wszystkie elementy
   char dayStr[20];
   strftime(dayStr, sizeof(dayStr), "%w", &timeinfo);
-  int dayNum = atoi(dayStr);
+  uint8_t dayNum = atoi(dayStr);
   String polishDay = getPolishDayName(dayNum);
   
   // Usunięto currentWifiStatus - nie potrzebne bez wyświetlania WiFi status

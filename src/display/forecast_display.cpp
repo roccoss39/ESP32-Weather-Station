@@ -93,7 +93,7 @@ void drawForecastItems(TFT_eSPI& tft, int startY) {
   if (forecast.count == 0) return;
   
   int itemWidth = 320 / forecast.count;  // Szerokość na każdy element
-  int iconSize = 40;                     // Rozmiar ikony
+  uint8_t iconSize = 40;                     // Rozmiar ikony
   
   for (int i = 0; i < forecast.count; i++) {
     int centerX = (i * itemWidth) + (itemWidth / 2);
@@ -200,10 +200,10 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
     unsigned long sunriseLocal = weather.sunrise + 3600; // UTC+1
     unsigned long sunsetLocal = weather.sunset + 3600;
     
-    int sunriseHour = (sunriseLocal % 86400) / 3600;
-    int sunriseMin = (sunriseLocal % 3600) / 60;
-    int sunsetHour = (sunsetLocal % 86400) / 3600;
-    int sunsetMin = (sunsetLocal % 3600) / 60;
+    uint8_t sunriseHour = (sunriseLocal % 86400) / 3600;
+    uint8_t sunriseMin = (sunriseLocal % 3600) / 60;
+    uint8_t sunsetHour = (sunsetLocal % 86400) / 3600;
+    uint8_t sunsetMin = (sunsetLocal % 3600) / 60;
     
     String sunriseTime = (sunriseHour < 10 ? "0" : "") + String(sunriseHour) + ":" + (sunriseMin < 10 ? "0" : "") + String(sunriseMin);
     String sunsetTime = (sunsetHour < 10 ? "0" : "") + String(sunsetHour) + ":" + (sunsetMin < 10 ? "0" : "") + String(sunsetMin);

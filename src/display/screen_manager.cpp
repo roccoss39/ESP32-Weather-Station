@@ -190,8 +190,8 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     uint16_t BORDER_COLOR = TFT_DARKGREY;
     uint16_t LABEL_COLOR = TFT_SILVER;
 
-    int startY = 5;
-    int startX = 60;
+    uint8_t startY = 5;
+    uint8_t startX = 60;
     // =========================================================
     // LEWA KARTA Z TEMPERATURĄ (Tło CZARNE)
     // =========================================================
@@ -247,10 +247,10 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     // =========================================================
     // PRAWA KOLUMNA (Tło GRAFITOWE - CARD_BG)
     // =========================================================
-    int rowH = 39; int gap = 6; int rightX = 165; int rightW = 150;
+    uint8_t rowH = 39; uint8_t gap = 6; uint8_t rightX = 165; uint8_t rightW = 150;
 
     // --- 1. WILGOTNOŚĆ ---
-    int y1 = startY;
+    uint8_t y1 = startY;
     tft.fillRoundRect(rightX, y1, rightW, rowH, 6, CARD_BG);
     tft.drawRoundRect(rightX, y1, rightW, rowH, 6, BORDER_COLOR);
     
@@ -266,7 +266,7 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     tft.drawString(String((int)weather.humidity) + "%", rightX + rightW - 5, y1 + 12);
 
     // --- 2. WIATR ---
-    int y2 = y1 + rowH + gap;
+    uint8_t y2 = y1 + rowH + gap;
     tft.fillRoundRect(rightX, y2, rightW, rowH, 6, CARD_BG);
     tft.drawRoundRect(rightX, y2, rightW, rowH, 6, BORDER_COLOR);
     
@@ -286,7 +286,7 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     tft.drawString("km/h", rightX + rightW - 5, y2 + 27);
 
     // --- 3. CIŚNIENIE ---
-    int y3 = y2 + rowH + gap;
+    uint8_t y3 = y2 + rowH + gap;
     tft.fillRoundRect(rightX, y3, rightW, rowH, 6, CARD_BG);
     tft.drawRoundRect(rightX, y3, rightW, rowH, 6, BORDER_COLOR);
     
@@ -308,7 +308,7 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     tft.setTextSize(1);
 
         // --- 4. OPADY ---
-    int y4 = y3 + rowH + gap;
+    uint8_t y4 = y3 + rowH + gap;
     tft.fillRoundRect(rightX, y4, rightW, rowH , 6, CARD_BG);
     tft.drawRoundRect(rightX, y4, rightW, rowH , 6, BORDER_COLOR);
     
@@ -320,7 +320,7 @@ void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
     String rainVal = "--";
     uint16_t rainColor = LABEL_COLOR;
     if (forecast.isValid && forecast.count > 0) {
-        int chance = forecast.items[0].precipitationChance;
+        uint8_t chance = forecast.items[0].precipitationChance;
         rainVal = String(chance) + "%";
         rainColor = (chance > 0) ? TFT_SKYBLUE : LABEL_COLOR;
     }
@@ -362,11 +362,11 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
   tft.setTextSize(1);
   tft.setTextDatum(TL_DATUM);
   
-  int availableHeight = 200; 
-  int startY = 15;
-  int rowHeight = weeklyForecast.count > 0 ? (availableHeight / weeklyForecast.count) : 35;
+  uint8_t availableHeight = 200; 
+  uint8_t startY = 15;
+  uint8_t rowHeight = weeklyForecast.count > 0 ? (availableHeight / weeklyForecast.count) : 35;
   
-  int textOffset = (rowHeight - 16) / 2; 
+  uint8_t textOffset = (rowHeight - 16) / 2; 
   if (textOffset < 0) textOffset = 0;
   
   for(int i = 0; i < weeklyForecast.count && i < 5; i++) {
@@ -381,7 +381,7 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     tft.drawString(day.dayName, 10, y);
     
     // 2. Ikona
-    int iconX = 55;
+    uint8_t iconX = 55;
     int iconY = rawY - (rowHeight / 4) + textOffset;
     
     String condition = "unknown";
@@ -401,7 +401,7 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     tft.setTextSize(2);
     tft.setTextDatum(TL_DATUM);
     
-    int tempX = 120;  // Start position
+    uint8_t tempX = 120;  // Start position
     
     // Min temp
     String minStr = String((int)round(day.tempMin));
@@ -421,10 +421,10 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     tempX += tft.textWidth(maxStr);  // Oblicz koniec temperatur
     
     // 4. Skalowanie czcionki dla Wiatru/Opadów (uproszczone - bez warunku minusów)
-    int tMinInt = (int)round(day.tempMin);
-    int tMaxInt = (int)round(day.tempMax);
+    int8_t tMinInt = (int8_t)round(day.tempMin);
+    int8_t tMaxInt = (int8_t)round(day.tempMax);
     
-    int wideValuesCount = (abs(tMinInt) >= 10) + 
+    uint8_t wideValuesCount = (abs(tMinInt) >= 10) + 
                           (abs(tMaxInt) >= 10) + 
                           (day.windMin >= 10) + 
                           (day.windMax >= 10) + 
@@ -433,9 +433,9 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
     // Jeśli 4 lub więcej wartości jest szerokich -> użyj małej czcionki
     bool useSmallFont = (wideValuesCount >= 4);
 
-    int dataTextSize = useSmallFont ? 1 : 2;
-    int yOffsetData = useSmallFont ? 5 : 0;
-    int unitCorrection = useSmallFont ? 0 : 5; 
+    uint8_t dataTextSize = useSmallFont ? 1 : 2;
+    uint8_t yOffsetData = useSmallFont ? 5 : 0;
+    uint8_t unitCorrection = useSmallFont ? 0 : 5; 
 
     // 5. Wiatr - dynamiczna pozycja PO temperaturach (z marginesem)
     tft.setTextSize(dataTextSize);
@@ -528,7 +528,7 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
   bool isCompactMode = !isOfflineMode; // Online = Kompaktowy (żeby zmieścić stopkę)
   
   // Ustawienia geometryczne
-  int cardY = 55;       // Zaczynamy zaraz pod nagłówkiem (linia jest na 45)
+  uint8_t cardY = 55;       // Zaczynamy zaraz pod nagłówkiem (linia jest na 45)
   int cardH;
   
   if (isCompactMode) {
@@ -537,9 +537,9 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
       cardH = 140;      // Offline: Duże karty
   }
   
-  int cardW = 135;      
-  int card1_X = 20;     
-  int card2_X = 165;    
+  uint8_t cardW = 135;      
+  uint8_t card1_X = 20;     
+  uint8_t card2_X = 165;    
 
   // --- NAGŁÓWEK (ZAWSZE PROFESJONALNY) ---
   tft.drawFastHLine(20, 45, 280, TFT_DARKGREY); 
@@ -559,7 +559,7 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
   tft.setTextColor(TFT_ORANGE, 0x1082);
   tft.setTextDatum(MC_DATUM); 
   tft.setTextSize(1);
-  int labelY = cardY + 15; // Stała pozycja etykiety
+  uint8_t labelY = cardY + 15; // Stała pozycja etykiety
   tft.drawString("TEMP", card1_X + cardW/2, labelY);
   
   if (isValid) {
@@ -713,8 +713,8 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
       // 5. Stan WiFi
       String wifiStatus;
       if (WiFi.status() == WL_CONNECTED) {
-        int rssi = WiFi.RSSI();
-        int quality = 0;
+        int8_t rssi = WiFi.RSSI();
+        uint8_t quality = 0;
         if(rssi <= -100) quality = 0;
         else if(rssi >= -50) quality = 100;
         else quality = 2 * (rssi + 100);

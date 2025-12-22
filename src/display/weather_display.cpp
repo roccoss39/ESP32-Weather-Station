@@ -226,8 +226,8 @@ void displayWeather(TFT_eSPI& tft) {
   Serial.println("ZACHMURZENIE: " + String(weather.cloudiness) + "%");
   
   // Pozycja pogody - GÓRA na całej szerokości
-  int x = WEATHER_AREA_X;
-  int y = WEATHER_AREA_Y;
+  uint8_t x = WEATHER_AREA_X;
+  uint8_t y = WEATHER_AREA_Y;
   
   // Wyczyść CAŁY obszar pogody gdy są zmiany
   tft.fillRect(x, y, WEATHER_AREA_WIDTH, WEATHER_AREA_HEIGHT, COLOR_BACKGROUND);
@@ -297,7 +297,7 @@ void displayWeather(TFT_eSPI& tft) {
   tft.drawString(humStr, x + HUMIDITY_X_OFFSET, y + HUMIDITY_Y_OFFSET);
   
   // Wyświetl prawdopodobieństwo opadów z prognozy (pierwszy element)
-  int precipChance = 0;
+  uint8_t precipChance = 0;
   if (forecast.isValid && forecast.count > 0) {
     precipChance = forecast.items[0].precipitationChance; // Najbliższa prognoza
   }
