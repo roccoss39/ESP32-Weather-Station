@@ -431,7 +431,7 @@ void loop() {
             displayTime(tft);
           }
           if (weather.isValid) {
-            //displayWeather(tft);
+          //displayCurrentWeather(tft);
           } else {
             tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
             tft.setTextDatum(MC_DATUM);
