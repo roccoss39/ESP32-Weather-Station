@@ -3,7 +3,7 @@
 #include "display/current_weather_display.h"
 #include "display/forecast_display.h"
 #include "display/weekly_forecast_display.h"
-#include "display/sensors_display.h" // <--- NOWY INCLUDE
+#include "display/sensors_display.h"
 #include "display/time_display.h"
 #include "display/github_image.h"
 #include "config/display_config.h"

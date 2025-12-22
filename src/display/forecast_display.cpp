@@ -76,13 +76,18 @@ void drawTemperatureGraph(TFT_eSPI& tft, int x, int y, int width, int height) {
     tft.setTextSize(1);
     tft.setTextDatum(TC_DATUM);
     
+    // === POPRAWKA NA -0 ===
+    float tempVal = forecast.items[i].temperature;
+    if (round(tempVal) == 0) tempVal = 0; // Jeśli zaokrąglenie to 0, usuwamy minus
+    // ======================
+
     String tempStr;
-    if (forecast.items[i].temperature <= -5.0) {
+    if (tempVal <= -5.0) {
       // Bez 'C dla bardzo niskich temperatur
-      tempStr = formatTemperature(forecast.items[i].temperature, 0);
+      tempStr = formatTemperature(tempVal, 0);
     } else {
       // Normalny format z 'C
-      tempStr = formatTemperature(forecast.items[i].temperature, 0) + "'C";
+      tempStr = formatTemperature(tempVal, 0) + "'C";
     }
     
     tft.drawString(tempStr, pointX[i], pointY[i] - 15);
@@ -140,6 +145,11 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
     float windKmh = forecast.items[i].windSpeed * 3.6;
     if (windKmh > maxWind) maxWind = windKmh;
   }
+
+  // === POPRAWKA NA -0 DLA SUMMARY ===
+  if (round(minTemp) == 0) minTemp = 0;
+  if (round(maxTemp) == 0) maxTemp = 0;
+  // ==================================
   
   // Styl tekstu - mniejsza czcionka tylko dla nazw T. i W.max
   tft.setTextColor(TFT_LIGHTGREY, COLOR_BACKGROUND);
