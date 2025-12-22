@@ -275,28 +275,6 @@ void setup() {
     }
   }
   
-  // === RENDERUJ PIERWSZY EKRAN ===
-  // Bez tego ekran pozostaje pusty przez pierwsze 10 sekund!
-  // getScreenManager().renderCurrentScreen(tft);  // Renderuj bieżący ekran (WEATHER) bez przełączania
-  
-  // // === RESET TIMERA EKRANU ===
-  // // Timer zaczyna liczyć od TERAZ, a nie od momentu włączenia ESP
-  // getScreenManager().resetScreenTimer();
-  // Serial.println("📱 Timer ekranu zresetowany - 10s do następnego przełączenia");
-  
-  // Serial.println("=== STACJA POGODOWA GOTOWA ===");
-  // ... (wcześniejsza część setupu bez zmian) ...
-  
-  // === RENDERUJ PIERWSZY EKRAN (FIX: Tylko jeśli NIE ma konfiguracji WiFi) ===
-  // Jeśli initWiFiTouchInterface wykrył brak sieci i wyświetlił listę,
-  // to NIE możemy teraz tego nadpisać ekranem pogodowym!
-  if (!isWiFiConfigActive()) {
-     // getScreenManager().renderCurrentScreen(tft);
-      Serial.println("📱 Pierwszy ekran wyrenderowany");
-  } else {
-      Serial.println("📱 Pominieto renderowanie ekranu (Trwa konfiguracja WiFi)");
-  }
-  
   // === RESET TIMERA EKRANU ===
   getScreenManager().resetScreenTimer();
   Serial.println("📱 Timer ekranu zresetowany - 10s do następnego przełączenia");

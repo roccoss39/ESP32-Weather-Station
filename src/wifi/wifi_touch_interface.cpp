@@ -1036,38 +1036,42 @@ void handleWiFiLoss() {
 void handleTouchInput(int16_t x, int16_t y) {
   Serial.printf("HandleTouch: State=%d, X=%d, Y=%d\n", currentState, x, y);
   
-  if (currentState == STATE_SCAN_NETWORKS) {
-    // Visual feedback - highlight touched area
+if (currentState == STATE_SCAN_NETWORKS) {
+    // Visual feedback
     tft.fillCircle(x, y, 5, YELLOW);
     delay(100);
+
+    // === 1. NAJPIERW SPRAWDZAMY PRZYCISKI PO PRAWEJ STRONIE ===
+    // Dzięki temu, jeśli klikniesz przycisk, kod nie wejdzie do "wybierania sieci"
     
-    // Check network list (expanded area) - EXCLUDE REFRESH button area
-    if (y >= 25 && y <= 240 && !(y >= 120 && y <= 150 && x >= 240)) {  // Exclude REFRESH area
-      int selectedIndex = (y - 30) / 30;
-      if (selectedIndex >= 0 && selectedIndex < min(networkCount, 7)) {  // Changed from 8 to 7
-        selectedNetworkIndex = selectedIndex;
-        currentSSID = networkNames[selectedIndex];
-        Serial.printf("NETWORK SELECTED: %s (index %d)\n", currentSSID.c_str(), selectedIndex);
-        
-        // Visual feedback for selection
-        tft.fillRect(0, 30 + selectedIndex * 30 - 2, 240, 30, GREEN);
-        delay(300);
-        
-        if (networkSecure[selectedIndex]) {
-          currentState = STATE_ENTER_PASSWORD;
-          enteredPassword = "";
-          drawPasswordScreen();
-          Serial.println("PASSWORD SCREEN SHOWN");
-        } else {
-          connectToWiFi();
-        }
-      }
+    // PRZYCISK: OFFLINE (Y: 80-110)
+    if (x >= 240 && x <= 315 && y >= 80 && y <= 110) {
+       Serial.println("BTN: OFFLINE MODE (Scan Screen)");
+       
+       tft.fillRect(240, 80, 75, 30, YELLOW);
+       tft.setTextColor(BLACK);
+       tft.setCursor(250, 90);
+       tft.println("OK!");
+       delay(500);
+
+       extern bool isOfflineMode;
+       isOfflineMode = true;
+       
+       WiFi.disconnect(true);
+       WiFi.mode(WIFI_OFF);
+       
+       currentState = STATE_CONNECTED;
+       tft.fillScreen(BLACK);
+       
+       extern bool wifiLostDetected;
+       wifiLostDetected = false;
+       return; // <--- WAŻNE: Kończymy funkcję, żeby nie kliknąć nic więcej
     }
-    // Refresh button with visual feedback - RIGHT SIDE MIDDLE
-    else if (y >= 120 && y <= 150 && x >= 240 && x <= 315) {
-      Serial.println("REFRESH BUTTON PRESSED - Rescanning networks...");
+    
+    // PRZYCISK: ODSWIEZ (Y: 120-150)
+    else if (x >= 240 && x <= 315 && y >= 120 && y <= 150) {
+      Serial.println("REFRESH BUTTON PRESSED");
       
-      // Green highlight for refresh button - RIGHT SIDE MIDDLE POSITION
       tft.fillRect(240, 120, 75, 30, GREEN);
       tft.setTextColor(WHITE);
       tft.setTextSize(1);
@@ -1075,19 +1079,41 @@ void handleTouchInput(int16_t x, int16_t y) {
       tft.println("SCANNING");
       delay(500);
       
-      // Clear selected network when refreshing
       selectedNetworkIndex = -1;
-      
-      // Rescan networks and update display
       scanNetworks();
+      
       if (networkCount > 0) {
         drawNetworkList(tft);
-        Serial.printf("Network list refreshed - found %d networks\n", networkCount);
       } else {
-        drawStatusMessage(tft, "No networks found - Touch to retry");
+        drawStatusMessage(tft, "Brak sieci - Sprobuj ponownie");
         delay(2000);
         scanNetworks();
         drawNetworkList(tft);
+      }
+      return; // <--- WAŻNE: Kończymy funkcję
+    }
+
+    // === 2. DOPIERO TERAZ LISTA SIECI (LEWA STRONA) ===
+    // Warunek x < 240 GWARANTUJE, że nie klikniemy sieci klikając przyciski
+    else if (x < 240 && y >= 25 && y <= 240) {  
+      int selectedIndex = (y - 30) / 30;
+      
+      if (selectedIndex >= 0 && selectedIndex < min(networkCount, 7)) {
+        selectedNetworkIndex = selectedIndex;
+        currentSSID = networkNames[selectedIndex];
+        Serial.printf("NETWORK SELECTED: %s (index %d)\n", currentSSID.c_str(), selectedIndex);
+        
+        // Feedback
+        tft.fillRect(0, 30 + selectedIndex * 30 - 2, 240, 30, GREEN);
+        delay(300);
+        
+        if (networkSecure[selectedIndex]) {
+          currentState = STATE_ENTER_PASSWORD;
+          enteredPassword = "";
+          drawPasswordScreen();
+        } else {
+          connectToWiFi();
+        }
       }
     }
   }
