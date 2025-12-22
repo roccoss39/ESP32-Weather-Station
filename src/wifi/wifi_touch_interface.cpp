@@ -1977,7 +1977,7 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
        
        // Create location
        WeatherLocation customLocation;
-       customLocation.cityName = "Wlasne";
+       customLocation.cityName = "Custom";
        customLocation.countryCode = "XX";
        static char tempDisplayName[64];
        snprintf(tempDisplayName, sizeof(tempDisplayName), "GPS %.4f,%.4f", lat, lon);
