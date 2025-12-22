@@ -43,7 +43,7 @@ void LocationManager::loadLocationFromPreferences() {
             
             WeatherLocation customSaved;
 
-            customSaved.cityName = savedCity;  // Zawsze "Custom" dla własnych GPS 
+            customSaved.cityName = savedCity; 
             customSaved.countryCode = savedCountry; 
             
             customSaved.latitude = prefs.getFloat("latitude", 53.44);
