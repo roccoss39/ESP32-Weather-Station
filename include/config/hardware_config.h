@@ -18,12 +18,12 @@
 #define TFT_MISO    19
 #endif
 #ifndef TFT_MOSI
-#define TFT_MOSI    23
+#define TFT_MOSI    23 //WSPÓLNY (z T_DIN).
 #endif
 #ifndef TFT_SCLK
-#define TFT_SCLK    18
+#define TFT_SCLK    18 //WSPÓLNY (z T_CLK).
 #endif
-#ifndef TFT_CS
+#ifndef TFT_CS      
 #define TFT_CS      5
 #endif
 #ifndef TFT_DC
