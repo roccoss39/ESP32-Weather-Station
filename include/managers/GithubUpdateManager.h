@@ -4,37 +4,86 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <HTTPClient.h> // <--- NOWOŚĆ: Potrzebne do pobrania pliku tekstowego
 #include <HTTPUpdate.h>
-#include <esp_task_wdt.h> // <--- DODANO: Biblioteka Watchdoga
+#include <esp_task_wdt.h> 
 #include "config/hardware_config.h"
 #include "config/secrets.h"
 
 class GithubUpdateManager {
 public:
-    // Uruchom proces aktualizacji
+    // Główna funkcja wywoływana z main.cpp
     void checkForUpdate() {
         if (WiFi.status() != WL_CONNECTED) {
             Serial.println("❌ Brak WiFi - nie mogę sprawdzić aktualizacji");
             return;
         }
 
-        Serial.println("🔄 Sprawdzam aktualizacje na GitHub...");
-        
-        // === FIX WATCHDOG: Wydłużamy czas timeoutu na 60 sekund na czas update'u ===
-        // SSL Handshake i pobieranie mogą chwilę potrwać
-        esp_task_wdt_init(60, true); 
-        esp_task_wdt_add(NULL); // Upewniamy się, że obecny wątek jest monitorowany
+        // === KROK 1: Sprawdzenie wersji (Lekki plik tekstowy) ===
+        Serial.println("🔍 Sprawdzanie dostępności nowej wersji (version.txt)...");
 
-        // Klient bezpieczny (HTTPS)
+        // Definicja URL do pliku wersji (musi być RAW)
+        // Upewnij się, że ten plik istnieje na GitHubie!
+        String versionUrl = "https://raw.githubusercontent.com/roccoss39/ESP32-Weather-Station/main/version.txt";
+
         WiFiClientSecure client;
-        client.setInsecure(); // Ignorujemy certyfikaty
+        client.setInsecure(); // Ignorujemy certyfikaty (wymagane dla GitHub)
+
+        HTTPClient http;
+        
+        // Rozszerzamy Watchdog na czas sprawdzania
+        esp_task_wdt_init(60, true);
+        esp_task_wdt_add(NULL);
+
+        if (http.begin(client, versionUrl)) {
+            int httpCode = http.GET();
+
+            if (httpCode == HTTP_CODE_OK) {
+                String payload = http.getString();
+                payload.trim(); // Usuwamy spacje i znaki nowej linii
+                
+                float remoteVersion = payload.toFloat();
+                
+                // Wypisz wersje dla debugowania
+                Serial.printf("☁️ Wersja na GitHub: %.2f\n", remoteVersion);
+                Serial.printf("🏠 Obecna wersja:   %.2f\n", FIRMWARE_VERSION); // FIRMWARE_VERSION musi być w hardware_config.h
+
+                if (remoteVersion > FIRMWARE_VERSION) {
+                    Serial.println("🚀 ZNALEZIONO NOWĄ WERSJĘ! Uruchamiam aktualizację...");
+                    http.end(); // Zamykamy połączenie HTTPClient
+                    
+                    // === KROK 2: Właściwa aktualizacja (Ciężki plik .bin) ===
+                    performUpdate(); 
+                } else {
+                    Serial.println("✅ Oprogramowanie jest aktualne. Pomijam pobieranie.");
+                }
+            } else {
+                Serial.printf("❌ Błąd pobierania wersji: %s\n", http.errorToString(httpCode).c_str());
+            }
+            http.end();
+        } else {
+            Serial.println("❌ Nie udało się połączyć z serwerem wersji.");
+        }
+        
+        // Reset Watchdoga po wszystkim
+        esp_task_wdt_init(5, true);
+    }
+
+private:
+    // Funkcja wykonująca właściwą aktualizację OTA (stary kod przeniesiony tutaj)
+    void performUpdate() {
+        Serial.println("🔄 Rozpoczynam pobieranie firmware.bin z GitHub...");
+        
+        // Klient bezpieczny (HTTPS) dla httpUpdate
+        WiFiClientSecure client;
+        client.setInsecure(); 
         
         // Konfiguracja HTTP Update
         uint8_t ledPin = getStatusLedPin();
         if (ledPin != 255) {
             httpUpdate.setLedPin(ledPin, LOW);
         } 
-        httpUpdate.rebootOnUpdate(true); // Restartuj po sukcesie
+        httpUpdate.rebootOnUpdate(true); 
         
         // Callbacki
         httpUpdate.onStart(update_started);
@@ -43,6 +92,7 @@ public:
         httpUpdate.onError(update_error);
 
         // === PRÓBA AKTUALIZACJI ===
+        // GITHUB_FIRMWARE_URL musi być zdefiniowane w hardware_config.h
         t_httpUpdate_return ret = httpUpdate.update(client, GITHUB_FIRMWARE_URL);
 
         switch (ret) {
@@ -50,18 +100,14 @@ public:
                 Serial.printf("❌ Aktualizacja nieudana: (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
                 break;
             case HTTP_UPDATE_NO_UPDATES:
-                Serial.println("✅ Brak nowych aktualizacji.");
+                Serial.println("✅ Brak nowych aktualizacji (według nagłówków serwera).");
                 break;
             case HTTP_UPDATE_OK:
                 Serial.println("✅ AKTUALIZACJA ZAKOŃCZONA SUKCESEM!");
                 break;
         }
-        
-        // Po wszystkim (jeśli nie było resetu) przywracamy standardowy watchdog (opcjonalne, bo reboot i tak wyczyści)
-        esp_task_wdt_init(5, true);
     }
 
-private:
     static void update_started() {
         Serial.println("⬇️ ROZPOCZYNAM POBIERANIE FIRMWARE...");
     }
@@ -71,7 +117,6 @@ private:
     }
 
     static void update_progress(int cur, int total) {
-        // Wyświetlaj kropkę co jakiś czas, żeby nie zalewać logów, albo procenty
         static int lastPercent = -1;
         int percent = (cur * 100) / total;
         
@@ -80,12 +125,21 @@ private:
             lastPercent = percent;
         }
         
-        // === FIX WATCHDOG: Karmimy psa w trakcie pobierania! ===
+        // Karmimy psa w trakcie długiego pobierania
         esp_task_wdt_reset(); 
     }
 
     static void update_error(int err) {
         Serial.printf("❌ Błąd OTA: %d\n", err);
+    }
+    
+    // Helper do pobrania pinu LED (jeśli nie masz tej funkcji globalnie, możesz ją usunąć lub zdefiniować)
+    uint8_t getStatusLedPin() {
+        #ifdef LED_STATUS_PIN
+            return LED_STATUS_PIN;
+        #else
+            return 255;
+        #endif
     }
 };
 

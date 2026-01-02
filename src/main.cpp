@@ -87,6 +87,21 @@ void setup() {
 
     case ESP_SLEEP_WAKEUP_TIMER:
       Serial.println("⏰ WAKE UP: NOCNA AKTUALIZACJA (03:00)");
+
+      // === DODAJ TEN BLOK TUTAJ: JITTER (Losowe opóźnienie) ===
+      {
+         // Czekamy losowo od 0 do 300 sekund (5 minut)
+         // To zapobiega jednoczesnemu atakowaniu serwera GitHub przez wszystkie stacje
+         int jitterSeconds = random(0, FIRMWARE_UPDATE_JITTER + 1);
+         Serial.printf("🎲 Jitter: Czekam %d sekund przed sprawdzeniem aktualizacji...\n", jitterSeconds);
+         
+         // Używamy pętli z delay(1000) żeby móc karmić Watchdoga (sysManager.loop)
+         for(int i=0; i<jitterSeconds; i++) {
+             delay(1000); 
+             sysManager.loop(); // Ważne: Watchdog musi być karmiony!
+         }
+      }
+      // ==========================================================
       
       {
           Preferences prefs;

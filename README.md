@@ -2,6 +2,15 @@
 
 **Professional grade weather station with motion detection, NASA imagery, and emergency WiFi management**
 
+## MY SUGGESTIONS
+1. First calibrate screen by special file calibrate.cpp
+2. Copy results from serial monitor and add new define in secrets with name. For example: constexpr uint16_t TOUCH_CAL_DAWID[5] = {    350, 3267, 523, 3020, 1};
+3. Add in secrests set new ACTIVE_ESP_MODEL and ACTIVE_TFT_MODEL. Tft model is unique. Give new name for model (maybe with name). Esp model can be repeatable from enum.
+4. Add new varibles to hardware_config: enum TftModel, maybe enum EspModel, inline const uint16_t* getTouchCalibration(), possible inline uint8_t getStatusLedPin().
+5. Helpfull testing files: calibrate.cpp, pir check, wifi check with display check.
+6. For update change file version.txt and #define FIRMWARE_VERSION in hardware conf. 
+
+
 ## 🚀 **Features Overview**
 
 ### 🌡️ **Weather System**
