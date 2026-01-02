@@ -30,7 +30,10 @@ public:
         client.setInsecure(); // Ignorujemy certyfikaty
         
         // Konfiguracja HTTP Update
-        httpUpdate.setLedPin(LED_STATUS_PIN, LOW); 
+        uint8_t ledPin = getStatusLedPin();
+        if (ledPin != 255) {
+            httpUpdate.setLedPin(ledPin, LOW);
+        } 
         httpUpdate.rebootOnUpdate(true); // Restartuj po sukcesie
         
         // Callbacki

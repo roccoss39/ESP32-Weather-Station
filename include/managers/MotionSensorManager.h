@@ -31,6 +31,7 @@ private:
     unsigned long ledFlashStartTime = 0;
     bool ledFlashActive = false;
     unsigned long lastSleepTime = 0; // Dla Ghost Touch Protection
+    uint8_t statusLedPin = 255;  // Cache pinu LED (inicjalizowany w konstruktorze)
 
     // Pomocnicza funkcja do wchodzenia w Deep Sleep (wewnętrzna)
     void enterDeepSleep() {
@@ -78,8 +79,12 @@ public:
         currentDisplayState = DISPLAY_ACTIVE;
         lastMotionTime = millis();
         
-        pinMode(LED_STATUS_PIN, OUTPUT);
-        digitalWrite(LED_STATUS_PIN, LOW);
+        // Cache pinu LED raz przy inicjalizacji
+        statusLedPin = getStatusLedPin();
+        if (statusLedPin != 255) {
+            pinMode(statusLedPin, OUTPUT);
+            digitalWrite(statusLedPin, LOW);
+        }
     }
 
     // Gettery i Settery
@@ -96,7 +101,10 @@ public:
 
     void initPIRHardware() {
         pinMode(PIR_PIN, INPUT);
-        pinMode(LED_STATUS_PIN, OUTPUT);
+        // statusLedPin już zainicjalizowany w konstruktorze
+        if (statusLedPin != 255) {
+            pinMode(statusLedPin, OUTPUT);
+        }
     }
     
     void handleMotionInterrupt() {
@@ -107,7 +115,9 @@ public:
         motionDetected = true;
         lastMotionTime = currentTime;
 
-        digitalWrite(LED_STATUS_PIN, HIGH);
+        if (statusLedPin != 255) {
+            digitalWrite(statusLedPin, HIGH);
+        }
         ledFlashActive = true;
         ledFlashStartTime = currentTime;
     }
@@ -117,7 +127,9 @@ public:
         
         // 1. Obsługa LED
         if (ledFlashActive && (millis() - ledFlashStartTime) > LED_FLASH_DURATION) {
-            digitalWrite(LED_STATUS_PIN, LOW);
+            if (statusLedPin != 255) {
+                digitalWrite(statusLedPin, LOW);
+            }
             ledFlashActive = false;
         }
 
