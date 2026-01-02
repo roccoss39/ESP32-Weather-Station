@@ -8,7 +8,8 @@
 3. Add in secrests set new ACTIVE_ESP_MODEL and ACTIVE_TFT_MODEL. Tft model is unique. Give new name for model (maybe with name). Esp model can be repeatable from enum.
 4. Add new varibles to hardware_config: enum TftModel, maybe enum EspModel, inline const uint16_t* getTouchCalibration(), possible inline uint8_t getStatusLedPin().
 5. Helpfull testing files: calibrate.cpp, pir check, wifi check with display check.
-6. For update change file version.txt and #define FIRMWARE_VERSION in hardware conf. 
+6. For update change file version.txt and #define FIRMWARE_VERSION in hardware conf. Replace firmware.bin from pio folder with general folder.
+
 
 
 ## 🚀 **Features Overview**
