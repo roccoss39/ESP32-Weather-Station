@@ -1059,24 +1059,39 @@ if (currentState == STATE_SCAN_NETWORKS) {
     if (x >= 240 && x <= 315 && y >= 80 && y <= 110) {
        Serial.println("BTN: OFFLINE MODE (Scan Screen)");
        
+       // Efekt kliknięcia
        tft.fillRect(240, 80, 75, 30, YELLOW);
        tft.setTextColor(BLACK);
        tft.setCursor(250, 90);
        tft.println("OK!");
        delay(500);
 
+       // Ustaw flagi
        extern bool isOfflineMode;
        isOfflineMode = true;
        
+       // Wyłącz WiFi
        WiFi.disconnect(true);
        WiFi.mode(WIFI_OFF);
        
+       // Zmień stan na CONNECTED (żeby ScreenManager przejął kontrolę)
        currentState = STATE_CONNECTED;
-       tft.fillScreen(BLACK);
+       tft.fillScreen(BLACK); 
        
        extern bool wifiLostDetected;
        wifiLostDetected = false;
-       return; // <--- WAŻNE: Kończymy funkcję, żeby nie kliknąć nic więcej
+       
+       // === TO JEST KLUCZOWA POPRAWKA ===
+       // Wymuszamy ustawienie ekranu sensorów i natychmiastowe rysowanie
+       extern ScreenManager& getScreenManager();
+       extern void forceScreenRefresh(TFT_eSPI& tft);
+       
+       getScreenManager().setCurrentScreen(SCREEN_LOCAL_SENSORS); // Ustaw start na sensory
+       getScreenManager().resetScreenTimer();
+       forceScreenRefresh(tft); // <--- Rysuj NATYCHMIAST
+       // =================================
+       
+       return; 
     }
     
     // PRZYCISK: ODSWIEZ (Y: 120-150)
@@ -1292,8 +1307,8 @@ if (currentState == STATE_SCAN_NETWORKS) {
                  }
 
              } else {
-                 // === AKCJA: WŁĄCZ TRYB OFFLINE (BEZ ZMIAN) ===
-                 Serial.println("BTN: SWITCHING TO OFFLINE");
+                 // WŁĄCZ OFFLINE
+                 Serial.println("BTN: SWITCHING TO OFFLINE (Config Mode)");
                  
                  tft.fillRect(2 + 2*(btnW + gap), 190, btnW, 45, ORANGE);
                  tft.setTextColor(BLACK);
@@ -1301,6 +1316,7 @@ if (currentState == STATE_SCAN_NETWORKS) {
                  tft.drawString("OFF..", 2 + 2*(btnW + gap) + btnW/2, 190 + 22);
                  delay(500);
 
+                 extern bool isOfflineMode;
                  isOfflineMode = true;
                  WiFi.disconnect(true);
                  WiFi.mode(WIFI_OFF);
@@ -1313,6 +1329,12 @@ if (currentState == STATE_SCAN_NETWORKS) {
                  
                  extern ScreenManager& getScreenManager();
                  getScreenManager().resetScreenTimer();
+                 
+                 // === TO JEST KLUCZOWA POPRAWKA ===
+                 extern void forceScreenRefresh(TFT_eSPI& tft);
+                 getScreenManager().setCurrentScreen(SCREEN_LOCAL_SENSORS);
+                 forceScreenRefresh(tft); // <--- Rysuj NATYCHMIAST
+                 // =================================
              }
         }
         
