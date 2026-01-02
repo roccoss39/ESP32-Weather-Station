@@ -20,4 +20,10 @@ const char* WEATHER_LANGUAGE = "en";       // Język (en, pl, de, etc.)
 const char* NTP_SERVER = "pool.ntp.org";
 const char* TIMEZONE_INFO = "CET-1CEST,M3.5.0/2,M10.5.0/3";  // Europa/Warsaw
 
+// --- KALIBRACJA TOUCH SCREEN ---
+// ⚠️ WAŻNE: Każda płytka ma inne wartości!
+// Format: { x_min, x_max, y_min, y_max, rotation }
+// Uruchom kalibrację i zapisz swoje wartości tutaj.
+const uint16_t TOUCH_CALIBRATION[5] = { 350, 3267, 523, 3020, 1 };
+
 #endif

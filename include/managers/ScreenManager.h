@@ -3,9 +3,13 @@
 
 #include <Arduino.h>
 #include <TFT_eSPI.h>
+#include <timing_config.h>
 
 #define TEST_MODE 0
-#define SCREEN_SWITCH_INTERVAL_ 2000
+#define TEST_SCREEN SCREEN_CURRENT_WEATHER
+
+extern bool isOfflineMode;
+
 // ScreenType enum definition - musi być tutaj dla ScreenManager
 enum ScreenType {
   SCREEN_CURRENT_WEATHER = 0,
@@ -56,7 +60,15 @@ public:
      * @return true jeśli minął SCREEN_SWITCH_INTERVAL
      */
     bool shouldSwitchScreen() const {
-        return (millis() - lastScreenSwitch) >= SCREEN_SWITCH_INTERVAL;
+        unsigned long interval = SCREEN_SWITCH_INTERVAL;
+
+        // Jeśli jesteśmy OFFLINE i wyświetlamy SENSORY (czyli parzysty numer ekranu w naszej sztuczce)
+        if (isOfflineMode && ((int)currentScreen % 2 == 0)) {
+             // Ustawiamy czas 2x dłuższy (np. 20 sekund zamiast 10)
+             interval = SCREEN_SWITCH_INTERVAL * 2;
+        }
+
+        return (millis() - lastScreenSwitch) >= interval;
     }
     
     /**
@@ -67,13 +79,10 @@ public:
         ScreenType previousScreen = currentScreen;
         lastScreenSwitch = millis();
 
+
         if (TEST_MODE == 1) {
-            static int nr = 0;
-            nr++;
-            if(nr%2)
-            currentScreen = SCREEN_FORECAST;  // W trybie testowym tylko IMAGE
-            else 
-            currentScreen = SCREEN_CURRENT_WEATHER;
+            currentScreen = TEST_SCREEN;  // W trybie testowym tylko IMAGE
+            return previousScreen;
         }
 
         switch(currentScreen) {
@@ -128,15 +137,9 @@ public:
         // Reset cache dla aktualnego ekranu (coordination z Phase 1+2)
         resetCacheForScreen(currentScreen);
         
-        // Renderuj odpowiedni ekran
-        // if (TEST_MODE == 1) {
-        //     static int nr = 0;
-        //     nr++;
-        //     if(nr%2)
-        //     currentScreen = SCREEN_IMAGE;  // W trybie testowym tylko IMAGE
-        //     else 
-        //     currentScreen = SCREEN_CURRENT_WEATHER;
-        // }
+        if (TEST_MODE == 1) {
+            currentScreen = TEST_SCREEN;  // W trybie testowym tylko IMAGE
+        }
 
         switch(currentScreen) {
             case SCREEN_CURRENT_WEATHER:

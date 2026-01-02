@@ -31,8 +31,10 @@ private:
     unsigned long ledFlashStartTime = 0;
     bool ledFlashActive = false;
     unsigned long lastSleepTime = 0; // Dla Ghost Touch Protection
+    uint8_t statusLedPin = 255;  // Cache pinu LED (inicjalizowany w konstruktorze)
 
     // Pomocnicza funkcja do wchodzenia w Deep Sleep (wewnętrzna)
+// Pomocnicza funkcja do wchodzenia w Deep Sleep (wewnętrzna)
     void enterDeepSleep() {
         Serial.println("💤 DEEP SLEEP START...");
         Serial.flush();
@@ -40,11 +42,14 @@ private:
         // Konfiguracja wybudzania PIR
         esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
 
-        // === NASTAWIENIE BUDZIKA NA 3:00 RANO (Dla GithubUpdateManager) ===
-        // Obliczamy ile czasu zostało do 3:00 w nocy
+        // === NASTAWIENIE BUDZIKA (Dla GithubUpdateManager) ===
+        // Obliczamy ile czasu zostało do godziny zdefiniowanej w configu
         struct tm timeinfo;
         if (getLocalTime(&timeinfo)) {
-            int targetMinutes = 3 * 60; // 3:00 = 180 minuta dnia
+            
+            // UŻYWAMY STAŁEJ Z CONFIGU:
+            int targetMinutes = (FIRMWARE_UPDATE_HOUR * 60) + FIRMWARE_UPDATE_MINUTE; 
+            
             int currentMinutes = timeinfo.tm_hour * 60 + timeinfo.tm_min;
             
             long secondsToSleep = 0;
@@ -53,7 +58,7 @@ private:
                 // Jest np. 01:00, budzimy się za 2h
                 secondsToSleep = (targetMinutes - currentMinutes) * 60;
             } else {
-                // Jest np. 23:00, budzimy się jutro o 03:00 (doba ma 1440 min)
+                // Jest np. 23:00, budzimy się jutro (doba ma 1440 min)
                 secondsToSleep = ((24 * 60) - currentMinutes + targetMinutes) * 60;
             }
             
@@ -61,7 +66,7 @@ private:
             secondsToSleep -= timeinfo.tm_sec;
 
             if (secondsToSleep > 0) {
-                Serial.printf("⏰ Timer ustawiony na 3:00 (za %ld s)\n", secondsToSleep);
+                Serial.printf("⏰ Timer ustawiony na %d:00 (za %ld s)\n", FIRMWARE_UPDATE_HOUR, secondsToSleep);
                 esp_sleep_enable_timer_wakeup(secondsToSleep * 1000000ULL);
             }
         }
@@ -78,8 +83,12 @@ public:
         currentDisplayState = DISPLAY_ACTIVE;
         lastMotionTime = millis();
         
-        pinMode(LED_STATUS_PIN, OUTPUT);
-        digitalWrite(LED_STATUS_PIN, LOW);
+        // Cache pinu LED raz przy inicjalizacji
+        statusLedPin = getStatusLedPin();
+        if (statusLedPin != 255) {
+            pinMode(statusLedPin, OUTPUT);
+            digitalWrite(statusLedPin, LOW);
+        }
     }
 
     // Gettery i Settery
@@ -96,7 +105,10 @@ public:
 
     void initPIRHardware() {
         pinMode(PIR_PIN, INPUT);
-        pinMode(LED_STATUS_PIN, OUTPUT);
+        // statusLedPin już zainicjalizowany w konstruktorze
+        if (statusLedPin != 255) {
+            pinMode(statusLedPin, OUTPUT);
+        }
     }
     
     void handleMotionInterrupt() {
@@ -107,7 +119,9 @@ public:
         motionDetected = true;
         lastMotionTime = currentTime;
 
-        digitalWrite(LED_STATUS_PIN, HIGH);
+        if (statusLedPin != 255) {
+            digitalWrite(statusLedPin, HIGH);
+        }
         ledFlashActive = true;
         ledFlashStartTime = currentTime;
     }
@@ -117,7 +131,9 @@ public:
         
         // 1. Obsługa LED
         if (ledFlashActive && (millis() - ledFlashStartTime) > LED_FLASH_DURATION) {
-            digitalWrite(LED_STATUS_PIN, LOW);
+            if (statusLedPin != 255) {
+                digitalWrite(statusLedPin, LOW);
+            }
             ledFlashActive = false;
         }
 

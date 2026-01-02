@@ -61,7 +61,7 @@ inline String formatTemperature(float temp, int decimals = 1) {
 #define ICON_Y_OFFSET       0
 
 #define TEMP_X_OFFSET       60   // Przywrócone do oryginalnej pozycji
-#define TEMP_Y_OFFSET       20
+#define TEMP_Y_OFFSET       40
 
 #define DESC_X_OFFSET       5    // Przywrócone do oryginalnej pozycji
 #define DESC_Y_OFFSET       55
@@ -74,6 +74,9 @@ inline String formatTemperature(float temp, int decimals = 1) {
 
 #define PRESSURE_X_OFFSET   5    // Przywrócone do oryginalnej pozycji
 #define PRESSURE_Y_OFFSET   145
+
+// --- WEATHER CARD TEMPERATURE OFFSET (screen_manager.cpp - lewa karta) ---
+#define WEATHER_CARD_TEMP_Y_OFFSET  20  // Główny offset Y - przesuwa temp, °C, opis i "odczuwalna" razem
 
 // --- POZYCJE SEKCJI AKTUALIZACJI (SENSORS SCREEN) ---
 #define UPDATES_SECTION_Y   140   // Punkt odniesienia dla sekcji aktualizacji (było 155, teraz 140 = -15px)

@@ -23,5 +23,6 @@ void initNASAImageSystem();
 bool getRandomNASAImage();
 void displayGitHubImage(TFT_eSPI& tft);
 bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex);
+void drawNASAImage(TFT_eSPI& tft, bool forceFallback = false);
 
 #endif

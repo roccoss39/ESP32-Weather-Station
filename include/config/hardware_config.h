@@ -1,6 +1,7 @@
 #ifndef HARDWARE_CONFIG_H
 #define HARDWARE_CONFIG_H
 
+#include <secrets.h>
 /**
  * 🔌 CENTRALNA KONFIGURACJA SPRZĘTOWA
  * * Tutaj definiujemy fizyczne podłączenia (PINY), ustawienia PWM
@@ -9,8 +10,24 @@
  */
 
  // UPDATE:
-#define FIRMWARE_VERSION  1.1 // Zmieniaj to przy każdej nowej wersji!
+#define FIRMWARE_VERSION  1.0 // Zmieniaj to przy każdej nowej wersji!
 #define GITHUB_FIRMWARE_URL "https://raw.githubusercontent.com/roccoss39/ESP32-Weather-Station/main/firmware.bin"
+
+// === SCHEDULED UPDATES (GODZINY AKTUALIZACJI) ===
+#define FIRMWARE_UPDATE_HOUR    15   // Godzina (Format 0-23)
+#define FIRMWARE_UPDATE_MINUTE  7    // Minuta (Format 0-59)
+#define FIRMWARE_UPDATE_JITTER  10 //300
+
+// SET IN SECRETS.H
+enum EspModel {
+    DAWID_ESP_CUSTOM,
+    LOLIN32v1_0_0
+};
+
+enum TftModel {
+    DAWID_TFT_ILI9341_RED_2_8_v_1_2,
+    BASIA_TFT_ILI9341_RED_2_8_v_1_2
+};
 
 // === 1. PINY EKRANU (TFT ILI9341) ===
 // Definicje zgodne z biblioteką TFT_eSPI
@@ -18,12 +35,12 @@
 #define TFT_MISO    19
 #endif
 #ifndef TFT_MOSI
-#define TFT_MOSI    23
+#define TFT_MOSI    23 //WSPÓLNY (z T_DIN).
 #endif
 #ifndef TFT_SCLK
-#define TFT_SCLK    18
+#define TFT_SCLK    18 //WSPÓLNY (z T_CLK).
 #endif
-#ifndef TFT_CS
+#ifndef TFT_CS      
 #define TFT_CS      5
 #endif
 #ifndef TFT_DC
@@ -42,7 +59,7 @@
 // === 2. PINY SENSORÓW I URZĄDZEŃ ===
 #define DHT22_PIN       4       // Czujnik temperatury/wilgotności
 #define PIR_PIN         27      // Czujnik ruchu (HC-SR501 / MOD-01655)
-#define LED_STATUS_PIN  2       // Wbudowana niebieska dioda ESP32
+//#define LED_STATUS_PIN  2       // Wbudowana niebieska dioda ESP32
 
 // Wymiary ekranu
 #ifndef TFT_WIDTH
@@ -81,5 +98,35 @@
 #ifndef SPI_TOUCH_FREQUENCY
     #define SPI_TOUCH_FREQUENCY 2500000 // 2.5 MHz
 #endif
+
+inline const uint16_t* getTouchCalibration()
+{
+    switch (ACTIVE_TFT_MODEL)
+    {
+        case DAWID_TFT_ILI9341_RED_2_8_v_1_2:
+            return TOUCH_CAL_DAWID;
+
+        case BASIA_TFT_ILI9341_RED_2_8_v_1_2:
+            return TOUCH_CAL_BASIA;
+
+        default:
+            return nullptr;
+    }
+}
+
+inline uint8_t getStatusLedPin()
+{
+    switch (ACTIVE_ESP_MODEL)
+    {
+        case DAWID_ESP_CUSTOM:
+            return 2;
+
+        case LOLIN32v1_0_0:
+            return 255; // GPIO5 koliduje z TFT_CS
+
+        default:
+            return 255;
+    }
+}
 
 #endif // HARDWARE_CONFIG_H
