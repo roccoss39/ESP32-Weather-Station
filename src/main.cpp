@@ -383,6 +383,9 @@ void loop() {
     }
   }
 
+  //DEBUG
+  isOfflineMode = true; // to delete
+
   // --- ZARZĄDZANIE EKRANAMI ---
   // Pozwalamy na działanie ScreenManagera w trybie Offline (żeby wymusił Ekran 4)
   if (!isWiFiLost() || isOfflineMode) {
@@ -462,7 +465,7 @@ void loop() {
       
       // 2. PRZYPADEK: Tryb Offline (Ekran Sensorów)
       // Sprawdzamy: czy Offline ORAZ czy licznik parzysty (czyli wyświetlamy sensory)
-      else if (isOfflineMode && ((int)currentScreen % 2 == 0)) {
+      else if (isOfflineMode && currentScreen == SCREEN_LOCAL_SENSORS) {
           displayTime(tft); 
       }
 

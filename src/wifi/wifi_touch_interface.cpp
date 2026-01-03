@@ -1056,41 +1056,41 @@ if (currentState == STATE_SCAN_NETWORKS) {
     // Dzięki temu, jeśli klikniesz przycisk, kod nie wejdzie do "wybierania sieci"
     
     // PRZYCISK: OFFLINE (Y: 80-110)
+    // PRZYCISK: OFFLINE (Y: 80-110)
     if (x >= 240 && x <= 315 && y >= 80 && y <= 110) {
        Serial.println("BTN: OFFLINE MODE (Scan Screen)");
        
-       // Efekt kliknięcia
+       // Wizualny efekt kliknięcia
        tft.fillRect(240, 80, 75, 30, YELLOW);
        tft.setTextColor(BLACK);
        tft.setCursor(250, 90);
        tft.println("OK!");
        delay(500);
 
-       // Ustaw flagi
+       // Ustawienie flag
        extern bool isOfflineMode;
        isOfflineMode = true;
        
-       // Wyłącz WiFi
        WiFi.disconnect(true);
        WiFi.mode(WIFI_OFF);
        
-       // Zmień stan na CONNECTED (żeby ScreenManager przejął kontrolę)
+       // Przełączenie stanu maszyny stanów
        currentState = STATE_CONNECTED;
        tft.fillScreen(BLACK); 
        
        extern bool wifiLostDetected;
        wifiLostDetected = false;
        
-       // === TO JEST KLUCZOWA POPRAWKA ===
-       // Wymuszamy ustawienie ekranu sensorów i natychmiastowe rysowanie
+       // === FIX: WYMUSZENIE NATYCHMIASTOWEGO ODŚWIEŻENIA ===
+       // Bez tego ekran byłby czarny przez kilka sekund (do timeoutu timera)
        extern ScreenManager& getScreenManager();
        extern void forceScreenRefresh(TFT_eSPI& tft);
        
        getScreenManager().setCurrentScreen(SCREEN_LOCAL_SENSORS); // Ustaw start na sensory
-       getScreenManager().resetScreenTimer();
-       forceScreenRefresh(tft); // <--- Rysuj NATYCHMIAST
-       // =================================
-       
+       getScreenManager().resetScreenTimer(); // Resetuj timer
+       forceScreenRefresh(tft); // <--- RYSUJ NATYCHMIAST!
+       // ====================================================
+
        return; 
     }
     
