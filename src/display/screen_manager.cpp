@@ -73,6 +73,7 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
 
 // === EKRAN 4: LOCAL SENSORS (Tu trafi Twój kod daty!) ===
 void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
+   if (isOfflineMode) {
     // 1. Wyświetl sensory (zewnętrzna funkcja)
     // Upewnij się w sensors_display.cpp, że rysują się niżej (y > 70)
     displayLocalSensors(tft);
@@ -111,6 +112,9 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
         tft.setTextDatum(MR_DATUM);
         tft.drawString(dateStr, cardX + cardW - 10, cardY + cardH/2);
     }
+  }
+  else 
+  displayLocalSensors(tft);
     // ----------------------------------------------------
 }
 
