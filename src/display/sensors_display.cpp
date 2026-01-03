@@ -58,16 +58,16 @@ void displayLocalSensors(TFT_eSPI& tft) {
   bool isValid = dhtData.isValid;
 
   // === KONFIGURACJA UKŁADU ===
-  bool isCompactMode = !isOfflineMode; // Online = Kompaktowy (żeby zmieścić stopkę)
+  bool isCompactMode = !isOfflineMode;  // Online = kompaktowy, Offline = pełny (2 karty)
   
   // Ustawienia geometryczne
   uint8_t cardY = 55;       // Zaczynamy zaraz pod nagłówkiem (linia jest na 45)
   int cardH;
   
   if (isCompactMode) {
-      cardH = 70;       // Kończymy na Y=125 (Stopka zaczyna się od 130)
+      cardH = 70;       // Online: kończy na Y=125 (stopka od 130)
   } else {
-      cardH = 140;      // Offline: Duże karty
+      cardH = 100;      // Offline: zmniejszone z 140 (miejsce na dużą datę Y=165)
   }
   
   uint8_t cardW = 135;      
@@ -150,7 +150,7 @@ void displayLocalSensors(TFT_eSPI& tft) {
       
       tft.setTextColor(humColor, 0x1082);
       
-      int valY = isCompactMode ? cardY + 40 : cardY + 60;
+      int valY = isCompactMode ? cardY + 35 : cardY + 60;
 
       tft.setTextFont(4);
       tft.drawString(String((int)hum), card2_X + cardW/2, valY);

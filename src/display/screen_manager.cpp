@@ -85,10 +85,10 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
     if (getLocalTime(&timeinfo)) {
         uint16_t CARD_BG = 0x1082; 
         uint16_t BORDER_COLOR = TFT_DARKGREY;
-        int cardW = 160; 
-        int cardH = 30;
-        int cardX = (tft.width() - cardW) / 2; 
-        int cardY = 35;
+        int cardW = 280;  // Zwiększone z 160 (dla size 2 i dłuższych tekstów)
+        int cardH = 38;   // Zwiększone z 30 (dla size 2: 16px + padding)
+        int cardX = (tft.width() - cardW) / 2;  // = 10px (wyśrodkowane)
+        int cardY = 170;  // Przesunięte w górę z 165 (więcej odstępu od kart)
 
         tft.fillRoundRect(cardX, cardY, cardW, cardH, 6, CARD_BG);
         tft.drawRoundRect(cardX, cardY, cardW, cardH, 6, BORDER_COLOR);
@@ -99,7 +99,7 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
         const char* daysPL[] = {"NIEDZIELA", "PONIEDZIALEK", "WTOREK", "SRODA", "CZWARTEK", "PIATEK", "SOBOTA"};
         
         tft.setTextColor(TFT_SILVER, CARD_BG);
-        tft.setTextSize(1);
+        tft.setTextSize(2);
         tft.setTextDatum(ML_DATUM);
         
         // Zabezpieczenie przed wyjściem poza tablicę (0-6)
