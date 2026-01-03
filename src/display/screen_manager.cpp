@@ -86,7 +86,7 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
     if (getLocalTime(&timeinfo)) {
         uint16_t CARD_BG = 0x1082; 
         uint16_t BORDER_COLOR = TFT_DARKGREY;
-        int cardW = 280;  // Zwiększone z 160 (dla size 2 i dłuższych tekstów)
+        int cardW = 300;  // Zwiększone z 160 (dla size 2 i dłuższych tekstów)
         int cardH = 38;   // Zwiększone z 30 (dla size 2: 16px + padding)
         int cardX = (tft.width() - cardW) / 2;  // = 10px (wyśrodkowane)
         int cardY = 170;  // Przesunięte w górę z 165 (więcej odstępu od kart)

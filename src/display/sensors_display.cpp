@@ -78,7 +78,7 @@ void displayLocalSensors(TFT_eSPI& tft) {
     
     // GEOMETRIA KART - Szerokie, wypełniające ekran 320px
     uint8_t cardStartY = 70;   // Start pod nagłówkiem
-    uint8_t cardH = 75;         // Kompaktowa wysokość
+    uint8_t cardH = 95;         // Zwiększona wysokość (było 75)
     uint8_t cardW = 145;        // Szersze karty (320 - 2*15 margines - 10 odstęp = 290 / 2 = 145)
     uint8_t gapBetween = 10;    // Odstęp między kartami
     
@@ -109,8 +109,8 @@ void displayLocalSensors(TFT_eSPI& tft) {
         
         tft.setTextColor(tempColor, 0x1082);
         
-        // Wartość - wyśrodkowana w pionie
-        int valY = cardStartY + 38;
+        // Wartość - wyśrodkowana w pionie karty
+        int valY = cardStartY + 48;
         
         tft.setTextFont(4);  // Duża czcionka
         tft.setTextDatum(MC_DATUM);
@@ -123,14 +123,14 @@ void displayLocalSensors(TFT_eSPI& tft) {
         tft.setTextDatum(BL_DATUM);
         tft.drawString("'C", card1_X + cardW/2 + 25, valY + 8);
         
-        // Pasek postępu na dole
-        drawProgressBar(tft, card1_X + 8, cardStartY + cardH - 10, cardW - 16, 6, temp, 0, 40, tempColor);
+        // Pasek postępu na dole karty (więcej miejsca od krawędzi)
+        drawProgressBar(tft, card1_X + 8, cardStartY + cardH - 25, cardW - 16, 6, temp, 0, 40, tempColor);
         
     } else {
         tft.setTextColor(TFT_RED, 0x1082);
         tft.setTextFont(4);
         tft.setTextDatum(MC_DATUM);
-        tft.drawString("--.-", card1_X + cardW/2, cardStartY + 38);
+        tft.drawString("--.-", card1_X + cardW/2, cardStartY + 48);
     }
     
     
@@ -154,7 +154,7 @@ void displayLocalSensors(TFT_eSPI& tft) {
         
         tft.setTextColor(humColor, 0x1082);
         
-        int valY = cardStartY + 38;
+        int valY = cardStartY + 48;
         
         tft.setTextFont(4);
         tft.setTextDatum(MC_DATUM);
@@ -168,18 +168,18 @@ void displayLocalSensors(TFT_eSPI& tft) {
         tft.drawString("%", card2_X + cardW/2 + 18, valY + 8);
         
         // Pasek postępu
-        drawProgressBar(tft, card2_X + 8, cardStartY + cardH - 10, cardW - 16, 6, hum, 0, 100, humColor);
+        drawProgressBar(tft, card2_X + 8, cardStartY + cardH - 25, cardW - 16, 6, hum, 0, 100, humColor);
         
     } else {
         tft.setTextColor(TFT_RED, 0x1082);
         tft.setTextFont(4);
         tft.setTextDatum(MC_DATUM);
-        tft.drawString("--", card2_X + cardW/2, cardStartY + 38);
+        tft.drawString("--", card2_X + cardW/2, cardStartY + 48);
     }
     
     // KONIEC TRYBU OFFLINE
-    // Karty kończą się na Y = 70 + 75 = 145px
-    // Pozostało: 240 - 145 = 95px wolnej przestrzeni na dół
+    // Karty kończą się na Y = 70 + 95 = 165px
+    // Pozostało: 240 - 165 = 75px wolnej przestrzeni na dół
     // ZERO nakładek z czasem (displayTime rysuje do ~50px)
     
   } else {

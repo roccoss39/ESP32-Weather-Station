@@ -383,9 +383,6 @@ void loop() {
     }
   }
 
-  //DEBUG
-  //isOfflineMode = true; // to delete
-
   // --- ZARZĄDZANIE EKRANAMI ---
   // Pozwalamy na działanie ScreenManagera w trybie Offline (żeby wymusił Ekran 4)
   if (!isWiFiLost() || isOfflineMode) {
