@@ -465,6 +465,7 @@ void connectToWiFi() {
     drawNetworkList();
   }
 }
+extern void forceScreenRefresh(TFT_eSPI& tft);
 
 void handleLongPress() {
   uint16_t x, y;
@@ -482,7 +483,8 @@ void handleLongPress() {
     unsigned long elapsed = millis() - touchStartTime;
     if (elapsed >= 1000 && elapsed < 5000 && currentState == STATE_CONNECTED) {
       Serial.println("Touch ended - clearing progress bar");
-      drawConnectedScreen(); // Clear progress bar
+      //drawConnectedScreen(); // Clear progress bar
+      forceScreenRefresh(tft);
     }
     
     touchActive = false;
