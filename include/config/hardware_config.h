@@ -26,7 +26,8 @@ enum EspModel {
 
 enum TftModel {
     DAWID_TFT_ILI9341_RED_2_8_v_1_2,
-    BASIA_TFT_ILI9341_RED_2_8_v_1_2
+    BASIA_TFT_ILI9341_RED_2_8_v_1_2,
+    GRAY_1_TFT_ILI9341_RED_2_8_v_1_2
 };
 
 // === 1. PINY EKRANU (TFT ILI9341) ===
@@ -109,6 +110,9 @@ inline const uint16_t* getTouchCalibration()
         case BASIA_TFT_ILI9341_RED_2_8_v_1_2:
             return TOUCH_CAL_BASIA;
 
+        case GRAY_1_TFT_ILI9341_RED_2_8_v_1_2:
+            return TOUCH_CAL_GRAY_1;
+            
         default:
             return nullptr;
     }
