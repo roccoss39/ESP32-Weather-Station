@@ -605,67 +605,76 @@ void connectToWiFi() {
   }
 }
 
+extern void forceScreenRefresh(TFT_eSPI& tft); // Deklaracja funkcji zewnętrznej
+
 void handleLongPress(TFT_eSPI& tft) {
   uint16_t x, y;
   bool currentTouch = tft.getTouch(&x, &y);
   
+  // 1. Blokada wygaszania ekranu gdy dotykasz
   if (currentTouch) {
-    // Jeśli trzymasz palec (nawet nieruchomo), blokuj zmianę ekranu
     extern ScreenManager& getScreenManager();
     getScreenManager().resetScreenTimer();
   }
 
+  // 2. POCZĄTEK DOTYKU
   if (currentTouch && !touchActive) {
-    // Touch started
     touchStartTime = millis();
     touchActive = true;
     longPressDetected = false;
-    Serial.println("Touch started - long press detection active");
+    // Serial.println("Touch started");
   }
+  
+  // 3. KONIEC DOTYKU (PUSZCZENIE PALCA)
   else if (!currentTouch && touchActive) {
-    // Touch ended - clear progress bar if it was showing
     unsigned long elapsed = millis() - touchStartTime;
-    if (elapsed >= 1000 && elapsed < 5000 && currentState == STATE_CONNECTED) {
-      Serial.println("Touch ended - clearing progress bar");
-      drawConnectedScreen(tft); // Clear progress bar
+    
+    // ZMIANA: Jeśli pasek zdążył się pojawić (czyli minęło > 200ms), 
+    // to musimy odświeżyć ekran, żeby go usunąć.
+    if (elapsed >= 200 && elapsed < WIFI_LONG_PRESS_TIME) {
+      Serial.println("Touch released - Cleaning up UI...");
+      forceScreenRefresh(tft); 
     }
     
     touchActive = false;
     longPressDetected = false;
-    Serial.println("Touch ended");
   }
+  
+  // 4. TRZYMANIE PALCA (Rysowanie paska)
   else if (currentTouch && touchActive && !longPressDetected) {
-    // Touch continues - check for long press
-    if (millis() - touchStartTime >= WIFI_LONG_PRESS_TIME) { // 5 seconds
+    
+    // Sprawdzenie czy minął czas aktywacji (np. 5 sek)
+    if (millis() - touchStartTime >= WIFI_LONG_PRESS_TIME) { 
       longPressDetected = true;
       Serial.println("LONG PRESS DETECTED - Entering config mode!");
-      
     }
     else {
-      // Show progress indicator for long press
       unsigned long elapsed = millis() - touchStartTime;
-      if (elapsed >= 1000 && elapsed < WIFI_LONG_PRESS_TIME) {
-        int progress = map(elapsed, 1000, WIFI_LONG_PRESS_TIME, 0, 100);
+      
+      // ZMIANA: Rysuj już po 200ms
+      if (elapsed >= 200 && elapsed < WIFI_LONG_PRESS_TIME) {
         
-        // Draw progress bar on connected screen
+        // ZMIANA: Mapowanie też musi startować od 200, żeby pasek płynnie ruszył od 0%
+        int progress = map(elapsed, 200, WIFI_LONG_PRESS_TIME, 0, 100);
+        
+        // Zabezpieczenie zakresu (map może zwrócić <0 lub >100)
+        if (progress < 0) progress = 0;
+        if (progress > 100) progress = 100;
+        
+        // Rysowanie ramki i tła paska
         tft.fillRect(10, 10, 300, 20, BLACK);
         tft.drawRect(10, 10, 300, 20, WHITE);
-        tft.fillRect(12, 12, (progress * 296) / 100, 16, YELLOW);
+        
+        // Wypełnienie paska (żółty)
+        if (progress > 0) {
+            tft.fillRect(12, 12, (progress * 296) / 100, 16, YELLOW);
+        }
         
         tft.setTextColor(WHITE);
         tft.setTextSize(1);
-        tft.setCursor(130, 35);
-        tft.printf("Trzymaj %d...", (WIFI_LONG_PRESS_TIME - elapsed) / 1000 + 1);
+        tft.setTextDatum(TL_DATUM);
+        tft.drawString("Trzymaj...", 130, 35);
       }
-    }
-  }
-  
-  // Clear progress bar when touch is released and long press wasn't triggered
-  if (!currentTouch && !longPressDetected && touchActive) {
-    // Clear any progress bar remnants
-    if (currentState == STATE_CONNECTED) {
-      extern void forceScreenRefresh(TFT_eSPI& tft);
-      forceScreenRefresh(tft);
     }
   }
 }
