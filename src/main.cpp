@@ -44,9 +44,7 @@ bool isImageDownloadInProgress = false;
 bool isOfflineMode = false; 
 
 // --- EXTERNAL FUNCTION DECLARATIONS ---
-extern void updateScreenManager();
-extern void switchToNextScreen(TFT_eSPI& tft);
-extern ScreenManager& getScreenManager();
+
 extern void checkWiFiConnection();
 extern void handleWiFiLoss();
 extern void handleBackgroundReconnect();

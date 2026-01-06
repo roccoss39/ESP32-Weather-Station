@@ -10,7 +10,7 @@
  */
 
  // UPDATE:
-#define FIRMWARE_VERSION  1.0 // Zmieniaj to przy każdej nowej wersji!
+#define FIRMWARE_VERSION  1.1 // Zmieniaj to przy każdej nowej wersji!
 #define GITHUB_FIRMWARE_URL "https://raw.githubusercontent.com/roccoss39/ESP32-Weather-Station/main/firmware.bin"
 
 // === SCHEDULED UPDATES (GODZINY AKTUALIZACJI) ===

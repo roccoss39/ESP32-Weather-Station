@@ -10,6 +10,7 @@
 
 extern bool isOfflineMode;
 
+
 enum ScreenType {
   SCREEN_CURRENT_WEATHER = 0,
   SCREEN_FORECAST = 1,
@@ -222,5 +223,10 @@ public:
     void renderImageScreen(TFT_eSPI& tft);
     void resetWeatherAndTimeCache();
 };
+
+void updateScreenManager();
+void switchToNextScreen(TFT_eSPI& tft);
+ScreenManager& getScreenManager();
+void forceScreenRefresh(TFT_eSPI& tft);
 
 #endif
