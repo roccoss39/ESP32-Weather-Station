@@ -10,13 +10,13 @@
  */
 
  // UPDATE:
-#define FIRMWARE_VERSION  1.0 // Zmieniaj to przy każdej nowej wersji!
+#define FIRMWARE_VERSION  1.1 // Zmieniaj to przy każdej nowej wersji!
 #define GITHUB_FIRMWARE_URL "https://raw.githubusercontent.com/roccoss39/ESP32-Weather-Station/main/firmware.bin"
 
 // === SCHEDULED UPDATES (GODZINY AKTUALIZACJI) ===
-#define FIRMWARE_UPDATE_HOUR    15   // Godzina (Format 0-23)
-#define FIRMWARE_UPDATE_MINUTE  7    // Minuta (Format 0-59)
-#define FIRMWARE_UPDATE_JITTER  10 //300
+#define FIRMWARE_UPDATE_HOUR    3   // Godzina (Format 0-23)
+#define FIRMWARE_UPDATE_MINUTE  00    // Minuta (Format 0-59)
+#define FIRMWARE_UPDATE_JITTER  300//300
 
 // SET IN SECRETS.H
 enum EspModel {
@@ -26,7 +26,8 @@ enum EspModel {
 
 enum TftModel {
     DAWID_TFT_ILI9341_RED_2_8_v_1_2,
-    BASIA_TFT_ILI9341_RED_2_8_v_1_2
+    BASIA_TFT_ILI9341_RED_2_8_v_1_2,
+    GRAY_1_TFT_ILI9341_RED_2_8_v_1_2
 };
 
 // === 1. PINY EKRANU (TFT ILI9341) ===
@@ -109,6 +110,9 @@ inline const uint16_t* getTouchCalibration()
         case BASIA_TFT_ILI9341_RED_2_8_v_1_2:
             return TOUCH_CAL_BASIA;
 
+        case GRAY_1_TFT_ILI9341_RED_2_8_v_1_2:
+            return TOUCH_CAL_GRAY_1;
+            
         default:
             return nullptr;
     }

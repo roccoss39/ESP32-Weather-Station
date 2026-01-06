@@ -44,9 +44,7 @@ bool isImageDownloadInProgress = false;
 bool isOfflineMode = false; 
 
 // --- EXTERNAL FUNCTION DECLARATIONS ---
-extern void updateScreenManager();
-extern void switchToNextScreen(TFT_eSPI& tft);
-extern ScreenManager& getScreenManager();
+
 extern void checkWiFiConnection();
 extern void handleWiFiLoss();
 extern void handleBackgroundReconnect();
@@ -462,7 +460,7 @@ void loop() {
       
       // 2. PRZYPADEK: Tryb Offline (Ekran Sensorów)
       // Sprawdzamy: czy Offline ORAZ czy licznik parzysty (czyli wyświetlamy sensory)
-      else if (isOfflineMode && ((int)currentScreen % 2 == 0)) {
+      else if (isOfflineMode && currentScreen == SCREEN_LOCAL_SENSORS) {
           displayTime(tft); 
       }
 

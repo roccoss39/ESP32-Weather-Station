@@ -66,12 +66,12 @@
 #define TFT_DC      15     // Data/Command
 #define TFT_RST     -1     // Reset (disabled - connect to VCC/EN)
 #define TFT_BL      25     // Backlight control
-#define TFT_MOSI    23     // SPI Data (Master Out Slave In)
-#define TFT_SCLK    18     // SPI Clock
+#define TFT_MOSI    23     // SPI Data (Master Out Slave In) ⚠️ Shared with Touch Din(T_DIN)
+#define TFT_SCLK    18     // SPI Clock ⚠️ Shared with Touch (T_CLK)
 
-// Touch Interface
-#define TOUCH_CS    22     // Touch Chip Select
-#define SPI_MISO    19     // SPI Data In (Master In Slave Out)
+// Touch Interface (shares SPI bus with TFT)
+#define TOUCH_CS    22     // Touch Chip Select (separate CS allows sharing)
+#define SPI_MISO    19     // SPI Data In (Master In Slave Out) ⚠️ Shared (T_DO)
 
 // Sensors
 #define DHT22_PIN   4      // DHT22 Temperature/Humidity sensor
@@ -79,6 +79,9 @@
 
 // Built-in LED
 #define LED_BUILTIN 2
+
+// Note: TFT and Touch share SPI pins (MOSI=23, SCLK=18, MISO=19)
+// but use separate Chip Select pins (TFT_CS=5, TOUCH_CS=22)
 ```
 
 ### 📡 **Network & APIs**
@@ -130,9 +133,9 @@ All timeouts centralized in `include/config/timing_config.h`:
 | BL | BL | GPIO 25 | Backlight control |
 | **Touch Interface** |  |  |  |
 | T_CS | T_CS | GPIO 22 | Touch Chip Select |
-| T_DIN | T_DIN | GPIO 23 | Shared with MOSI |
+| T_DIN | T_DIN | GPIO 23 | ⚠️ **Shared with MOSI** |
 | T_DO | T_DO | GPIO 19 | Touch Data Out |
-| T_CLK | T_CLK | GPIO 18 | Shared with SCK |
+| T_CLK | T_CLK | GPIO 18 | ⚠️ **Shared with SCK** |
 | **DHT22 Sensor** |  |  |  |
 | VCC | VCC | 3.3V or 5V | Power supply |
 | GND | GND | GND | Ground |
@@ -141,6 +144,20 @@ All timeouts centralized in `include/config/timing_config.h`:
 | VCC | VCC | 5V (or 3.3V) | Power supply |
 | GND | GND | GND | Ground |
 | OUT | OUT | GPIO 27 | Motion signal |
+
+#### **🔗 Shared SPI Pins (Important!)**
+
+TFT Display i Touch Interface **współdzielą magistralę SPI**:
+- **GPIO 23 (MOSI/T_DIN)** - wspólny pin danych dla TFT i Touch
+- **GPIO 18 (SCK/T_CLK)** - wspólny pin clock dla TFT i Touch
+- **GPIO 19 (MISO/T_DO)** - pin danych wejściowych
+- **Chip Select oddzielne:**
+  - TFT_CS: GPIO 5
+  - TOUCH_CS: GPIO 22
+
+⚠️ **Uwaga:** Oba urządzenia mogą działać jednocześnie na tej samej magistrali SPI dzięki oddzielnym pinom CS (Chip Select).
+
+---
 
 #### **⚡ Recommended Components**
 ```
