@@ -4,8 +4,8 @@
 #include <Arduino.h>
 
 // === KONFIGURACJA DHT22 ===
-#include "config/hardware_config.h"  // DHT22_PIN moved to hardware_config.h
-#define DHT22_READ_INTERVAL 10000  // Odczyt co 2 sekundy
+#include "config/hardware_config.h"  // DHT22_PIN
+#include "config/timing_config.h"    // DHT22_READ_INTERVAL
 
 // === STRUKTURA DANYCH DHT22 ===
 struct DHT22Data {

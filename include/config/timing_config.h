@@ -42,4 +42,7 @@
 #define DISPLAY_UPDATE_INTERVAL     1000    
 #define COUNTDOWN_UPDATE_INTERVAL   1000    
 
+// === SENSORY ===
+#define DHT22_READ_INTERVAL         10000   // 10s - odczyt DHT22 (min. interwał dla sensora)
+
 #endif
