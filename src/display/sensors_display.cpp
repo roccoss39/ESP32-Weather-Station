@@ -285,7 +285,8 @@ void displayLocalSensors(TFT_eSPI& tft) {
     tft.drawString(dhtStatus, 160, UPDATES_DHT22_Y);
     
     tft.setTextColor(TFT_DARKGREY);
-    tft.drawString("Odczyt sensora: co 2s", 160, UPDATES_SENSOR_Y);
+    String sensorInterval = "Odczyt sensora: co " + String(DHT22_READ_INTERVAL / 1000) + "s";
+    tft.drawString(sensorInterval, 160, UPDATES_SENSOR_Y);
     
     unsigned long weatherAge = (millis() - lastWeatherCheckGlobal) / 1000;
     String wPrefix = "Pogoda: ";
