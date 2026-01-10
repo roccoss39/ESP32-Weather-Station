@@ -160,7 +160,7 @@ void getPressureTrendInfo(float currentPressure, String &trendText, String &fore
     } else if (diff > thresholdStable) {
         // Rośnie -> Poprawa pogody
         trendText = "Rosnie";
-        forecastText = "Wiatr Mniej chm.";
+        forecastText = "Wiatr Mniej ch.";
         trendColor = TFT_GREEN;
         trendDirection = -1; // Strzałka w dół
         
@@ -320,7 +320,7 @@ void displayCurrentWeather(TFT_eSPI& tft) {
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(LABEL_COLOR, TEXT_BG);
     tft.setTextSize(1);
-    tft.drawString("CIS.", rightX + 5, y3 + 5);
+    tft.drawString("CISN.:", rightX + 5, y3 + 5);
 
     tft.setTextColor(trendCol, TEXT_BG);
     tft.drawString(trendTxt, rightX + 35, y3 + 5);
