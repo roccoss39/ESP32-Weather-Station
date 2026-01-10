@@ -443,14 +443,14 @@ void loop() {
     }
     // Jeśli ekran ten sam, odświeżaj zegar/dane co sekundę
     else if (millis() - lastDisplayUpdate > DISPLAY_UPDATE_INTERVAL) {
-      
+    
       // 1. PRZYPADEK: Normalny tryb Online (Ekran główny pogody)
       if (!isOfflineMode && currentScreen == SCREEN_CURRENT_WEATHER && !isWiFiConfigActive()) {
           if (WiFi.status() == WL_CONNECTED) {
             displayTime(tft);
           }
           if (weather.isValid) {
-          //displayCurrentWeather(tft);
+          //displayCurrentWeather(tft); // TO COMMENT!
           } else {
             tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
             tft.setTextDatum(MC_DATUM);

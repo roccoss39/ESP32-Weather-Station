@@ -66,13 +66,50 @@ uint16_t getHumidityColor(float humidity) {
     else return TFT_WHITE;
 }
 
-// Helper to determine pressure trend string and color
-// You will need to replace the logic inside with your actual trend calculation
 // ================================================================
-// LOGIKA TRENDU CIŚNIENIA (Z PAMIĘCIĄ 3H)
+// FUNKCJA RYSOWANIA STRZAŁKI (Wyrównana idealnie do linii tekstu)
+// ================================================================
+void drawTrendArrow(TFT_eSPI& tft, int x, int y, int direction, uint16_t color) {
+    int w = 7;
+    int h = 9; // Wysokość strzałki
+    
+    // Czyścimy tło
+    tft.fillRect(x - 5, y - 8, 11, 20, 0x1082); 
+
+    // BAZA: Funkcja jest wywoływana na Y = 24.
+    // Tekst "Wiatr" jest na Y = 18.
+
+    if (direction == 1) { // GÓRA (Wiatr rośnie)
+        // off = 3 -> Wierzchołek: 24 - 9 + 3 = 18 (IDEALNIE RÓWNO Z TEKSTEM)
+        int off = 3; 
+        tft.fillTriangle(x, y - h + off, x - w/2, y + off, x + w/2, y + off, color);
+    } 
+    else if (direction == 2) { // PODWÓJNA GÓRA
+        int off = 3; 
+        tft.fillTriangle(x, y - h + off, x - w/2, y + off, x + w/2, y + off, color);
+        tft.fillTriangle(x, y + off, x - w/2, y + h + off, x + w/2, y + h + off, color);
+    }
+    else if (direction == -1) { // DÓŁ (Bezchmurnie)
+        // off = -6 -> Podstawa (góra trójkąta): 24 + (-6) = 18 (IDEALNIE RÓWNO Z TEKSTEM)
+        int off = -6; 
+        tft.fillTriangle(x, y + h + off, x - w/2, y + off, x + w/2, y + off, color);
+    }
+    else if (direction == -2) { // PODWÓJNY DÓŁ
+        int off = -6;
+        tft.fillTriangle(x, y + off, x - w/2, y - h + off, x + w/2, y - h + off, color);
+        tft.fillTriangle(x, y + h + off, x - w/2, y + off, x + w/2, y + off, color);
+    }
+    else { // KRESKA
+        // Rysujemy na środku wysokości tekstu (ok. y=22)
+        tft.fillRect(x - 3, y - 2, 6, 3, color); 
+    }
+}
+
+// ================================================================
+// LOGIKA TRENDU CIŚNIENIA - FINALNA (REALNE DANE + HISTORIA 3H)
 // ================================================================
 
-void getPressureTrendInfo(float currentPressure, String &trendText, String &forecastText, uint16_t &trendColor) {
+void getPressureTrendInfo(float currentPressure, String &trendText, String &forecastText, uint16_t &trendColor, int &trendDirection) {
     // --- KONFIGURACJA ---
     const int HISTORY_SIZE = 13;       // 12 slotów po 15 min = 3h (+1 na bieżący)
     const unsigned long INTERVAL = 15 * 60 * 1000UL; // Co 15 minut zapisujemy punkt
@@ -83,7 +120,7 @@ void getPressureTrendInfo(float currentPressure, String &trendText, String &fore
     static unsigned long lastUpdate = 0;
     static int count = 0; // Ile mamy próbek
 
-    // 1. INICJALIZACJA (przy pierwszym uruchomieniu wypełnij tablicę obecnym ciśnieniem)
+    // 1. INICJALIZACJA
     if (!isInitialized || history[0] == 0) {
         for (int i = 0; i < HISTORY_SIZE; i++) {
             history[i] = currentPressure;
@@ -96,76 +133,57 @@ void getPressureTrendInfo(float currentPressure, String &trendText, String &fore
     // 2. AKTUALIZACJA HISTORII (Co 15 minut)
     if (millis() - lastUpdate >= INTERVAL) {
         lastUpdate = millis();
-        
-        // Przesuń historię (najstarsze wypada, robimy miejsce na nowe na początku)
         for (int i = HISTORY_SIZE - 1; i > 0; i--) {
             history[i] = history[i - 1];
         }
-        history[0] = currentPressure; // Zapisz nowe na pozycji 0
-        
-        if (count < HISTORY_SIZE) count++; // Wiemy, że mamy więcej prawdziwych danych
+        history[0] = currentPressure; 
+        if (count < HISTORY_SIZE) count++; 
     }
     
-    // Aktualizuj bieżący odczyt na żywo (bez przesuwania historii)
-    // Żeby porównywać "Teraz" vs "3h temu", a nie "15 min temu" vs "3h temu"
-    // Ale w uproszczeniu porównujemy history[0] z history[last]
-    
-    // 3. OBLICZANIE RÓŻNICY (Tendencja)
-    // Porównujemy najnowszy (index 0) z najstarszym dostępnym (index count-1)
-    // Docelowo history[12] to odczyt sprzed 3h.
+    // 3. OBLICZANIE RÓŻNICY
     float pressure3hAgo = history[count - 1]; 
     float diff = currentPressure - pressure3hAgo;
 
-    // 4. USTALANIE STATUSU (ZAMBRETTI - UPROSZCZONY)
-    
-    // Progi czułości (hPa na 3h)
+    // 4. USTALANIE STATUSU (ZAMBRETTI)
     float thresholdStable = 0.5; // +/- 0.5 hPa uznajemy za stałe
     float thresholdStorm = 4.0;  // Spadek o 4 hPa to gwałtowna zmiana
 
-    // A. Określanie tekstu trendu
-    int trendState = 0; // 0=Stable, 1=Rise, 2=Fall, 3=FallFast, 4=RiseFast
-
-    if (diff > thresholdStorm) {
-        trendText = "Szybko rosnie";
-        trendColor = TFT_GREEN;
-        trendState = 4;
-    } else if (diff > thresholdStable) {
-        trendText = "Rosnie";
-        trendColor = TFT_GREEN;
-        trendState = 1;
-    } else if (diff < -thresholdStorm) {
-        trendText = "Gw. spada!";
-        trendColor = TFT_RED;
-        trendState = 3;
-    } else if (diff < -thresholdStable) {
-        trendText = "Spada";
-        trendColor = TFT_ORANGE;
-        trendState = 2;
-    } else {
-        trendText = "Stabilne";
-        trendColor = TFT_CYAN;
-        trendState = 0;
-    }
-
-    // B. Prognozowanie (Logika uproszczona Zambrettiego)
-    // Łączymy aktualne ciśnienie z tendencją
+    // Logika mapowania trendu na opisy i strzałki (zgodna z Twoim UI)
     
-    if (trendState == 0) { // STABILNE
-        if (currentPressure > 1020) forecastText = "Ladna pogoda";
-        else if (currentPressure > 1010) forecastText = "Zmienne zachm.";
-        else forecastText = "Mozliwy deszcz";
-    }
-    else if (trendState == 1 || trendState == 4) { // ROŚNIE
-        if (currentPressure > 1010) forecastText = "Bedzie slonce";
-        else forecastText = "Poprawa pogody";
-    }
-    else if (trendState == 2) { // SPADA
-        if (currentPressure > 1015) forecastText = "Zachmurzenie";
-        else if (currentPressure > 1000) forecastText = "Bedzie padac";
-        else forecastText = "Deszcz/Wiatr";
-    }
-    else if (trendState == 3) { // GWAŁTOWNIE SPADA
-        forecastText = "BURZA/WIATR!";
+    if (diff > thresholdStorm) {
+        // Gwałtownie rośnie -> Wyż, czyste niebo
+        trendText = "Szybko rosnie";
+        forecastText = "Wiatr Bezchm.";
+        trendColor = TFT_MAGENTA;
+        trendDirection = -1; // Strzałka w dół (uspokojenie/brak chmur)
+        
+    } else if (diff > thresholdStable) {
+        // Rośnie -> Poprawa pogody
+        trendText = "Rosnie";
+        forecastText = "Wiatr Mniej chm.";
+        trendColor = TFT_GREEN;
+        trendDirection = -1; // Strzałka w dół
+        
+    } else if (diff < -thresholdStorm) {
+        // Gwałtownie spada -> Burza / Wichura
+        trendText = "Gwaltownie";
+        forecastText = "Wiatr BURZA!";
+        trendColor = TFT_RED;
+        trendDirection = 2; // Podwójna strzałka w górę
+        
+    } else if (diff < -thresholdStable) {
+        // Spada -> Pogorszenie
+        trendText = "Spada";
+        forecastText = "Wiatr Pochm.";
+        trendColor = TFT_ORANGE;
+        trendDirection = 1; // Strzałka w górę
+        
+    } else {
+        // Stabilnie
+        trendText = "Stabilne";
+        forecastText = "Bez zmian";
+        trendColor = TFT_CYAN;
+        trendDirection = 0; // Kreska
     }
 }
 
@@ -284,63 +302,61 @@ void displayCurrentWeather(TFT_eSPI& tft) {
     tft.setTextColor(TFT_WHITE, TEXT_BG);
     tft.drawString("km/h", rightX + rightW - 5, y2 + 27);
 
-    // --- 3. CIŚNIENIE (POWRÓT DO ORYGINAŁU) ---
-   uint8_t y3 = y2 + rowH + gap;
+    // --- 3. CIŚNIENIE ---
+    uint8_t y3 = y2 + rowH + gap;
     tft.fillRoundRect(rightX, y3, rightW, rowH, 6, CARD_BG);
     tft.drawRoundRect(rightX, y3, rightW, rowH, 6, BORDER_COLOR);
     
-    // Pobranie danych trendu
     String trendTxt, forecastTxt;
     uint16_t trendCol;
-    getPressureTrendInfo(weather.pressure, trendTxt, forecastTxt, trendCol);
+    int trendDir; 
+    getPressureTrendInfo(weather.pressure, trendTxt, forecastTxt, trendCol, trendDir);
 
-    // A. Etykieta "CIS." (Lewa Góra)
+    // 1. Rysujemy strzałkę
+    // BAZA: y3 + 24 (Strzałki w dół są podnoszone wewnątrz funkcji drawTrendArrow o 6 pikseli)
+    drawTrendArrow(tft, rightX + 12, y3 + 24, trendDir, trendCol);
+
+    // 2. Napisy (CIS + Trend)
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(LABEL_COLOR, TEXT_BG);
     tft.setTextSize(1);
     tft.drawString("CIS.", rightX + 5, y3 + 5);
 
-    // B. Trend obok etykiety (np. "Spada") - Lewa Góra, obok CIS.
     tft.setTextColor(trendCol, TEXT_BG);
     tft.drawString(trendTxt, rightX + 35, y3 + 5);
 
-    // C. Prognoza (LOGIKA ŁAMANIA TEKSTU)
+    // --- C. DOLNA SEKCJA (WIATR + POGODA) ---
     tft.setTextColor(TFT_WHITE, TEXT_BG);
-    tft.setTextSize(1); // Mała czcionka dla opisów
+    tft.setTextSize(1);
     
-    // Sprawdzamy czy w tekście jest spacja (np. "Mozliwy deszcz")
+    int textXOffset = 22; 
     int spaceIndex = forecastTxt.indexOf(' ');
     
     if (spaceIndex > 0) {
-        // --- PRZYPADEK 1: Dwa słowa (lub więcej) ---
-        String line1 = forecastTxt.substring(0, spaceIndex); // "Mozliwy"
-        String line2 = forecastTxt.substring(spaceIndex + 1); // "deszcz"
+        String line1 = forecastTxt.substring(0, spaceIndex); 
+        String line2 = forecastTxt.substring(spaceIndex + 1); 
         
-        // Linia 1: Podniesiona do góry (zaraz pod "CIS.")
-        tft.drawString(line1, rightX + 5, y3 + 17);
+        // Linia 1: "Wiatr" (Podniesione o 2px: było 20 -> jest 18)
+        tft.drawString(line1, rightX + textXOffset, y3 + 18);
         
-        // Linia 2: Na dole
-        tft.drawString(line2, rightX + 5, y3 + 27);
+        // Linia 2: "Pogoda" (Podniesione o 2px: było 30 -> jest 28)
+        tft.drawString(line2, rightX + textXOffset, y3 + 28);
     } else {
-        // --- PRZYPADEK 2: Jedno słowo (np. "Burza") ---
-        // Rysujemy pośrodku dostępnego miejsca w pionie
-        tft.drawString(forecastTxt, rightX + 5, y3 + 22);
+        // Jedno słowo (Podniesione o 2px: było 24 -> jest 22)
+        tft.drawString(forecastTxt, rightX + textXOffset, y3 + 22);
     }
     
-    // D. WARTOŚĆ LICZBOWA (Czcionka 2 - zgodnie z Twoim życzeniem)
+    // D. Wartość liczbowa
     tft.setTextDatum(TR_DATUM);
     tft.setTextColor(getPressureColor(weather.pressure), TEXT_BG);
-    tft.setTextSize(2); // Zmienione na 2
-    
-    // y3 + 20 to środek wysokości karty, przy czcionce 2 będzie wyglądać ok
+    tft.setTextSize(2);
     tft.drawString(String((int)weather.pressure), rightX + rightW - 30, y3 + 20); 
 
     // E. Jednostka
     tft.setTextSize(1);
     tft.setTextColor(TFT_WHITE, TEXT_BG);
-    // Dostosowana pozycja jednostki do mniejszej liczby
     tft.drawString("hPa", rightX + rightW - 5, y3 + 27);
-    
+
     // --- 4. OPADY ---
     uint8_t y4 = y3 + rowH + gap;
     tft.fillRoundRect(rightX, y4, rightW, rowH , 6, CARD_BG);
