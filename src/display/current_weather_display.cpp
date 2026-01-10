@@ -21,7 +21,7 @@ void updateWeatherCache() {
 }
 
 // ================================================================
-// FUNKCJE POMOCNICZE (przeniesione z screen_manager.cpp)
+// FUNKCJE POMOCNICZE
 // ================================================================
 
 String shortenDescription(String description) {
@@ -66,12 +66,114 @@ uint16_t getHumidityColor(float humidity) {
     else return TFT_WHITE;
 }
 
+// Helper to determine pressure trend string and color
+// You will need to replace the logic inside with your actual trend calculation
 // ================================================================
-// GŁÓWNA FUNKCJA WYŚWIETLANIA POGODY (przeniesiona z screen_manager)
+// LOGIKA TRENDU CIŚNIENIA (Z PAMIĘCIĄ 3H)
+// ================================================================
+
+void getPressureTrendInfo(float currentPressure, String &trendText, String &forecastText, uint16_t &trendColor) {
+    // --- KONFIGURACJA ---
+    const int HISTORY_SIZE = 13;       // 12 slotów po 15 min = 3h (+1 na bieżący)
+    const unsigned long INTERVAL = 15 * 60 * 1000UL; // Co 15 minut zapisujemy punkt
+    
+    // Zmienne statyczne (pamiętają wartość między wywołaniami funkcji)
+    static float history[HISTORY_SIZE] = {0}; 
+    static bool isInitialized = false;
+    static unsigned long lastUpdate = 0;
+    static int count = 0; // Ile mamy próbek
+
+    // 1. INICJALIZACJA (przy pierwszym uruchomieniu wypełnij tablicę obecnym ciśnieniem)
+    if (!isInitialized || history[0] == 0) {
+        for (int i = 0; i < HISTORY_SIZE; i++) {
+            history[i] = currentPressure;
+        }
+        isInitialized = true;
+        lastUpdate = millis();
+        count = 1;
+    }
+
+    // 2. AKTUALIZACJA HISTORII (Co 15 minut)
+    if (millis() - lastUpdate >= INTERVAL) {
+        lastUpdate = millis();
+        
+        // Przesuń historię (najstarsze wypada, robimy miejsce na nowe na początku)
+        for (int i = HISTORY_SIZE - 1; i > 0; i--) {
+            history[i] = history[i - 1];
+        }
+        history[0] = currentPressure; // Zapisz nowe na pozycji 0
+        
+        if (count < HISTORY_SIZE) count++; // Wiemy, że mamy więcej prawdziwych danych
+    }
+    
+    // Aktualizuj bieżący odczyt na żywo (bez przesuwania historii)
+    // Żeby porównywać "Teraz" vs "3h temu", a nie "15 min temu" vs "3h temu"
+    // Ale w uproszczeniu porównujemy history[0] z history[last]
+    
+    // 3. OBLICZANIE RÓŻNICY (Tendencja)
+    // Porównujemy najnowszy (index 0) z najstarszym dostępnym (index count-1)
+    // Docelowo history[12] to odczyt sprzed 3h.
+    float pressure3hAgo = history[count - 1]; 
+    float diff = currentPressure - pressure3hAgo;
+
+    // 4. USTALANIE STATUSU (ZAMBRETTI - UPROSZCZONY)
+    
+    // Progi czułości (hPa na 3h)
+    float thresholdStable = 0.5; // +/- 0.5 hPa uznajemy za stałe
+    float thresholdStorm = 4.0;  // Spadek o 4 hPa to gwałtowna zmiana
+
+    // A. Określanie tekstu trendu
+    int trendState = 0; // 0=Stable, 1=Rise, 2=Fall, 3=FallFast, 4=RiseFast
+
+    if (diff > thresholdStorm) {
+        trendText = "Szybko rosnie";
+        trendColor = TFT_GREEN;
+        trendState = 4;
+    } else if (diff > thresholdStable) {
+        trendText = "Rosnie";
+        trendColor = TFT_GREEN;
+        trendState = 1;
+    } else if (diff < -thresholdStorm) {
+        trendText = "Gw. spada!";
+        trendColor = TFT_RED;
+        trendState = 3;
+    } else if (diff < -thresholdStable) {
+        trendText = "Spada";
+        trendColor = TFT_ORANGE;
+        trendState = 2;
+    } else {
+        trendText = "Stabilne";
+        trendColor = TFT_CYAN;
+        trendState = 0;
+    }
+
+    // B. Prognozowanie (Logika uproszczona Zambrettiego)
+    // Łączymy aktualne ciśnienie z tendencją
+    
+    if (trendState == 0) { // STABILNE
+        if (currentPressure > 1020) forecastText = "Ladna pogoda";
+        else if (currentPressure > 1010) forecastText = "Zmienne zachm.";
+        else forecastText = "Mozliwy deszcz";
+    }
+    else if (trendState == 1 || trendState == 4) { // ROŚNIE
+        if (currentPressure > 1010) forecastText = "Bedzie slonce";
+        else forecastText = "Poprawa pogody";
+    }
+    else if (trendState == 2) { // SPADA
+        if (currentPressure > 1015) forecastText = "Zachmurzenie";
+        else if (currentPressure > 1000) forecastText = "Bedzie padac";
+        else forecastText = "Deszcz/Wiatr";
+    }
+    else if (trendState == 3) { // GWAŁTOWNIE SPADA
+        forecastText = "BURZA/WIATR!";
+    }
+}
+
+// ================================================================
+// GŁÓWNA FUNKCJA WYŚWIETLANIA POGODY
 // ================================================================
 
 void displayCurrentWeather(TFT_eSPI& tft) {
-    // Sprawdzenie poprawności danych
     if (isWiFiConfigActive()) {
         return; 
     }
@@ -88,9 +190,7 @@ void displayCurrentWeather(TFT_eSPI& tft) {
     tft.setTextFont(1);
 
     uint8_t height = 175;
-
-    // Kolory motywu
-    uint16_t CARD_BG = 0x1082;      // Ciemny Grafit
+    uint16_t CARD_BG = 0x1082;      
     uint16_t TEXT_BG = CARD_BG;  
     uint16_t BORDER_COLOR = TFT_DARKGREY;
     uint16_t LABEL_COLOR = TFT_SILVER;
@@ -99,7 +199,7 @@ void displayCurrentWeather(TFT_eSPI& tft) {
     uint8_t startX = 60;
     
     // =========================================================
-    // LEWA KARTA Z TEMPERATURĄ (Tło CZARNE)
+    // LEWA KARTA Z TEMPERATURĄ
     // =========================================================
     tft.fillRoundRect(5, startY, 150, height, 8, TFT_BLACK);  
     tft.drawRoundRect(5, startY, 150, height, 8, BORDER_COLOR); 
@@ -115,14 +215,12 @@ void displayCurrentWeather(TFT_eSPI& tft) {
     else if (weather.temperature > 30) tempColor = TFT_RED;
     else if (weather.temperature > 25) tempColor = TFT_ORANGE;
 
-    // Temperatura - duża liczba
     tft.setTextColor(tempColor, TFT_BLACK); 
     tft.setTextSize(5);
     tft.setTextDatum(MC_DATUM);
     String tempStr = String((int)round(weather.temperature));
     tft.drawString(tempStr, 80, startY + 60 + WEATHER_CARD_TEMP_Y_OFFSET);
 
-    // Opis pogody
     uint16_t descColor = TFT_CYAN;
     if (polishDesc.indexOf("BURZA") >= 0) descColor = TFT_RED;
     else if (polishDesc == "BEZCHMURNIE") descColor = TFT_YELLOW;
@@ -134,19 +232,17 @@ void displayCurrentWeather(TFT_eSPI& tft) {
     tft.setTextDatum(MC_DATUM);
     tft.drawString(polishDesc, 80, startY + 95 + WEATHER_CARD_TEMP_Y_OFFSET);
 
-    // Etykieta "ODCZUWALNA:"
     tft.setTextColor(LABEL_COLOR, TFT_BLACK);
     tft.setTextSize(1);
     tft.setTextDatum(MC_DATUM);
     tft.drawString("ODCZUWALNA:", 80, startY + 116 + WEATHER_CARD_TEMP_Y_OFFSET);
     
-    // Temperatura odczuwalna
     tft.setTextColor(TFT_WHITE, TFT_BLACK);
     tft.setTextSize(2);
     tft.drawString(String((int)round(weather.feelsLike)), 80, startY + 135 + WEATHER_CARD_TEMP_Y_OFFSET);
 
     // =========================================================
-    // PRAWA KOLUMNA (Tło GRAFITOWE - CARD_BG)
+    // PRAWA KOLUMNA
     // =========================================================
     uint8_t rowH = 39; 
     uint8_t gap = 6; 
@@ -188,26 +284,63 @@ void displayCurrentWeather(TFT_eSPI& tft) {
     tft.setTextColor(TFT_WHITE, TEXT_BG);
     tft.drawString("km/h", rightX + rightW - 5, y2 + 27);
 
-    // --- 3. CIŚNIENIE ---
-    uint8_t y3 = y2 + rowH + gap;
+    // --- 3. CIŚNIENIE (POWRÓT DO ORYGINAŁU) ---
+   uint8_t y3 = y2 + rowH + gap;
     tft.fillRoundRect(rightX, y3, rightW, rowH, 6, CARD_BG);
     tft.drawRoundRect(rightX, y3, rightW, rowH, 6, BORDER_COLOR);
     
+    // Pobranie danych trendu
+    String trendTxt, forecastTxt;
+    uint16_t trendCol;
+    getPressureTrendInfo(weather.pressure, trendTxt, forecastTxt, trendCol);
+
+    // A. Etykieta "CIS." (Lewa Góra)
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(LABEL_COLOR, TEXT_BG);
     tft.setTextSize(1);
-    tft.drawString("CISNIENIE", rightX + 5, y3 + 5);
+    tft.drawString("CIS.", rightX + 5, y3 + 5);
+
+    // B. Trend obok etykiety (np. "Spada") - Lewa Góra, obok CIS.
+    tft.setTextColor(trendCol, TEXT_BG);
+    tft.drawString(trendTxt, rightX + 35, y3 + 5);
+
+    // C. Prognoza (LOGIKA ŁAMANIA TEKSTU)
+    tft.setTextColor(TFT_WHITE, TEXT_BG);
+    tft.setTextSize(1); // Mała czcionka dla opisów
     
+    // Sprawdzamy czy w tekście jest spacja (np. "Mozliwy deszcz")
+    int spaceIndex = forecastTxt.indexOf(' ');
+    
+    if (spaceIndex > 0) {
+        // --- PRZYPADEK 1: Dwa słowa (lub więcej) ---
+        String line1 = forecastTxt.substring(0, spaceIndex); // "Mozliwy"
+        String line2 = forecastTxt.substring(spaceIndex + 1); // "deszcz"
+        
+        // Linia 1: Podniesiona do góry (zaraz pod "CIS.")
+        tft.drawString(line1, rightX + 5, y3 + 17);
+        
+        // Linia 2: Na dole
+        tft.drawString(line2, rightX + 5, y3 + 27);
+    } else {
+        // --- PRZYPADEK 2: Jedno słowo (np. "Burza") ---
+        // Rysujemy pośrodku dostępnego miejsca w pionie
+        tft.drawString(forecastTxt, rightX + 5, y3 + 22);
+    }
+    
+    // D. WARTOŚĆ LICZBOWA (Czcionka 2 - zgodnie z Twoim życzeniem)
     tft.setTextDatum(TR_DATUM);
     tft.setTextColor(getPressureColor(weather.pressure), TEXT_BG);
-    tft.setTextSize(3);
-    if (weather.pressure > 999) tft.setTextSize(2);
-    tft.drawString(String((int)weather.pressure), rightX + rightW - 30, y3 + 12);
+    tft.setTextSize(2); // Zmienione na 2
     
+    // y3 + 20 to środek wysokości karty, przy czcionce 2 będzie wyglądać ok
+    tft.drawString(String((int)weather.pressure), rightX + rightW - 30, y3 + 20); 
+
+    // E. Jednostka
     tft.setTextSize(1);
     tft.setTextColor(TFT_WHITE, TEXT_BG);
+    // Dostosowana pozycja jednostki do mniejszej liczby
     tft.drawString("hPa", rightX + rightW - 5, y3 + 27);
-
+    
     // --- 4. OPADY ---
     uint8_t y4 = y3 + rowH + gap;
     tft.fillRoundRect(rightX, y4, rightW, rowH , 6, CARD_BG);
@@ -231,6 +364,5 @@ void displayCurrentWeather(TFT_eSPI& tft) {
     tft.setTextSize(2);
     tft.drawString(rainVal, rightX + rightW - 5, y4 + 12);
 
-    // Aktualizacja cache
     updateWeatherCache();
 }
