@@ -8,7 +8,7 @@
 #define MOTION_CONFIG_TIMEOUT   600000  // 10 min - timeout w menu config
 #define WDT_TIMEOUT_SECONDS     35     // 35s - Watchdog
 #define OFFLINE_MODE_TIMEOUT    30000
-#define SCREEN_SWITCH_INTERVAL_ 7000
+#define SCREEN_SWITCH_INTERVAL_ 7000 // TO CHANGE!!!
 
 // === WIFI TOUCH INTERFACE ===
 #define WIFI_LOSS_TIMEOUT           60000   
@@ -41,5 +41,8 @@
 // === DISPLAY REFRESH ===
 #define DISPLAY_UPDATE_INTERVAL     1000    
 #define COUNTDOWN_UPDATE_INTERVAL   1000    
+
+// === SENSORY ===
+#define DHT22_READ_INTERVAL         10000   // 10s - odczyt DHT22 (min. interwał dla sensora)
 
 #endif

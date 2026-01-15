@@ -30,12 +30,21 @@
 #include "display/screen_manager.h"
 #include "display/github_image.h"
 
+// === DODANO TEN IMPORT, ŻEBY NAPRAWIĆ BŁĄD ===
+#include "display/sensors_display.h" 
+
 // --- SENSORY ---
 #include "sensors/motion_sensor.h"
 #include "sensors/dht22_sensor.h" 
 
 // --- WIFI TOUCH INTERFACE ---
 #include "wifi/wifi_touch_interface.h"
+
+#ifdef USE_SHT31
+  #include "sensors/sht31_sensor.h"
+#else
+  #include "sensors/dht22_sensor.h"
+#endif
 
 // === FLAGA BLOKADY WiFi PODCZAS POBIERANIA OBRAZKA ===
 bool isImageDownloadInProgress = false;
@@ -88,18 +97,13 @@ void setup() {
 
       // === DODAJ TEN BLOK TUTAJ: JITTER (Losowe opóźnienie) ===
       {
-         // Czekamy losowo od 0 do 300 sekund (5 minut)
-         // To zapobiega jednoczesnemu atakowaniu serwera GitHub przez wszystkie stacje
          int jitterSeconds = random(0, FIRMWARE_UPDATE_JITTER + 1);
          Serial.printf("🎲 Jitter: Czekam %d sekund przed sprawdzeniem aktualizacji...\n", jitterSeconds);
-         
-         // Używamy pętli z delay(1000) żeby móc karmić Watchdoga (sysManager.loop)
          for(int i=0; i<jitterSeconds; i++) {
              delay(1000); 
-             sysManager.loop(); // Ważne: Watchdog musi być karmiony!
+             sysManager.loop(); 
          }
       }
-      // ==========================================================
       
       {
           Preferences prefs;
@@ -114,7 +118,6 @@ void setup() {
           WiFi.begin(ssid.c_str(), pass.c_str());
           
           int retries = 0;
-          // Zwiększony limit prób dla bezpieczeństwa w nocy
           while (WiFi.status() != WL_CONNECTED && retries < 40) {
               delay(500);
               Serial.print(".");
@@ -157,7 +160,6 @@ else {
 
   tft.fillScreen(COLOR_BACKGROUND);
 
-  // === NOWOŚĆ: EKRAN POWITALNY "DOBREGO DNIA" ===
   if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
       struct tm timeinfo;
       if (getLocalTime(&timeinfo, 10)) { 
@@ -255,9 +257,14 @@ else {
   
   tft.fillScreen(COLOR_BACKGROUND); 
   
-  // --- Inicjalizacja sensorów i modułów ---
   initMotionSensor();
-  initDHT22();
+
+  #ifdef USE_SHT31
+    initSHT31(); 
+  #else
+    initDHT22(); 
+  #endif
+
   locationManager.loadLocationFromPreferences();
   initWiFiTouchInterface();
   initNASAImageSystem();
@@ -294,7 +301,6 @@ else {
     }
   }
   
-  // === RESET TIMERA EKRANU ===
   getScreenManager().resetScreenTimer();
   Serial.println("📱 Timer ekranu zresetowany - 10s do następnego przełączenia");
   
@@ -303,29 +309,26 @@ else {
 
 
 void loop() {
-  sysManager.loop(); // Watchdog i zadania systemowe
+  sysManager.loop(); 
 
-  // --- OBSŁUGA CZUJNIKA RUCHU PIR (NAJWYŻSZY PRIORYTET) ---
-  // Przekazujemy flagę konfiguracji ORAZ offline mode (choć timeout jest wewnątrz funkcji)
   updateDisplayPowerState(tft, isWiFiConfigActive());
 
-  // --- AKTUALIZACJA DHT22 ---
-  updateDHT22();
+  #ifdef USE_SHT31
+    updateSHT31(); 
+  #else
+    updateDHT22();
+  #endif
 
-  // Jeśli display śpi, nie wykonuj reszty (oszczędzanie CPU)
   if (getDisplayState() == DISPLAY_SLEEPING) {
     delay(50); 
     return;
   }
 
-  // --- OBSŁUGA WIFI TOUCH INTERFACE ---
   if (isWiFiConfigActive()) {
     handleWiFiTouchLoop(tft);
     return; 
   }
 
-  // --- NTP ASYNC CHECK ---
-  // Działa tylko jeśli nie jesteśmy Offline
   if (isNtpSyncPending && !isOfflineMode) {
     struct tm timeinfo;
     if (getLocalTime(&timeinfo, 10) && timeinfo.tm_year > (2023 - 1900)) {
@@ -334,15 +337,12 @@ void loop() {
     }
   }
 
-  // --- ZAPIS LOKALIZACJI ---
   if (isLocationSavePending) {
     Serial.println("LOOP: Zapisywanie lokalizacji...");
     locationManager.saveLocationToPreferences();
     isLocationSavePending = false; 
   }
   
-  // --- AUTO-RECONNECT SYSTEM ---
-  // Blokujemy w trybie Offline
   if (!isOfflineMode) {
       static unsigned long lastWiFiSystemCheck = 0;
       if (millis() - lastWiFiSystemCheck > WIFI_STATUS_CHECK_INTERVAL) { 
@@ -353,14 +353,12 @@ void loop() {
       }
   }
   
-  // --- TRIGGERY WIFI CONFIG (LONG PRESS) ---
   if (checkWiFiLongPress(tft)) {
     Serial.println("🌐 LONG PRESS - Entering WiFi config!");
     enterWiFiConfigMode(tft);
     return;
   }
   
-  // --- OBSŁUGA KOMEND SERIAL ---
   if (Serial.available()) {
     char command = Serial.read();
     
@@ -381,16 +379,11 @@ void loop() {
     }
   }
 
-  // --- ZARZĄDZANIE EKRANAMI ---
-  // Pozwalamy na działanie ScreenManagera w trybie Offline (żeby wymusił Ekran 4)
   if (!isWiFiLost() || isOfflineMode) {
     updateScreenManager();
   }
 
-  // --- BLOKUJEMY POBIERANIE POGODY W TRYBIE OFFLINE ---
   if (!isOfflineMode) {
-
-      // === WEEKLY FORECAST UPDATE ===
       unsigned long weeklyInterval = weeklyErrorModeGlobal ? WEEKLY_UPDATE_ERROR : WEEKLY_UPDATE_INTERVAL;
       if (millis() - lastWeeklyUpdate >= weeklyInterval) {
         lastWeeklyUpdate = millis();
@@ -400,16 +393,12 @@ void loop() {
         }
       }
 
-      // --- WEATHER UPDATE ---
       unsigned long weatherInterval = weatherErrorModeGlobal ? WEATHER_UPDATE_ERROR : WEATHER_UPDATE_NORMAL;
       if (millis() - lastWeatherCheckGlobal >= weatherInterval) {
         if (WiFi.status() == WL_CONNECTED) {
           getWeather();
           if (weather.isValid) {
             weatherErrorModeGlobal = false;
-            if (getScreenManager().getCurrentScreen() == SCREEN_CURRENT_WEATHER) {
-               // Opcjonalne odświeżenie
-            }
           } else {
             weatherErrorModeGlobal = true;
           }
@@ -417,7 +406,6 @@ void loop() {
         lastWeatherCheckGlobal = millis();
       }
 
-      // --- FORECAST UPDATE ---
       unsigned long forecastInterval = forecastErrorModeGlobal ? WEATHER_UPDATE_ERROR : 1800000; 
       if (millis() - lastForecastCheckGlobal >= forecastInterval) {
         if (WiFi.status() == WL_CONNECTED) {
@@ -427,7 +415,7 @@ void loop() {
         }
         lastForecastCheckGlobal = millis();
       }
-  } // Koniec if (!isOfflineMode)
+  } 
 
   // --- ODŚWIEŻANIE ZAWARTOŚCI EKRANU ---
   static ScreenType previousScreen = SCREEN_IMAGE;
@@ -441,30 +429,20 @@ void loop() {
       previousScreen = currentScreen;
       lastDisplayUpdate = millis();
     }
-    // Jeśli ekran ten sam, odświeżaj zegar/dane co sekundę
     else if (millis() - lastDisplayUpdate > DISPLAY_UPDATE_INTERVAL) {
-      
-      // 1. PRZYPADEK: Normalny tryb Online (Ekran główny pogody)
-      if (!isOfflineMode && currentScreen == SCREEN_CURRENT_WEATHER && !isWiFiConfigActive()) {
+    
+      // 1. Ekran Pogody (Tylko czas)
+      if (currentScreen == SCREEN_CURRENT_WEATHER && !isWiFiConfigActive()) {
           if (WiFi.status() == WL_CONNECTED) {
             displayTime(tft);
           }
-          if (weather.isValid) {
-          //displayCurrentWeather(tft);
-          } else {
-            tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
-            tft.setTextDatum(MC_DATUM);
-            tft.drawString("BRAK DANYCH!", tft.width() / 2, 50);
-          }
       }
-      
-      // 2. PRZYPADEK: Tryb Offline (Ekran Sensorów)
-      // Sprawdzamy: czy Offline ORAZ czy licznik parzysty (czyli wyświetlamy sensory)
-      else if (isOfflineMode && currentScreen == SCREEN_LOCAL_SENSORS) {
-          displayTime(tft); 
+      // 2. Ekran Sensorów (SHT31/DHT22) - POPRAWIONE
+      // Obsługuje zarówno tryb Offline jak i Online
+      else if (currentScreen == SCREEN_LOCAL_SENSORS) {
+          displayLocalSensors(tft, true); // true = tylko odśwież liczby (bez migania)
       }
 
-      // Resetujemy licznik czasu dla obu przypadków
       lastDisplayUpdate = millis();
     }
   } 

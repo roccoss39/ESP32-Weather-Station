@@ -21,7 +21,6 @@ extern bool isOfflineMode;
 // Te funkcje muszą być dostępne:
 extern void drawNASAImage(TFT_eSPI& tft, bool forceFallback); 
 extern void displaySystemStatus(TFT_eSPI& tft);
-extern void displayLocalSensors(TFT_eSPI& tft); // Zakładam, że to jest w display/sensors_display.cpp
 
 // Singleton instance ScreenManager
 static ScreenManager screenManager;

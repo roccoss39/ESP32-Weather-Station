@@ -1,12 +1,13 @@
 #include "sensors/dht22_sensor.h"
 #include <DHT.h>
-#include "config/hardware_config.h"
+#include "config/hardware_config.h" // Tutaj są zdefiniowane DHT_PIN i DHT_TYPE
 
 // === INSTANCJA GLOBALNA ===
 DHT22Sensor dht22;
 
 // === INSTANCJA DHT BIBLIOTEKI ===
-DHT dhtSensor(DHT22_PIN, DHT22);
+// POPRAWKA: Używamy DHT_PIN i DHT_TYPE z pliku hardware_config.h
+DHT dhtSensor(DHT_PIN, DHT_TYPE);
 
 // === IMPLEMENTACJA KLASY DHT22Sensor ===
 
@@ -22,7 +23,8 @@ void DHT22Sensor::init() {
   currentData.status = "Inicjalizacja";
   currentData.lastUpdate = 0;
   
-  Serial.printf("🌡️ DHT22 skonfigurowany na pinie %d\n", DHT22_PIN);
+  // POPRAWKA: Używamy DHT_PIN zamiast starego DHT22_PIN
+  Serial.printf("🌡️ DHT22 skonfigurowany na pinie %d\n", DHT_PIN);
   
   // Pierwsze czytanie po 2 sekundach
   lastReadTime = millis();
@@ -36,7 +38,7 @@ void DHT22Sensor::readSensor() {
   
   lastReadTime = millis();
   
-  Serial.println("🌡️ Odczytywanie danych z DHT22...");
+  // Serial.println("🌡️ Odczytywanie danych z DHT22..."); // Można odkomentować do debugowania
   
   // PRAWDZIWY ODCZYT Z DHT22
   float temp = dhtSensor.readTemperature();
@@ -53,7 +55,7 @@ void DHT22Sensor::readSensor() {
     currentData.status = "OK";
     currentData.lastUpdate = millis();
     
-    Serial.printf("🌡️ DHT22 prawdziwy odczyt: %.1f°C, %.1f%%\n", temp, hum);
+    // Serial.printf("🌡️ DHT22 prawdziwy odczyt: %.1f°C, %.1f%%\n", temp, hum);
     
   } else {
     // Błędne dane lub błąd komunikacji
