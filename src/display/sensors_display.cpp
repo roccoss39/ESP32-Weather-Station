@@ -3,20 +3,19 @@
 #include "weather/forecast_data.h"
 #include "config/hardware_config.h"
 #include <WiFi.h>
+#include "display/time_display.h" 
 
-// --- WARUNKOWE IMPORTY CZUJNIKÓW ---
 #ifdef USE_SHT31
   #include "sensors/sht31_sensor.h"
 #else
   #include "sensors/dht22_sensor.h"
 #endif
 
-// --- ZMIENNE GLOBALNE ---
 extern WeeklyForecastData weeklyForecast;
 extern unsigned long lastWeatherCheckGlobal;
 extern bool isOfflineMode;
 
-// --- STAŁE POZYCJI DLA STOPKI (TRYB ONLINE) ---
+// DEFINICJE POZYCJI STOPKI (DLA ONLINE)
 #ifndef UPDATES_TITLE_Y
   #define UPDATES_CLEAR_Y   130
   #define UPDATES_TITLE_Y   140
@@ -27,39 +26,32 @@ extern bool isOfflineMode;
   #define UPDATES_WIFI_Y    220
 #endif
 
-// Kolor tła kart 
 #define CARD_BG_COLOR 0x1082 
 
-// === FUNKCJA POMOCNICZA DO PASKÓW POSTĘPU ===
 static void drawProgressBar(TFT_eSPI& tft, int x, int y, int w, int h, float val, float minVal, float maxVal, uint16_t color) {
     float range = maxVal - minVal;
     if (range == 0) range = 1;
-    
     float percent = (val - minVal) / range;
     if (percent < 0) percent = 0;
     if (percent > 1) percent = 1;
-    
     int fillW = (int)((w - 4) * percent);
-    
-    // 1. Czyścimy wnętrze
     tft.fillRoundRect(x + 2, y + 2, w - 4, h - 4, 2, 0x10A2);
-    
-    // 2. Rysujemy pasek
-    if (fillW > 0) {
-        tft.fillRoundRect(x + 2, y + 2, fillW, h - 4, 2, color);
-    }
+    if (fillW > 0) tft.fillRoundRect(x + 2, y + 2, fillW, h - 4, 2, color);
 }
 
-// === GŁÓWNA FUNKCJA WYŚWIETLANIA SENSORÓW ===
 void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
   
+  // ZABEZPIECZENIE: Zawsze startujemy z małą czcionką
+  tft.setTextSize(1);
+
+  // 1. CZYSZCZENIE EKRANU (Tylko raz przy wejściu)
   if (!onlyUpdate) {
-      Serial.println("📱 Rysowanie ekranu: LOCAL SENSORS (FULL)");
+      Serial.println("📱 Rysowanie ekranu: LOCAL SENSORS");
       tft.fillScreen(COLOR_BACKGROUND);
   }
 
   // =========================================================
-  // 1. POBIERANIE DANYCH
+  // POBIERANIE DANYCH
   // =========================================================
   float temp = 0.0;
   float hum = 0.0;
@@ -67,7 +59,6 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
   String sensorName = "";
   String sensorStatusMsg = "";
   int readIntervalSec = 0;
-  
   int tempDecimals = 1; 
   bool humIsInt = true;
 
@@ -92,17 +83,25 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
     humIsInt = true;
   #endif
 
-  // =========================================================
-  // TRYB OFFLINE (DUŻE KARTY)
-  // =========================================================
+  // ##################################################################
+  // IF: TRYB OFFLINE (DUŻE KARTY + ZEGAR + BRAK STOPKI)
+  // ##################################################################
   if (isOfflineMode) {
+    
+    // 1. ZEGAR (Tylko w Offline)
+    displayTime(tft);
+    
+    // WAŻNE: Reset czcionki po zegarze, żeby liczby nie były gigantyczne
+    tft.setTextSize(1);
+    tft.setTextColor(TFT_WHITE, COLOR_BACKGROUND);
+
     uint8_t cardStartY = 70;   
     uint8_t cardH = 95;        
     uint8_t cardW = 145;       
     uint8_t card1_X = 10;
     uint8_t card2_X = 165;
 
-    // --- RYSOWANIE STATYCZNE ---
+    // --- RYSOWANIE STATYCZNE OFFLINE ---
     if (!onlyUpdate) {
         uint8_t headerY = 55;
         tft.drawFastHLine(0, headerY, 320, TFT_DARKGREY); 
@@ -129,21 +128,22 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.setTextFont(2);
         tft.setTextDatum(BL_DATUM);
         tft.drawString("'C", card1_X + cardW/2 + 35, valY + 8); 
-        tft.drawString("%", card2_X + cardW/2 + 25, valY + 8);
+        tft.drawString(" %", card2_X + cardW/2 + 25, valY + 8);
         
         tft.drawRoundRect(card1_X + 8, cardStartY + cardH - 25, cardW - 16, 6, 3, TFT_DARKGREY);
         tft.drawRoundRect(card2_X + 8, cardStartY + cardH - 25, cardW - 16, 6, 3, TFT_DARKGREY);
     }
 
-    // --- RYSOWANIE DYNAMICZNE ---
+    // --- RYSOWANIE DYNAMICZNE OFFLINE ---
+    tft.setTextSize(1); // Zabezpieczenie
     int valY = cardStartY + 48;
     
+    // Temp
     if (isValid) {
         uint16_t tempColor = TFT_GREEN;
         if (temp < 18) tempColor = TFT_CYAN;
         if (temp > 24) tempColor = TFT_ORANGE;
         if (temp > 28) tempColor = TFT_RED;
-        
         tft.setTextColor(tempColor, CARD_BG_COLOR); 
         tft.setTextFont(4);
         tft.setTextDatum(MC_DATUM);
@@ -156,11 +156,11 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.drawString("--.-", card1_X + cardW/2, cardStartY + 48);
     }
 
+    // Wilg
     if (isValid) {
         uint16_t humColor = TFT_GREEN;
         if (hum < 30) humColor = TFT_YELLOW;
         if (hum > 60) humColor = TFT_BLUE;
-        
         tft.setTextColor(humColor, CARD_BG_COLOR); 
         tft.setTextFont(4);
         tft.setTextDatum(MC_DATUM);
@@ -173,19 +173,20 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.setTextDatum(MC_DATUM);
         tft.drawString("--", card2_X + cardW/2, cardStartY + 48);
     }
-
-  } else {
-    // =========================================================
-    // TRYB ONLINE (KOMPAKTOWY + PEŁNA STOPKA)
-    // =========================================================
+  } 
+  // ##################################################################
+  // ELSE: TRYB ONLINE (KOMPAKTOWE KARTY + STOPKA + BRAK ZEGARA)
+  // ##################################################################
+  else {
     
+    // Pozycje dla trybu Compact
     uint8_t cardY = 55;
     int cardH = 70;
     uint8_t cardW = 135;
     uint8_t card1_X = 20;
     uint8_t card2_X = 165;
     
-    // --- 1. RYSOWANIE STATYCZNE ---
+    // --- RYSOWANIE STATYCZNE ONLINE ---
     if (!onlyUpdate) {
         uint8_t headerY = 45;
         tft.drawFastHLine(20, headerY, 280, TFT_DARKGREY);
@@ -216,7 +217,7 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.drawRoundRect(card1_X + 10, cardY + cardH - 8, cardW - 20, 4, 2, TFT_DARKGREY);
         tft.drawRoundRect(card2_X + 10, cardY + cardH - 8, cardW - 20, 4, 2, TFT_DARKGREY);
         
-        // Tło stopki
+        // TŁO STOPKI
         tft.fillRect(0, UPDATES_CLEAR_Y, 320, 240 - UPDATES_CLEAR_Y, COLOR_BACKGROUND);
         
         tft.setTextDatum(TC_DATUM);
@@ -225,7 +226,8 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.drawString("STATUS SYSTEMU:", 160, UPDATES_TITLE_Y);
     }
     
-    // --- 2. RYSOWANIE DYNAMICZNE LICZB ---
+    // --- RYSOWANIE DYNAMICZNE ONLINE (LICZBY) ---
+    tft.setTextSize(1); // Reset rozmiaru
     int valY = cardY + 40;
     
     // Temp
@@ -262,26 +264,21 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.drawString("--", card2_X + cardW/2, cardY + cardH/2);
     }
 
-    // --- 3. RYSOWANIE DYNAMICZNE STOPKI ---
-    // Przywracamy pełną logikę sprzed zmian!
-
+    // --- RYSOWANIE DYNAMICZNE ONLINE (STOPKA) ---
     tft.setTextFont(1);
     tft.setTextSize(1);
     
-    // 1. STATUS SENORA
     tft.setTextDatum(TC_DATUM);
     String sensorStatusLine = sensorName + ": " + sensorStatusMsg;
     uint16_t statusColor = isValid ? TFT_GREEN : TFT_RED;
     tft.setTextColor(statusColor, COLOR_BACKGROUND);
     tft.drawString(sensorStatusLine, 160, UPDATES_DHT22_Y); 
     
-    // 2. INTERWAŁ
     tft.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND);
     String sensorInterval = "Odczyt sensora: co " + String(readIntervalSec) + "s";
     tft.drawString(sensorInterval, 160, UPDATES_SENSOR_Y);
     
-    // 3. POGODA (CURRENT) - Czyścimy linię prostokątem, żeby wyśrodkowanie działało poprawnie
-    // (Inaczej krótszy tekst nie zamaże dłuższego przy centrowaniu)
+    // POGODA (CURRENT)
     tft.fillRect(0, UPDATES_WEATHER_Y, 320, 15, COLOR_BACKGROUND); 
     
     unsigned long weatherAge = (millis() - lastWeatherCheckGlobal) / 1000;
@@ -305,7 +302,7 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
     tft.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND);
     tft.drawString(wSuffix, wX, UPDATES_WEATHER_Y);
 
-    // 4. PROGNOZA TYGODNIOWA (WEEKLY) - Też czyścimy linię
+    // WEEKLY
     tft.fillRect(0, UPDATES_WEEKLY_Y, 320, 15, COLOR_BACKGROUND); 
 
     unsigned long weeklyAge = (millis() - weeklyForecast.lastUpdate) / 1000;
@@ -328,20 +325,22 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
     tft.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND);
     tft.drawString(fSuffix, fX, UPDATES_WEEKLY_Y);
 
-    // 5. WIFI
+    // WIFI
     tft.setTextDatum(TC_DATUM);
     String wifiTxt = (WiFi.status() == WL_CONNECTED) ? "WiFi: " + String(WiFi.SSID()) : "WiFi: Rozlaczony";
     uint16_t wifiColor = (WiFi.status() == WL_CONNECTED) ? TFT_DARKGREY : TFT_RED;
     tft.setTextColor(wifiColor, COLOR_BACKGROUND);
     tft.drawString(wifiTxt, 160, UPDATES_WIFI_Y);
     
-    // 6. WERSJA
+    // VERSION
     tft.setTextDatum(BR_DATUM);
     tft.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND);
     tft.drawString("v" + String(FIRMWARE_VERSION), 315, 235);
   }
   
+  // RESET NA KONIEC DLA INNYCH EKRANÓW
   tft.setTextDatum(TL_DATUM);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setTextFont(1);
+  tft.setTextSize(1);
 }

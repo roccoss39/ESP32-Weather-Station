@@ -5,7 +5,7 @@
 #include <TFT_eSPI.h>
 #include "config/timing_config.h" 
 
-#define TEST_MODE 0
+#define TEST_MODE 1
 #define TEST_SCREEN SCREEN_LOCAL_SENSORS
 
 extern bool isOfflineMode;
