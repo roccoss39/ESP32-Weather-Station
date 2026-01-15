@@ -59,7 +59,17 @@ enum TftModel {
 #define TFT_BL      25      
 
 // === 2. PINY SENSORÓW I URZĄDZEŃ ===
-#define DHT22_PIN       4       // Czujnik temperatury/wilgotności
+// Odkomentuj linię poniżej, aby używać SHT31. 
+// Zakomentuj ją, aby wrócić do DHT22.
+#define USE_SHT31  
+
+#define PIN_I2C_SDA 32
+#define PIN_I2C_SCL 33  
+
+// PINY INNE (Nieużywane przy aktywnym USE_SHT31)
+#define DHT_PIN 14     
+#define DHT_TYPE DHT22
+
 #define PIR_PIN         27      // Czujnik ruchu (HC-SR501 / MOD-01655)
 //#define LED_STATUS_PIN  2       // Wbudowana niebieska dioda ESP32
 

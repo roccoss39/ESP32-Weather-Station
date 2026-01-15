@@ -37,6 +37,12 @@
 // --- WIFI TOUCH INTERFACE ---
 #include "wifi/wifi_touch_interface.h"
 
+#ifdef USE_SHT31
+  #include "sensors/sht31_sensor.h"
+#else
+  #include "sensors/dht22_sensor.h"
+#endif
+
 // === FLAGA BLOKADY WiFi PODCZAS POBIERANIA OBRAZKA ===
 bool isImageDownloadInProgress = false;
 
@@ -257,7 +263,13 @@ else {
   
   // --- Inicjalizacja sensorów i modułów ---
   initMotionSensor();
-  initDHT22();
+
+  #ifdef USE_SHT31
+    initSHT31(); // Startujemy SHT31 (I2C)
+  #else
+    initDHT22(); // Startujemy stare DHT22
+  #endif
+
   locationManager.loadLocationFromPreferences();
   initWiFiTouchInterface();
   initNASAImageSystem();
@@ -310,7 +322,11 @@ void loop() {
   updateDisplayPowerState(tft, isWiFiConfigActive());
 
   // --- AKTUALIZACJA DHT22 ---
-  updateDHT22();
+  #ifdef USE_SHT31
+    updateSHT31(); // Czyta co 1 sekundę
+  #else
+    updateDHT22();
+  #endif
 
   // Jeśli display śpi, nie wykonuj reszty (oszczędzanie CPU)
   if (getDisplayState() == DISPLAY_SLEEPING) {

@@ -1,9 +1,15 @@
 #include "display/sensors_display.h"
 #include "config/display_config.h"
-#include "sensors/dht22_sensor.h"
 #include "weather/forecast_data.h"
 #include "config/hardware_config.h"
 #include <WiFi.h>
+
+// --- WARUNKOWE IMPORTY CZUJNIKÓW ---
+#ifdef USE_SHT31
+  #include "sensors/sht31_sensor.h"
+#else
+  #include "sensors/dht22_sensor.h"
+#endif
 
 // --- ZMIENNE GLOBALNE ---
 extern WeeklyForecastData weeklyForecast;
@@ -11,11 +17,13 @@ extern unsigned long lastWeatherCheckGlobal;
 extern bool isOfflineMode;
 
 // --- STAŁE POZYCJI DLA STOPKI (TRYB ONLINE) ---
+// Blok zabezpieczający - używamy nazw, które (prawdopodobnie) masz w display_config.h
+// Jeśli ich nie ma, zostaną zdefiniowane tutaj.
 #ifndef UPDATES_TITLE_Y
   #define UPDATES_CLEAR_Y   130
   #define UPDATES_TITLE_Y   140
-  #define UPDATES_DHT22_Y   160
-  #define UPDATES_SENSOR_Y  175
+  #define UPDATES_DHT22_Y   160  // Użyjemy tego dla Statusu Sensora
+  #define UPDATES_SENSOR_Y  175  // Użyjemy tego dla Interwału
   #define UPDATES_WEATHER_Y 190
   #define UPDATES_WEEKLY_Y  205
   #define UPDATES_WIFI_Y    220
@@ -46,11 +54,46 @@ void displayLocalSensors(TFT_eSPI& tft) {
   
   tft.fillScreen(COLOR_BACKGROUND);
 
-  // Pobierz dane
-  DHT22Data dhtData = getDHT22Data();
-  float temp = dhtData.temperature;
-  float hum = dhtData.humidity;
-  bool isValid = dhtData.isValid;
+  // =========================================================
+  // 1. POBIERANIE DANYCH (ZALEŻNIE OD KONFIGURACJI)
+  // =========================================================
+  float temp = 0.0;
+  float hum = 0.0;
+  bool isValid = false;
+  String sensorName = "";
+  String sensorStatusMsg = "";
+  int readIntervalSec = 0;
+  
+  // Zmienne do formatowania tekstu (ile miejsc po przecinku)
+  int tempDecimals = 1; 
+  bool humIsInt = true;
+
+  #ifdef USE_SHT31
+    // --- TRYB SHT31 ---
+    temp = localTemperature;
+    hum = localHumidity;
+    isValid = (hum != 0.0 && !isnan(temp)); 
+    sensorName = "SHT31";
+    sensorStatusMsg = isValid ? "OK" : "BLAD";
+    readIntervalSec = 1;
+    
+    // SHT31 jest precyzyjny - chcemy 2 miejsca po przecinku
+    tempDecimals = 2;
+    humIsInt = false; // Chcemy float dla wilgotności
+  #else
+    // --- TRYB DHT22 ---
+    DHT22Data dhtData = getDHT22Data();
+    temp = dhtData.temperature;
+    hum = dhtData.humidity;
+    isValid = dhtData.isValid;
+    sensorName = "DHT22";
+    sensorStatusMsg = dhtData.status;
+    readIntervalSec = (DHT22_READ_INTERVAL / 1000);
+    
+    // DHT22 - standardowo 1 miejsce temp, 0 miejsc wilgotność
+    tempDecimals = 1;
+    humIsInt = true;
+  #endif
 
   // =========================================================
   // KONFIGURACJA LAYOUTU - OSOBNO DLA OFFLINE I ONLINE
@@ -58,74 +101,50 @@ void displayLocalSensors(TFT_eSPI& tft) {
   
   if (isOfflineMode) {
     // ╔══════════════════════════════════════════════════════╗
-    // ║  TRYB OFFLINE - Optymalizacja dla 240x320 (W x H)  ║
+    // ║  TRYB OFFLINE                                        ║
     // ╚══════════════════════════════════════════════════════╝
     
-    // GEOMETRIA EKRANU:
-    // - Szerokość: 320px
-    // - Wysokość: 240px
-    // - Czas zajmuje: ~0-50px (displayTime)
-    // - Nagłówek "WARUNKI": 50-60px
-    // - Dostępne dla kart: 60-240px = 180px
-    
-    // NAGŁÓWEK - pełna szerokość ekranu 320px
     uint8_t headerY = 55;
-    tft.drawFastHLine(0, headerY, 320, TFT_DARKGREY);  // Linia na całą szerokość
+    tft.drawFastHLine(0, headerY, 320, TFT_DARKGREY); 
     tft.setTextColor(TFT_SILVER, TFT_BLACK);
     tft.setTextSize(1);
     tft.setTextDatum(MC_DATUM);
-    tft.drawString("WARUNKI W POMIESZCZENIU", 160, headerY - 10);  // Wyśrodkowane (320/2=160)
+    tft.drawString("WARUNKI W POMIESZCZENIU", 160, headerY - 10);
     
-    // GEOMETRIA KART - Szerokie, wypełniające ekran 320px
-    uint8_t cardStartY = 70;   // Start pod nagłówkiem
-    uint8_t cardH = 95;         // Zwiększona wysokość (było 75)
-    uint8_t cardW = 145;        // Szersze karty (320 - 2*15 margines - 10 odstęp = 290 / 2 = 145)
-    uint8_t gapBetween = 10;    // Odstęp między kartami
-    
-    // Pozycje X - wyśrodkowane na ekranie 320px
-    // Margines: (320 - (145 + 10 + 145)) / 2 = 10px z każdej strony
+    uint8_t cardStartY = 70;   
+    uint8_t cardH = 95;        
+    uint8_t cardW = 145;       
     uint8_t card1_X = 10;
-    uint8_t card2_X = 165;  // 10 + 145 + 10
+    uint8_t card2_X = 165;
     
-    
-    // =========================================================
-    // KARTA 1: TEMPERATURA (OFFLINE)
-    // =========================================================
+    // KARTA 1: TEMPERATURA
     tft.fillRoundRect(card1_X, cardStartY, cardW, cardH, 6, 0x1082);
     tft.drawRoundRect(card1_X, cardStartY, cardW, cardH, 6, TFT_DARKGREY);
     
-    // Etykieta u góry
     tft.setTextColor(TFT_ORANGE, 0x1082);
     tft.setTextDatum(MC_DATUM);
     tft.setTextSize(1);
     tft.drawString("TEMP", card1_X + cardW/2, cardStartY + 10);
     
     if (isValid) {
-        // Kolor w zależności od temperatury
         uint16_t tempColor = TFT_GREEN;
         if (temp < 18) tempColor = TFT_CYAN;
         if (temp > 24) tempColor = TFT_ORANGE;
         if (temp > 28) tempColor = TFT_RED;
         
         tft.setTextColor(tempColor, 0x1082);
-        
-        // Wartość - wyśrodkowana w pionie karty
         int valY = cardStartY + 48;
         
-        tft.setTextFont(4);  // Duża czcionka
+        tft.setTextFont(4);
         tft.setTextDatum(MC_DATUM);
+        // FORMATOWANIE ZALEŻNE OD CZUJNIKA
+        tft.drawString(String(temp, tempDecimals), card1_X + cardW/2 - 5, valY);
         
-        // Liczba przesunięta lekko w lewo
-        tft.drawString(String(temp, 1), card1_X + cardW/2 - 5, valY);
-        
-        // Jednostka obok (mała czcionka)
         tft.setTextFont(2);
         tft.setTextDatum(BL_DATUM);
-        tft.drawString("'C", card1_X + cardW/2 + 25, valY + 8);
+        tft.drawString("'C", card1_X + cardW/2 + 35, valY + 8); // Przesunięte w prawo bo szerszy tekst
         
-        // Pasek postępu na dole karty (więcej miejsca od krawędzi)
         drawProgressBar(tft, card1_X + 8, cardStartY + cardH - 25, cardW - 16, 6, temp, 0, 40, tempColor);
-        
     } else {
         tft.setTextColor(TFT_RED, 0x1082);
         tft.setTextFont(4);
@@ -133,14 +152,10 @@ void displayLocalSensors(TFT_eSPI& tft) {
         tft.drawString("--.-", card1_X + cardW/2, cardStartY + 48);
     }
     
-    
-    // =========================================================
-    // KARTA 2: WILGOTNOŚĆ (OFFLINE)
-    // =========================================================
+    // KARTA 2: WILGOTNOŚĆ
     tft.fillRoundRect(card2_X, cardStartY, cardW, cardH, 6, 0x1082);
     tft.drawRoundRect(card2_X, cardStartY, cardW, cardH, 6, TFT_DARKGREY);
     
-    // Etykieta
     tft.setTextColor(TFT_CYAN, 0x1082);
     tft.setTextFont(1);
     tft.setTextSize(1);
@@ -153,23 +168,23 @@ void displayLocalSensors(TFT_eSPI& tft) {
         if (hum > 60) humColor = TFT_BLUE;
         
         tft.setTextColor(humColor, 0x1082);
-        
         int valY = cardStartY + 48;
         
         tft.setTextFont(4);
         tft.setTextDatum(MC_DATUM);
         
-        // Liczba przesunięta w lewo
-        tft.drawString(String((int)hum), card2_X + cardW/2 - 5, valY);
+        // FORMATOWANIE ZALEŻNE OD CZUJNIKA
+        if (humIsInt) {
+             tft.drawString(String((int)hum), card2_X + cardW/2 - 5, valY);
+        } else {
+             tft.drawString(String(hum, 2), card2_X + cardW/2 - 5, valY);
+        }
         
-        // Jednostka
         tft.setTextFont(2);
         tft.setTextDatum(BL_DATUM);
-        tft.drawString("%", card2_X + cardW/2 + 18, valY + 8);
+        tft.drawString("%", card2_X + cardW/2 + 25, valY + 8);
         
-        // Pasek postępu
         drawProgressBar(tft, card2_X + 8, cardStartY + cardH - 25, cardW - 16, 6, hum, 0, 100, humColor);
-        
     } else {
         tft.setTextColor(TFT_RED, 0x1082);
         tft.setTextFont(4);
@@ -177,14 +192,9 @@ void displayLocalSensors(TFT_eSPI& tft) {
         tft.drawString("--", card2_X + cardW/2, cardStartY + 48);
     }
     
-    // KONIEC TRYBU OFFLINE
-    // Karty kończą się na Y = 70 + 95 = 165px
-    // Pozostało: 240 - 165 = 75px wolnej przestrzeni na dół
-    // ZERO nakładek z czasem (displayTime rysuje do ~50px)
-    
   } else {
     // ╔══════════════════════════════════════════════════════╗
-    // ║         TRYB ONLINE - Kompaktowy z stopką          ║
+    // ║         TRYB ONLINE                                  ║
     // ╚══════════════════════════════════════════════════════╝
     
     uint8_t headerY = 45;
@@ -200,7 +210,7 @@ void displayLocalSensors(TFT_eSPI& tft) {
     uint8_t card1_X = 20;
     uint8_t card2_X = 165;
     
-    // KARTA 1: TEMPERATURA (ONLINE - kompaktowa)
+    // KARTA 1: TEMPERATURA
     tft.fillRoundRect(card1_X, cardY, cardW, cardH, 8, 0x1082);
     tft.drawRoundRect(card1_X, cardY, cardW, cardH, 8, TFT_DARKGREY);
     
@@ -219,20 +229,20 @@ void displayLocalSensors(TFT_eSPI& tft) {
         int valY = cardY + 40;
         
         tft.setTextFont(4);
-        tft.drawString(String(temp, 1), card1_X + cardW/2, valY);
+        // Formatowanie 2 miejsc po przecinku dla SHT
+        tft.drawString(String(temp, tempDecimals), card1_X + cardW/2, valY);
         
         tft.setTextFont(2);
-        tft.drawString("'C", card1_X + cardW/2 + 45, valY - 5);
+        tft.drawString("'C", card1_X + cardW/2 + 50, valY - 5); // Odsunięte 'C'
         
         drawProgressBar(tft, card1_X + 10, cardY + cardH - 8, cardW - 20, 4, temp, 0, 40, tempColor);
-        
     } else {
         tft.setTextColor(TFT_RED, 0x1082);
         tft.setTextFont(4);
         tft.drawString("--.-", card1_X + cardW/2, cardY + cardH/2);
     }
     
-    // KARTA 2: WILGOTNOŚĆ (ONLINE - kompaktowa)
+    // KARTA 2: WILGOTNOŚĆ
     tft.fillRoundRect(card2_X, cardY, cardW, cardH, 8, 0x1082);
     tft.drawRoundRect(card2_X, cardY, cardW, cardH, 8, TFT_DARKGREY);
     
@@ -251,13 +261,18 @@ void displayLocalSensors(TFT_eSPI& tft) {
         int valY = cardY + 40;
         
         tft.setTextFont(4);
-        tft.drawString(String((int)hum), card2_X + cardW/2, valY);
+        
+        // Formatowanie 2 miejsc po przecinku dla SHT
+        if (humIsInt) {
+             tft.drawString(String((int)hum), card2_X + cardW/2, valY);
+        } else {
+             tft.drawString(String(hum, 2), card2_X + cardW/2, valY);
+        }
         
         tft.setTextFont(2);
-        tft.drawString("%", card2_X + cardW/2 + 35, valY - 5);
+        tft.drawString("%", card2_X + cardW/2 + 45, valY - 5);
         
         drawProgressBar(tft, card2_X + 10, cardY + cardH - 8, cardW - 20, 4, hum, 0, 100, humColor);
-        
     } else {
         tft.setTextColor(TFT_RED, 0x1082);
         tft.setTextFont(4);
@@ -279,15 +294,18 @@ void displayLocalSensors(TFT_eSPI& tft) {
     tft.setTextColor(TFT_CYAN);
     tft.drawString("STATUS SYSTEMU:", 160, UPDATES_TITLE_Y);
     
-    String dhtStatus = "DHT22: " + dhtData.status;
-    uint16_t statusColor = dhtData.isValid ? TFT_GREEN : TFT_RED;
+    // 1. STATUS SENSORA (Używamy stałej UPDATES_DHT22_Y - pozycja 160)
+    String sensorStatusLine = sensorName + ": " + sensorStatusMsg;
+    uint16_t statusColor = isValid ? TFT_GREEN : TFT_RED;
     tft.setTextColor(statusColor);
-    tft.drawString(dhtStatus, 160, UPDATES_DHT22_Y);
+    tft.drawString(sensorStatusLine, 160, UPDATES_DHT22_Y); 
     
+    // 2. INTERWAŁ ODCZYTU (Używamy stałej UPDATES_SENSOR_Y - pozycja 175)
     tft.setTextColor(TFT_DARKGREY);
-    String sensorInterval = "Odczyt sensora: co " + String(DHT22_READ_INTERVAL / 1000) + "s";
+    String sensorInterval = "Odczyt sensora: co " + String(readIntervalSec) + "s";
     tft.drawString(sensorInterval, 160, UPDATES_SENSOR_Y);
     
+    // POGODA
     unsigned long weatherAge = (millis() - lastWeatherCheckGlobal) / 1000;
     String wPrefix = "Pogoda: ";
     String wTime;
@@ -309,6 +327,7 @@ void displayLocalSensors(TFT_eSPI& tft) {
     tft.setTextColor(TFT_DARKGREY);
     tft.drawString(wSuffix, wX, UPDATES_WEATHER_Y);
     
+    // PROGNOZA TYGODNIOWA
     unsigned long weeklyAge = (millis() - weeklyForecast.lastUpdate) / 1000;
     String fPrefix = "Pogoda tyg.: ";
     String fTime;
@@ -329,6 +348,7 @@ void displayLocalSensors(TFT_eSPI& tft) {
     tft.setTextColor(TFT_DARKGREY);
     tft.drawString(fSuffix, fX, UPDATES_WEEKLY_Y);
     
+    // WIFI
     String wifiStatus;
     if (WiFi.status() == WL_CONNECTED) {
       int8_t rssi = WiFi.RSSI();
@@ -346,13 +366,13 @@ void displayLocalSensors(TFT_eSPI& tft) {
     tft.setTextColor(TFT_DARKGREY);
     tft.drawString(wifiStatus, 160, UPDATES_WIFI_Y);
     
+    // WERSJA
     tft.setTextDatum(BR_DATUM);
     tft.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND);
     String versionText = "v" + String(FIRMWARE_VERSION);
     tft.drawString(versionText, tft.width() - 5, tft.height() - 5);
   }
   
-  // Reset ustawień
   tft.setTextDatum(TL_DATUM);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
   tft.setTextFont(1);
