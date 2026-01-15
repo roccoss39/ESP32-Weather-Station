@@ -169,7 +169,7 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.setTextFont(2);
         tft.setTextDatum(BL_DATUM);
         tft.drawString("'C", card1_X + cardW/2 + 35, valY + 8); 
-        tft.drawString("%", card2_X + cardW/2 + 25, valY + 8);
+        tft.drawString(" %", card2_X + cardW/2 + 25, valY + 8);
         
         tft.drawRoundRect(card1_X + 8, cardStartY + cardH - 25, cardW - 16, 6, 3, TFT_DARKGREY);
         tft.drawRoundRect(card2_X + 8, cardStartY + cardH - 25, cardW - 16, 6, 3, TFT_DARKGREY);
