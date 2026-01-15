@@ -17,11 +17,6 @@ extern bool isOfflineMode;
 
 #define CARD_BG_COLOR 0x1082 
 
-// STAŁA POZYCJA STARTOWA DLA LINII STOPKI (Dla trybu Online)
-// X=55 to dobry punkt startowy, żeby najdłuższy możliwy tekst był mniej więcej na środku,
-// a krótkie teksty wyglądały estetycznie.
-#define FOOTER_START_X  55
-
 #ifndef UPDATES_TITLE_Y
   #define UPDATES_CLEAR_Y   130
   #define UPDATES_TITLE_Y   140
@@ -43,32 +38,47 @@ static void drawProgressBar(TFT_eSPI& tft, int x, int y, int w, int h, float val
     if (fillW > 0) tft.fillRoundRect(x + 2, y + 2, fillW, h - 4, 2, color);
 }
 
-// Funkcja pomocnicza do rysowania zwartej linii tekstu (Label + Time + Suffix)
-// Rysuje elementy jeden po drugim, eliminując zbędne spacje.
-void drawCompactLine(TFT_eSPI& tft, int y, String label, String timeText, String suffix) {
-    int currentX = FOOTER_START_X;
-    
-    tft.setTextDatum(TL_DATUM); // Rysujemy od lewej do prawej
+// === NOWA FUNKCJA: SMART CENTERED LINE ===
+// Eliminuje miganie poprzez unikanie czyszczenia całego paska.
+// Czyści tylko lewy i prawy margines, a tekst nadpisuje "w locie".
+void drawCenteredCompactLine(TFT_eSPI& tft, int y, String label, String timeText, String suffix) {
     tft.setTextSize(1);
     
-    // 1. Etykieta (np. "Pogoda: ")
+    // 1. Obliczamy szerokości
+    int wLabel = tft.textWidth(label);
+    int wTime = tft.textWidth(timeText);
+    int wSuffix = tft.textWidth(suffix);
+    
+    int totalWidth = wLabel + wTime + wSuffix;
+    int startX = (320 - totalWidth) / 2;
+    
+    // 2. CZYŚCIMY TYLKO LEWY MARGINES (od 0 do początku tekstu)
+    // To usuwa śmieci po lewej stronie, jeśli tekst się przesunął
+    if (startX > 0) {
+        tft.fillRect(0, y, startX, 15, COLOR_BACKGROUND);
+    }
+    
+    // 3. RYSUJEMY TEKST (Z tłem pod literami - to zapobiega miganiu tekstu)
+    int currentX = startX;
+    tft.setTextDatum(TL_DATUM); 
+    
+    // Etykieta
     tft.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND);
     tft.drawString(label, currentX, y);
-    currentX += tft.textWidth(label); // Przesuwamy kursor
+    currentX += wLabel;
     
-    // 2. Czas (np. "10s temu") - na biało
+    // Czas
     tft.setTextColor(TFT_WHITE, COLOR_BACKGROUND);
     tft.drawString(timeText, currentX, y);
-    currentX += tft.textWidth(timeText); // Przesuwamy kursor
+    currentX += wTime;
     
-    // 3. Sufiks (np. " (co 10min)")
+    // Sufiks
     tft.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND);
     tft.drawString(suffix, currentX, y);
-    currentX += tft.textWidth(suffix);
+    currentX += wSuffix;
     
-    // 4. CZYSZCZENIE KONCÓWKI
-    // Jeśli tekst się skrócił (np. "59min" -> "1h"), musimy wymazać śmieci po prawej.
-    // Rysujemy pasek tła od końca tekstu do krawędzi ekranu.
+    // 4. CZYŚCIMY TYLKO PRAWY MARGINES (od końca tekstu do 320)
+    // To usuwa śmieci po prawej, jeśli tekst się skrócił
     if (currentX < 320) {
         tft.fillRect(currentX, y, 320 - currentX, 15, COLOR_BACKGROUND);
     }
@@ -80,11 +90,11 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
 
   // 1. TŁO (Tylko raz)
   if (!onlyUpdate) {
-      Serial.println("📱 Rysowanie ekranu: LOCAL SENSORS (DYNAMIC COMPACT)");
+      Serial.println("📱 Rysowanie ekranu: LOCAL SENSORS (NO BLINK)");
       tft.fillScreen(COLOR_BACKGROUND);
   }
 
-  // 2. ZEGAR (Zawsze odświeżamy - dla trybu Offline jest widoczny, dla Online działa w tle)
+  // 2. ZEGAR (Zawsze dla Offline)
   if (isOfflineMode) {
       displayTime(tft);
   }
@@ -98,11 +108,9 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
   float hum = 0.0;
   bool isValid = false;
   
-  // Zmienne stopki
   String sensorName = "";
   String sensorStatusMsg = "";
   int readIntervalSec = 0;
-  
   int tempDecimals = 1; 
   bool humIsInt = true;
 
@@ -128,7 +136,7 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
   #endif
 
   // ##################################################################
-  // TRYB OFFLINE
+  // TRYB OFFLINE (DUŻE KARTY)
   // ##################################################################
   if (isOfflineMode) {
     uint8_t cardStartY = 70;   
@@ -206,7 +214,7 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
     }
   } 
   // ##################################################################
-  // TRYB ONLINE (KOMPAKTOWE KARTY + STOPKA DYNAMICZNA)
+  // TRYB ONLINE (KOMPAKT + STOPKA ZERO MIGANIA)
   // ##################################################################
   else {
     
@@ -244,9 +252,8 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.drawRoundRect(card1_X + 10, cardY + cardH - 8, cardW - 20, 4, 2, TFT_DARKGREY);
         tft.drawRoundRect(card2_X + 10, cardY + cardH - 8, cardW - 20, 4, 2, TFT_DARKGREY);
         
-        // TŁO STOPKI
+        // STOPKA TYTUŁ
         tft.fillRect(0, UPDATES_CLEAR_Y, 320, 240 - UPDATES_CLEAR_Y, COLOR_BACKGROUND);
-        
         tft.setTextFont(1);
         tft.setTextSize(1);
         tft.setTextDatum(TC_DATUM);
@@ -290,11 +297,11 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.drawString("--", card2_X + cardW/2, cardY + cardH/2);
     }
 
-    // --- DYNAMICZNE (STOPKA) - ZWARTE LINIE ---
+    // --- DYNAMICZNE (STOPKA) ---
     tft.setTextFont(1);
     tft.setTextSize(1);
     
-    // Status Sensora i Interval (wycentrowane normalnie)
+    // Status Sensora i Interval
     tft.setTextDatum(TC_DATUM);
     tft.setTextPadding(200); 
 
@@ -308,23 +315,23 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
     tft.drawString(intervalLine, 160, UPDATES_SENSOR_Y);
     tft.setTextPadding(0);
 
-    // --- POGODA (ZWARTA LINIA) ---
+    // --- POGODA (IDEALNIE WYSRODKOWANA, BEZ MIGANIA) ---
     unsigned long weatherAge = (millis() - lastWeatherCheckGlobal) / 1000;
     String wTime;
     if (weatherAge < 60) wTime = String(weatherAge) + "s temu";
     else if (weatherAge < 3600) wTime = String(weatherAge / 60) + "min temu";
     else wTime = String(weatherAge / 3600) + "h temu";
     
-    drawCompactLine(tft, UPDATES_WEATHER_Y, "Pogoda: ", wTime, " (co 10min)");
+    drawCenteredCompactLine(tft, UPDATES_WEATHER_Y, "Pogoda: ", wTime, " (co 10min)");
 
-    // --- WEEKLY (ZWARTA LINIA) ---
+    // --- WEEKLY (IDEALNIE WYSRODKOWANA, BEZ MIGANIA) ---
     unsigned long weeklyAge = (millis() - weeklyForecast.lastUpdate) / 1000;
     String fTime;
     if (weeklyAge < 60) fTime = String(weeklyAge) + "s temu";
     else if (weeklyAge < 3600) fTime = String(weeklyAge / 60) + "min temu";
     else fTime = String(weeklyAge / 3600) + "h temu";
     
-    drawCompactLine(tft, UPDATES_WEEKLY_Y, "Pogoda tyg.: ", fTime, " (co 4h)");
+    drawCenteredCompactLine(tft, UPDATES_WEEKLY_Y, "Pogoda tyg.: ", fTime, " (co 4h)");
 
     // WiFi
     tft.setTextDatum(TC_DATUM);
