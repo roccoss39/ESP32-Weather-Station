@@ -3,8 +3,8 @@
 #include "Adafruit_SHT31.h"
 
 // --- KONFIGURACJA PINÓW I2C (DOMYŚLNE DLA ESP32) ---
-#define I2C_SDA 21
-#define I2C_SCL 22
+#define I2C_SDA 13
+#define I2C_SCL 12
 
 // Adres I2C czujnika SHT31 (zazwyczaj 0x44, czasem 0x45 jeśli pin ADDR jest podłączony do VCC)
 #define SHT31_ADDR 0x44
