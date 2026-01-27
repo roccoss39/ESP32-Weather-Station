@@ -163,8 +163,17 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.setTextColor(isValid ? TFT_GREEN : TFT_RED, CARD_BG_COLOR);
         tft.setTextFont(2);
         tft.setTextDatum(BL_DATUM);
-        tft.drawString("'C", card1_X + cardW/2 + 35, valY + 8); 
-        tft.drawString(" %", card2_X + cardW/2 + 25, valY + 8);
+
+       
+
+        // tft.setTextColor(TFT_GREEN, CARD_BG_COLOR);
+        // tft.fillCircle(unitX - 5, unitY - 12, 2, TFT_GREEN);  // °
+        // tft.drawString("C", unitX, unitY);    
+
+
+        // tft.fillCircle(card1_X + cardW/2 + 35 - 5, valY + 8 + 3, 2, TFT_GREEN); 
+        // tft.drawString("'C", card1_X + cardW/2 + 35, valY + 8); 
+        // tft.drawString(" %", card2_X + cardW/2 + 25, valY + 8);
         
         tft.drawRoundRect(card1_X + 8, cardStartY + cardH - 25, cardW - 16, 6, 3, TFT_DARKGREY);
         tft.drawRoundRect(card2_X + 8, cardStartY + cardH - 25, cardW - 16, 6, 3, TFT_DARKGREY);
@@ -183,6 +192,14 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.setTextFont(4);
         tft.setTextDatum(MC_DATUM);
         tft.drawString(String(temp, tempDecimals), card1_X + cardW/2 - 5, valY);
+        
+        int unitX = card1_X + cardW/2 + 40;
+        int unitY = valY;
+
+        tft.setTextFont(2);
+        tft.fillCircle(unitX - 9, unitY - 6, 2, tempColor);  // °
+        tft.drawString("C", unitX, unitY);    
+
         drawProgressBar(tft, card1_X + 8, cardStartY + cardH - 25, cardW - 16, 6, temp, 0, 40, tempColor);
     } else {
         tft.setTextColor(TFT_RED, CARD_BG_COLOR);
@@ -200,6 +217,10 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.setTextDatum(MC_DATUM);
         if (humIsInt) tft.drawString(String((int)hum), card2_X + cardW/2 - 5, valY);
         else tft.drawString(String(hum, 2), card2_X + cardW/2 - 5, valY);
+
+        tft.setTextDatum(BL_DATUM);
+        tft.setTextFont(2);
+        tft.drawString(" %", card2_X + cardW/2 + 25, valY + 8);
         drawProgressBar(tft, card2_X + 8, cardStartY + cardH - 25, cardW - 16, 6, hum, 0, 100, humColor);
     } else {
         tft.setTextColor(TFT_RED, CARD_BG_COLOR);
@@ -241,8 +262,6 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         int valY = cardY + 40;
         tft.setTextColor(TFT_GREEN, CARD_BG_COLOR);
         tft.setTextFont(2);
-        tft.drawString("'C", card1_X + cardW/2 + 50, valY - 5);
-        tft.drawString("%", card2_X + cardW/2 + 45, valY - 5);
         
         tft.drawRoundRect(card1_X + 10, cardY + cardH - 8, cardW - 20, 4, 2, TFT_DARKGREY);
         tft.drawRoundRect(card2_X + 10, cardY + cardH - 8, cardW - 20, 4, 2, TFT_DARKGREY);
@@ -269,6 +288,14 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.setTextFont(4);
         tft.setTextDatum(MC_DATUM);
         tft.drawString(String(temp, tempDecimals), card1_X + cardW/2, valY);
+
+        int unitX = card1_X + cardW/2 + 47;
+        int unitY = valY;
+
+        tft.setTextFont(2);
+        tft.fillCircle(unitX - 9, unitY - 6, 2, tempColor);  // °
+        tft.drawString("C", unitX, unitY);    
+
         drawProgressBar(tft, card1_X + 10, cardY + cardH - 8, cardW - 20, 4, temp, 0, 40, tempColor);
     } else {
         tft.setTextColor(TFT_RED, CARD_BG_COLOR);
@@ -285,6 +312,11 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.setTextDatum(MC_DATUM);
         if (humIsInt) tft.drawString(String((int)hum), card2_X + cardW/2, valY);
         else tft.drawString(String(hum, 2), card2_X + cardW/2, valY);
+
+        tft.setTextDatum(BL_DATUM);
+        tft.setTextFont(2);
+        tft.drawString(" %", card2_X + cardW/2 + 33, valY + 8);
+
         drawProgressBar(tft, card2_X + 10, cardY + cardH - 8, cardW - 20, 4, hum, 0, 100, humColor);
     } else {
         tft.setTextColor(TFT_RED, CARD_BG_COLOR);
