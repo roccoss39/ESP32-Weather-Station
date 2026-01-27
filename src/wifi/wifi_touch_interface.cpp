@@ -6,6 +6,7 @@
 #include "config/location_config.h"
 #include "weather/weather_data.h"   
 #include "weather/forecast_data.h"  
+#include "display/display_utils.h"
 
 extern bool isNtpSyncPending;
 extern bool isLocationSavePending;
@@ -1099,7 +1100,11 @@ if (currentState == STATE_SCAN_NETWORKS) {
        // Bez tego ekran byłby czarny przez kilka sekund (do timeoutu timera)
        extern ScreenManager& getScreenManager();
        extern void forceScreenRefresh(TFT_eSPI& tft);
-       
+
+       clearAndShowMessage(tft, "Podlacz jednorazowo WiFi do synchro. czasu");
+       delay(2000);
+      //  tft.drawString("Podlacz jednorazowo WiFi do synch. czasu", (tft.width()) / 2, ((tft.height()) / 2) + 75);
+
        getScreenManager().setCurrentScreen(SCREEN_LOCAL_SENSORS); // Ustaw start na sensory
        getScreenManager().resetScreenTimer(); // Resetuj timer
        forceScreenRefresh(tft); // <--- RYSUJ NATYCHMIAST!

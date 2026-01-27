@@ -497,6 +497,8 @@ void loop() {
       // Obsługuje zarówno tryb Offline jak i Online
       else if (currentScreen == SCREEN_LOCAL_SENSORS) {
           displayLocalSensors(tft, true); // true = tylko odśwież liczby (bez migania)
+          if (isOfflineMode)
+          displayTime(tft);
       }
 
       lastDisplayUpdate = millis();

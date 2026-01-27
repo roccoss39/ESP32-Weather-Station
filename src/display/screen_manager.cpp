@@ -77,48 +77,14 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
     // Upewnij się w sensors_display.cpp, że rysują się niżej (y > 70)
     displayLocalSensors(tft);
     
-    // 2. Wyświetl Zegar
+    getTimeDisplayCache().resetCache();
     displayTime(tft); 
 
-    // 3. --- DATA (TWOJA RAMKA - PRZENIESIONA TUTAJ) ---
-    struct tm timeinfo;
-    if (getLocalTime(&timeinfo, 0)) {
-        uint16_t CARD_BG = 0x1082; 
-        uint16_t BORDER_COLOR = TFT_DARKGREY;
-        int cardW = 300;  // Zwiększone z 160 (dla size 2 i dłuższych tekstów)
-        int cardH = 38;   // Zwiększone z 30 (dla size 2: 16px + padding)
-        int cardX = (tft.width() - cardW) / 2;  // = 10px (wyśrodkowane)
-        int cardY = 170;  // Przesunięte w górę z 165 (więcej odstępu od kart)
-
-        tft.fillRoundRect(cardX, cardY, cardW, cardH, 6, CARD_BG);
-        tft.drawRoundRect(cardX, cardY, cardW, cardH, 6, BORDER_COLOR);
-
-        char dateStr[16];
-        sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900);
-        // Uwaga: const char* tablica powinna być static dla oszczędności, ale tak też zadziała
-        const char* daysPL[] = {"Niedziela", "Poniedzialek", "Wtorek", "Sroda", "Czwartek", "Piatek", "Sobota"};
-        
-        tft.setTextColor(TFT_SILVER, CARD_BG);
-        tft.setTextSize(2);
-        tft.setTextDatum(ML_DATUM);
-
-        
-        // Zabezpieczenie przed wyjściem poza tablicę (0-6)
-        if(timeinfo.tm_wday >= 0 && timeinfo.tm_wday <= 6) {
-            tft.drawString(daysPL[timeinfo.tm_wday], cardX + 10, cardY + cardH/2);
-        }
-        
-        tft.setTextColor(TFT_WHITE, CARD_BG);
-        tft.setTextDatum(MR_DATUM);
-        tft.drawString(dateStr, cardX + cardW - 10, cardY + cardH/2);
-    }
-    else
-    {
-    tft.setTextSize(1);
-    tft.setTextDatum(MC_DATUM);
-    tft.setTextColor(TFT_WHITE, 0x1082);
-    tft.drawString("Podlacz jednorazowo WiFi do synch. czasu", (tft.width()) / 2, ((tft.height()) / 2) + 75);
-    }
+    // tft.setTextSize(1);
+    // tft.setTextDatum(MC_DATUM);
+    // tft.setTextColor(TFT_WHITE, 0x1082);
+    // tft.drawString("Podlacz jednorazowo WiFi do synch. czasu", (tft.width()) / 2, ((tft.height()) / 2) + 75);
+   
   }
   else 
   displayLocalSensors(tft);
