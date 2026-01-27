@@ -26,7 +26,7 @@ enum EspModel {
 
 enum TftModel {
     DAWID_TFT_ILI9341_RED_2_8_v_1_2,
-    BASIA_TFT_ILI9341_RED_2_8_v_1_2,
+    DZIADEK_TFT_ILI9341_RED_2_8_v_1_2,
     GRAY_1_TFT_ILI9341_RED_2_8_v_1_2,
     GRAY_2_TFT_ILI9341_RED_2_8_v_1_2
 };
@@ -111,25 +111,39 @@ enum TftModel {
     #define SPI_TOUCH_FREQUENCY 2500000 // 2.5 MHz
 #endif
 
-inline const uint16_t* getTouchCalibration()
+extern uint16_t activeTouchCalibration[5];
+
+inline uint16_t* getTouchCalibration()
 {
-    switch (ACTIVE_TFT_MODEL)
-    {
-        case DAWID_TFT_ILI9341_RED_2_8_v_1_2:
-            return TOUCH_CAL_DAWID;
+    return activeTouchCalibration;
+}
 
-        case BASIA_TFT_ILI9341_RED_2_8_v_1_2:
-            return TOUCH_CAL_BASIA;
-
-        case GRAY_1_TFT_ILI9341_RED_2_8_v_1_2:
-            return TOUCH_CAL_GRAY_1;
-
-        case GRAY_2_TFT_ILI9341_RED_2_8_v_1_2:
-            return TOUCH_CAL_GRAY_2;    
-            
-        default:
-            return nullptr;
-    }
+// 2. A to jest funkcja pomocnicza, która wyciąga dane z secrets.h TYLKO RAZ (przy produkcji)
+// Używamy jej tylko w setupie, gdy pamięć jest pusta.
+inline const uint16_t* getFactoryCalibrationFromSecrets()
+{
+    // Tutaj zostaje Twój stary switch, ale używamy go tylko do "pierwszego wgrania"
+    #ifdef SECRETS_H // Zabezpieczenie, żeby kod działał też bez secrets
+        switch (ACTIVE_TFT_MODEL)
+        {
+            case DAWID_TFT_ILI9341_RED_2_8_v_1_2:
+                return TOUCH_CAL_DAWID;
+    
+            case DZIADEK_TFT_ILI9341_RED_2_8_v_1_2:
+                return TOUCH_CAL_DZIADEK;
+    
+            case GRAY_1_TFT_ILI9341_RED_2_8_v_1_2:
+                return TOUCH_CAL_GRAY_1;
+    
+            case GRAY_2_TFT_ILI9341_RED_2_8_v_1_2:
+                return TOUCH_CAL_GRAY_2;    
+                
+            default:
+                return nullptr;
+        }
+    #else
+        return nullptr;
+    #endif
 }
 
 inline uint8_t getStatusLedPin()

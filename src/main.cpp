@@ -76,10 +76,75 @@ unsigned long lastWeatherCheckGlobal = 0;
 unsigned long lastForecastCheckGlobal = 0;
 unsigned long lastWeeklyUpdate = 0; 
 
+uint16_t activeTouchCalibration[5] = {0, 0, 0, 0, 0};
+
 void setup() {
   Serial.begin(115200);
   delay(DELAY_STABILIZATION); 
   
+// ============================================================
+  // 1. LOGIKA KALIBRACJI (OTA SAFE) - Z DEBUGOWANIEM
+  // ============================================================
+  {
+      Serial.println("\n--- DEBUG START: KALIBRACJA ---");
+      Preferences prefs;
+      // Używamy tej samej nazwy przestrzeni co zawsze
+      bool success = prefs.begin("touch_cal", false); 
+      
+      if (!success) {
+          Serial.println("❌ BŁĄD KRYTYCZNY: Nie udało się otworzyć pamięci Preferences!");
+      }
+
+      // Sprawdzamy czy klucz istnieje
+      bool hasKey = prefs.isKey("cal_done");
+      Serial.print("❓ Czy klucz 'cal_done' istnieje w pamieci? -> ");
+      Serial.println(hasKey ? "TAK" : "NIE");
+
+      if (hasKey) {
+          Serial.println("📥 ŚCIEŻKA A: Wczytywanie kalibracji z pamięci (NVS)...");
+          
+          activeTouchCalibration[0] = prefs.getUShort("c0", 0);
+          activeTouchCalibration[1] = prefs.getUShort("c1", 0);
+          activeTouchCalibration[2] = prefs.getUShort("c2", 0);
+          activeTouchCalibration[3] = prefs.getUShort("c3", 0);
+          activeTouchCalibration[4] = prefs.getUShort("c4", 0);
+          
+          Serial.print("📊 Odczytane wartości: ");
+          Serial.printf("[%d, %d, %d, %d, %d]\n", 
+              activeTouchCalibration[0], activeTouchCalibration[1], 
+              activeTouchCalibration[2], activeTouchCalibration[3], 
+              activeTouchCalibration[4]);
+              
+          if (activeTouchCalibration[0] == 0 && activeTouchCalibration[1] == 0) {
+             Serial.println("⚠️ UWAGA: Wartości wynoszą 0! Coś poszło nie tak z zapisem wcześniej.");
+          }
+      } 
+      else {
+          Serial.println("⚙️ ŚCIEŻKA B: Brak danych w pamięci. Pobieranie z secrets.h...");
+          
+          const uint16_t* factoryCal = getFactoryCalibrationFromSecrets();
+
+          if (factoryCal != nullptr) {
+              Serial.println("✅ Znaleziono dane w secrets.h - Zapisuję do pamięci...");
+              for (int i = 0; i < 5; i++) {
+                  activeTouchCalibration[i] = factoryCal[i];
+                  // Debug zapisu
+                  String key = "c" + String(i);
+                  size_t saved = prefs.putUShort(key.c_str(), activeTouchCalibration[i]);
+                  if (saved == 0) Serial.println("❌ Błąd zapisu klucza: " + key);
+              }
+              
+              prefs.putBool("cal_done", true); 
+              Serial.println("💾 Kalibracja zapisana. Po restarcie powinna być w Ścieżce A.");
+          } else {
+              Serial.println("❌ BŁĄD: getFactoryCalibrationFromSecrets zwrócił NULL!");
+          }
+      }
+      prefs.end();
+      Serial.println("--- DEBUG END: KALIBRACJA ---\n");
+  }
+  // ============================================================
+
   sysManager.init(); 
   sysManager.setBrightness(0);
 
@@ -95,7 +160,7 @@ void setup() {
     case ESP_SLEEP_WAKEUP_TIMER:
       Serial.println("⏰ WAKE UP: NOCNA AKTUALIZACJA (03:00)");
 
-      // === DODAJ TEN BLOK TUTAJ: JITTER (Losowe opóźnienie) ===
+      // === JITTER ===
       {
          int jitterSeconds = random(0, FIRMWARE_UPDATE_JITTER + 1);
          Serial.printf("🎲 Jitter: Czekam %d sekund przed sprawdzeniem aktualizacji...\n", jitterSeconds);
@@ -149,14 +214,15 @@ void setup() {
   tft.init();
   tft.setRotation(1);
   
-const uint16_t* cal = getTouchCalibration();
-if (cal) {
-    tft.setTouch(const_cast<uint16_t*>(cal));
-    Serial.println("✅ Touch calibration applied from secrets.h");
-}
-else {
-    Serial.println("⚠️ No touch calibration found");
-}
+  // Aplikacja kalibracji (z globalnej zmiennej)
+  const uint16_t* cal = getTouchCalibration();
+  if (cal) {
+      tft.setTouch(const_cast<uint16_t*>(cal));
+      Serial.println("✅ Touch calibration applied.");
+  }
+  else {
+      Serial.println("⚠️ No touch calibration found");
+  }
 
   tft.fillScreen(COLOR_BACKGROUND);
 
@@ -187,27 +253,17 @@ else {
   tft.drawString("Laczenie WiFi...", tft.width() / 2, tft.height() / 2 + 20);
   
   // --- AUTO-CONNECT ---
-  String savedSSID = "";
-  String savedPassword = "";
-  
   Preferences prefs;
   prefs.begin("wifi", true); 
-  savedSSID = prefs.getString("ssid", "");
-  savedPassword = prefs.getString("password", "");
+  String savedSSID = prefs.getString("ssid", "");
+  String savedPassword = prefs.getString("password", "");
   prefs.end();
   
-  String connectSSID = WIFI_SSID;
-  String connectPassword = WIFI_PASSWORD;
-  
-  if (savedSSID.length() > 0) {  
-    connectSSID = savedSSID;
-    connectPassword = savedPassword;
-    Serial.print("AUTO-CONNECT to saved WiFi: ");
-    Serial.println(connectSSID);
-  } else {
-    Serial.print("Using default WiFi from secrets.h: ");
-    Serial.println(connectSSID);
-  }
+  String connectSSID = (savedSSID.length() > 0) ? savedSSID : WIFI_SSID;
+  String connectPassword = (savedSSID.length() > 0) ? savedPassword : WIFI_PASSWORD;
+
+  if (savedSSID.length() > 0) Serial.println("AUTO-CONNECT to saved WiFi: " + connectSSID);
+  else Serial.println("Using default WiFi from secrets.h: " + connectSSID);
 
   WiFi.begin(connectSSID.c_str(), connectPassword.c_str());
   int attempts = 0;
@@ -259,6 +315,7 @@ else {
   
   initMotionSensor();
 
+  // TYLKO SHT31 / DHT (Bez BME280)
   #ifdef USE_SHT31
     initSHT31(); 
   #else
@@ -269,7 +326,6 @@ else {
   initWiFiTouchInterface();
   initNASAImageSystem();
   
-  // --- Pierwsze pobranie danych ---
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("Pobieranie danych pogodowych...");
     
