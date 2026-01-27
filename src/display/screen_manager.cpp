@@ -82,7 +82,7 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
 
     // 3. --- DATA (TWOJA RAMKA - PRZENIESIONA TUTAJ) ---
     struct tm timeinfo;
-    if (getLocalTime(&timeinfo)) {
+    if (getLocalTime(&timeinfo, 0)) {
         uint16_t CARD_BG = 0x1082; 
         uint16_t BORDER_COLOR = TFT_DARKGREY;
         int cardW = 300;  // Zwiększone z 160 (dla size 2 i dłuższych tekstów)
@@ -96,11 +96,12 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
         char dateStr[16];
         sprintf(dateStr, "%02d.%02d.%04d", timeinfo.tm_mday, timeinfo.tm_mon + 1, timeinfo.tm_year + 1900);
         // Uwaga: const char* tablica powinna być static dla oszczędności, ale tak też zadziała
-        const char* daysPL[] = {"NIEDZIELA", "PONIEDZIALEK", "WTOREK", "SRODA", "CZWARTEK", "PIATEK", "SOBOTA"};
+        const char* daysPL[] = {"Niedziela", "Poniedzialek", "Wtorek", "Sroda", "Czwartek", "Piatek", "Sobota"};
         
         tft.setTextColor(TFT_SILVER, CARD_BG);
         tft.setTextSize(2);
         tft.setTextDatum(ML_DATUM);
+
         
         // Zabezpieczenie przed wyjściem poza tablicę (0-6)
         if(timeinfo.tm_wday >= 0 && timeinfo.tm_wday <= 6) {
@@ -110,6 +111,13 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
         tft.setTextColor(TFT_WHITE, CARD_BG);
         tft.setTextDatum(MR_DATUM);
         tft.drawString(dateStr, cardX + cardW - 10, cardY + cardH/2);
+    }
+    else
+    {
+    tft.setTextSize(1);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(TFT_WHITE, 0x1082);
+    tft.drawString("Podlacz jednorazowo WiFi do synch. czasu", (tft.width()) / 2, ((tft.height()) / 2) + 75);
     }
   }
   else 

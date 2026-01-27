@@ -94,11 +94,6 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
       tft.fillScreen(COLOR_BACKGROUND);
   }
 
-  // 2. ZEGAR (Zawsze dla Offline)
-  if (isOfflineMode) {
-      displayTime(tft);
-  }
-
   // 3. RESET USTAWIEŃ
   tft.setTextSize(1);
   tft.setTextColor(TFT_WHITE, COLOR_BACKGROUND); 

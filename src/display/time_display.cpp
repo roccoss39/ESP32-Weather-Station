@@ -28,8 +28,14 @@ String getPolishDayName(int dayNum) {
 void displayTime(TFT_eSPI& tft) {
   struct tm timeinfo;
   
-  if (!getLocalTime(&timeinfo)) {
+  if (!getLocalTime(&timeinfo, 0)) {
     Serial.println("Error reading time");
+    tft.fillRect(TIME_AREA_X + 25, TIME_AREA_Y, 140, 20, COLOR_BACKGROUND);
+    
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextSize(FONT_SIZE_MEDIUM);
+    tft.setTextColor(TFT_YELLOW, COLOR_BACKGROUND);
+    tft.drawString("--:--:--", (tft.width()) / 2, TIME_AREA_Y + TIME_AREA_OFFSET_Y + 12);
     return;
   }
 
@@ -47,10 +53,7 @@ void displayTime(TFT_eSPI& tft) {
   uint8_t dayNum = atoi(dayStr);
   String polishDay = getPolishDayName(dayNum);
   
-  // Usunięto currentWifiStatus - nie potrzebne bez wyświetlania WiFi status
 
-  // Sprawdź co się zmieniło i rysuj tylko potrzebne elementy
-  
   // 1. DZIEŃ TYGODNIA (przesunięty o kolejne 10px w lewo)
   if (getTimeDisplayCache().hasDayChanged(polishDay)) {
     Serial.println("Day changed - redrawing day");
