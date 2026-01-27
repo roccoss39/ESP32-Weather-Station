@@ -20,7 +20,7 @@ bool getWeather() {
   // Używaj LocationManager dla dynamicznej lokalizacji z coordinates
   WeatherLocation currentLoc = locationManager.getCurrentLocation();
   Serial.printf("🌐 Weather API - Using location: %s (%.2f, %.2f)\n", 
-                currentLoc.displayName, currentLoc.latitude, currentLoc.longitude);
+                currentLoc.displayName.c_str(), currentLoc.latitude, currentLoc.longitude);
   
   String urlString = locationManager.buildWeatherURL(WEATHER_API_KEY);
   const char* url = urlString.c_str();

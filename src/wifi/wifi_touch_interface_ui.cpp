@@ -9,6 +9,12 @@
 #include "weather/weather_data.h"
 #include "weather/forecast_data.h"
 
+// Temporary debug for location/custom GPS rendering
+#ifndef DEBUG_LOCATION_UI
+#define DEBUG_LOCATION_UI 1
+#endif
+
+
 // Colors duplicated from original file (UI concern)
 #define BLACK   0x0000
 #define BLUE    0x001F
@@ -352,10 +358,33 @@ void wifiTouchUI_drawLocationScreen(TFT_eSPI& tft) {
   }
 
   WeatherLocation currentLoc = locationManager.getCurrentLocation();
-  tft.setTextColor(YELLOW);
+
+#if DEBUG_LOCATION_UI
+  Serial.println("[LOC_UI] drawLocationScreen()");
+  const char* dn = currentLoc.displayName.c_str();
+  Serial.printf("[LOC_UI] currentLoc.displayName len=%d\n", currentLoc.displayName.length());
+  Serial.printf("[LOC_UI] currentLoc.displayName='%s'\n", dn);
+  // dump first 16 bytes
+  Serial.print("[LOC_UI] bytes: ");
+  for (int i = 0; i < 16; i++) {
+    unsigned char c = (unsigned char)dn[i];
+    Serial.printf("%02X ", c);
+    if (c == 0) break;
+  }
+  Serial.println();
+#endif
+
+  // Clear a larger area: punctuation like ',' has pixels below the baseline
+  // and can remain if the cleared rectangle is too small.
+  tft.fillRect(0, 28, tft.width(), 24, BLACK);
+#if DEBUG_LOCATION_UI
+  // visualize cleared area (optional)
+  tft.drawRect(0, 28, tft.width(), 24, DARKGRAY);
+#endif
+  tft.setTextColor(YELLOW, BLACK);
   tft.setTextSize(1);
   tft.setCursor(10, 35);
-  tft.printf("Aktualna: %s", currentLoc.displayName);
+  tft.printf("Aktualna: %s", currentLoc.displayName.c_str());
 
   tft.setTextColor(WHITE);
   int yPos = 60;
@@ -846,11 +875,21 @@ void wifiTouchUI_handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       double lon = customLongitude.toDouble();
 
       WeatherLocation customLoc;
-      static char customNameBuf[32];
-      snprintf(customNameBuf, sizeof(customNameBuf), "GPS %.4f,%.4f", lat, lon);
-      customLoc.displayName = customNameBuf;
+      // Format with hemispheres (N/S, E/W)
+      const char latHem = (lat >= 0.0) ? 'N' : 'S';
+      const char lonHem = (lon >= 0.0) ? 'E' : 'W';
+      const double latAbs = fabs(lat);
+      const double lonAbs = fabs(lon);
+      customLoc.displayName = String("GPS ") + String(latAbs, 4) + latHem + ", " + String(lonAbs, 4) + lonHem;
       customLoc.latitude = lat;
       customLoc.longitude = lon;
+
+#if DEBUG_LOCATION_UI
+      Serial.println("[LOC_UI] SET custom GPS");
+      Serial.printf("[LOC_UI] lat=%.6f lon=%.6f\n", lat, lon);
+      Serial.printf("[LOC_UI] displayName='%s'\n", customLoc.displayName.c_str());
+#endif
+
       locationManager.setLocation(customLoc);
       isLocationSavePending = true;
 

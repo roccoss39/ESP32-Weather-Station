@@ -157,11 +157,18 @@ void displayWeeklyForecast(TFT_eSPI& tft) {
     WeatherLocation loc = locationManager.getCurrentLocation();
     String locationText;
     
-    // Budowanie nazwy
-    if (loc.displayName.length() > 0 && loc.displayName != loc.cityName) {
+    // Budowanie nazwy (obsługa custom GPS: cityName może być puste)
+    const bool hasCity = loc.cityName.length() > 0;
+    const bool hasDisplay = loc.displayName.length() > 0;
+
+    if (hasCity && hasDisplay && loc.displayName != loc.cityName) {
         locationText = loc.cityName + ", " + loc.displayName;
-    } else {
+    } else if (hasDisplay) {
+        locationText = loc.displayName;
+    } else if (hasCity) {
         locationText = loc.cityName;
+    } else {
+        locationText = "";
     }
 
     // Zabezpieczenie długości

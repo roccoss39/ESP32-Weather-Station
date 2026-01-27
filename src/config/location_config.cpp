@@ -7,7 +7,7 @@ LocationManager locationManager;
 void LocationManager::setLocation(const WeatherLocation& location) {
     Serial.println("🔄 LocationManager::setLocation() called");
     Serial.printf("📍 OLD Location: %s (%.6f, %.6f)\n", 
-                  locationSet ? currentLocation.displayName : "NONE", 
+                  locationSet ? currentLocation.displayName.c_str() : "NONE", 
                   locationSet ? currentLocation.latitude : 0.0, 
                   locationSet ? currentLocation.longitude : 0.0);
     
@@ -15,7 +15,7 @@ void LocationManager::setLocation(const WeatherLocation& location) {
     locationSet = true;
     
     Serial.printf("📍 NEW Location: %s (%.6f, %.6f)\n", 
-                  location.displayName, location.latitude, location.longitude);
+                  location.displayName.c_str(), location.latitude, location.longitude);
     
     // Weekly forecast aktualizuje się automatycznie przez error mode system
     
@@ -55,7 +55,7 @@ void LocationManager::loadLocationFromPreferences() {
             
             setLocation(customSaved);
             Serial.printf("✅ Custom coordinates loaded: %s (%.6f, %.6f)\n",
-                         customSaved.displayName, customSaved.latitude, customSaved.longitude);
+                         customSaved.displayName.c_str(), customSaved.latitude, customSaved.longitude);
             prefs.end();
             return;
         }
@@ -136,7 +136,7 @@ void LocationManager::saveLocationToPreferences() {
     
     prefs.end();
     Serial.printf("💾 Location saved: %s (%.6f, %.6f)\n", 
-                  currentLocation.displayName, currentLocation.latitude, currentLocation.longitude);
+                  currentLocation.displayName.c_str(), currentLocation.latitude, currentLocation.longitude);
 }
 
 String LocationManager::buildWeatherURL(const char* apiKey) const {
