@@ -1,7 +1,9 @@
 #include "wifi/wifi_touch_interface.h"
+#include "wifi/wifi_touch_interface_ui.h"
+#include "wifi/wifi_touch_interface_internal.h"
+
 #include <SPI.h>
 #include "managers/ScreenManager.h"
-#include "sensors/motion_sensor.h"
 #include "managers/MotionSensorManager.h" 
 #include "config/location_config.h"
 #include "weather/weather_data.h"   
@@ -35,7 +37,8 @@ extern bool isOfflineMode;
 #define COLOR_BACKGROUND 0x0000  // Same as BLACK for clearing screen
 
 // TFT instance - extern, defined in main.cpp
-extern TFT_eSPI tft;
+extern TFT_eSPI tft; // global TFT instance
+// preferences is part of shared state (see wifi_touch_interface_internal.h)
 Preferences preferences;
 
 extern void onWiFiConnectedTasks();
@@ -68,8 +71,8 @@ unsigned long lastReconnectAttempt = 0;
 bool backgroundReconnectActive = false;
 
 // NOWE ZMIENNE DO NIEBLOKUJĄCEGO AUTO-RECONNECT:
-static bool reconnectAttemptInProgress = false;
-static unsigned long reconnectStartTime = 0;
+bool reconnectAttemptInProgress = false;
+unsigned long reconnectStartTime = 0;
 
 // Network data
 int networkCount = 0;
@@ -81,11 +84,6 @@ bool networkSecure[20];
 bool showPassword = false;
 
 // Location selection variables - NOWY UPROSZCZONY SYSTEM
-enum LocationMenuState {
-  MENU_MAIN,           // Główne menu: Szczecin, Poznan, Zlocieniec, Wlasny GPS  
-  MENU_DISTRICTS       // Lista dzielnic wybranego miasta
-};
-
 LocationMenuState currentMenuState = MENU_MAIN;
 int currentLocationIndex = 0;
 int selectedCityIndex = 0; // 0=Szczecin, 1=Poznan, 2=Zlocieniec, 3=Wlasny GPS
@@ -139,7 +137,7 @@ void initWiFiTouchInterface() {
   } else {
     // Only try to connect if WiFi is not already connected
     Serial.println("No WiFi connection, trying saved credentials...");
-    drawStatusMessage(tft, "Laczenie z WiFi...");
+    wifiTouchUI_drawStatusMessage(tft, "Laczenie z WiFi...");
     
     // Try saved WiFi credentials
     WiFi.begin(defaultSSID.c_str(), defaultPassword.c_str());
@@ -149,7 +147,7 @@ void initWiFiTouchInterface() {
       delay(500);
       Serial.print(".");
       timeout++;
-      drawStatusMessage(tft, "Laczenie... " + String(timeout) + "/20");
+      wifiTouchUI_drawStatusMessage(tft, "Laczenie... " + String(timeout) + "/20");
     }
     
     if (WiFi.status() == WL_CONNECTED) {
@@ -266,61 +264,8 @@ void exitWiFiConfigMode() {
 }
   // End of handleWiFiTouchLoop
 
-void drawStatusMessage(TFT_eSPI& tft, String message) {
-  tft.fillScreen(BLACK);
-  tft.setTextColor(WHITE);
-  tft.setTextSize(2);
-  tft.setTextDatum(MC_DATUM);  // Middle Center
-  tft.drawString(message, tft.width() / 2, tft.height() / 2);  // Wyśrodkowany
-}
+// UI functions moved to src/wifi/wifi_touch_interface_ui.cpp
 
-void drawConnectedScreen(TFT_eSPI& tft) {
-  tft.fillScreen(DARK_BLUE);  // Tło pozostaje ciemnoniebieskie
-  
-  // --- ZMIANA TUTAJ: INTELIGENTNY NAGŁÓWEK ---
-  if (wifiLostDetected || WiFi.status() != WL_CONNECTED) {
-    // Jeśli WiFi utracone: Piszemy na POMARAŃCZOWO/CZERWONO "UTRACONO WIFI"
-    tft.setTextColor(ORANGE); // Używamy zdefiniowanego wcześniej koloru ORANGE
-    tft.setTextSize(2);
-    tft.setTextDatum(MC_DATUM);
-    tft.drawString("UTRACONO POLACZENIE WIFI!", 160, 41);
-  } else {
-    // Jeśli wszystko OK: Piszemy na BIAŁO "POLACZONY!"
-    tft.setTextColor(WHITE);
-    tft.setTextSize(2);
-    tft.setCursor(30, 50);
-    tft.println("POLACZONY!");
-  }
-  // -------------------------------------------
-  
-  tft.setTextColor(WHITE); // Reset koloru dla reszty tekstów (IP, SSID)
-  tft.setTextSize(1);
-  tft.setCursor(10, 100);
-  tft.println("Network: " + WiFi.SSID());
-  tft.setCursor(10, 120);
-  
-  // Opcjonalnie: Jeśli nie ma WiFi, IP może być 0.0.0.0, można to też obsłużyć
-  if (WiFi.status() == WL_CONNECTED) {
-      tft.println("IP: " + WiFi.localIP().toString());
-  } else {
-      tft.println("IP: ---.---.---.---");
-  }
-
-  tft.setCursor(10, 140);
-  tft.println("Signal: " + String(WiFi.RSSI()) + " dBm");
-  
-  // WiFi monitoring status (Twój czerwony pasek - to zostawiamy bez zmian)
-  if (wifiLostDetected) {
-    unsigned long elapsed = millis() - wifiLostTime;
-    int remaining = (WIFI_LOSS_TIMEOUT - elapsed) / 1000;
-    if (remaining > 0) {
-      tft.fillRect(10, 160, 300, 20, RED);
-      tft.setTextColor(WHITE);
-      tft.setCursor(15, 165);
-      tft.printf("Brak WiFi! Polacz za: %d sek (auto. proba: 9s)", remaining);
-    }
-  }
-}
 void scanNetworks() {
   drawStatusMessage(tft, "Szukam sieci...");
   WiFi.mode(WIFI_STA);
@@ -345,6 +290,7 @@ void scanNetworks() {
   }
 }
 
+#if 0 // moved to wifi_touch_interface_ui.cpp
 void drawNetworkList(TFT_eSPI& tft) {
   // 1. Wyczyść ekran
   tft.fillScreen(BLACK);
@@ -561,6 +507,8 @@ void drawKeyboard() {
   tft.print("COFNIJ");
 }
 
+#endif
+
 void connectToWiFi() {
   drawStatusMessage(tft, "Laczenie z " + currentSSID + "...");
   Serial.println("Connecting to: " + currentSSID);
@@ -688,21 +636,20 @@ void handleLongPress(TFT_eSPI& tft) {
 void handleConfigModeTimeout() {
   if (currentState == STATE_CONFIG_MODE) {
     unsigned long elapsed = millis() - configModeStartTime;
-    
+
     if (elapsed >= WIFI_CONFIG_MODE_TIMEOUT) { // 120 seconds = 2 minutes
       Serial.println("Config mode timeout - returning to normal operation");
       currentState = STATE_CONNECTED;
-      
+
       // Clear screen and let main.cpp take over
       tft.fillScreen(COLOR_BACKGROUND);
-    }
-    else {
+    } else {
       // Update countdown display
       static unsigned long lastUpdate = 0;
       if (millis() - lastUpdate > 1000) { // Update every second
         lastUpdate = millis();
         int remaining = (WIFI_CONFIG_MODE_TIMEOUT - elapsed) / 1000;
-        
+
         tft.fillRect(250, 10, 65, 20, BLACK);
         tft.setTextColor(YELLOW);
         tft.setTextSize(1);
@@ -727,6 +674,7 @@ void enterConfigMode() {
   drawConfigModeScreen();
 }
 
+#if 0 // moved to wifi_touch_interface_ui.cpp
 void drawConfigModeScreen() {
   tft.fillScreen(BLACK);
   tft.setTextColor(CYAN);
@@ -799,6 +747,8 @@ void drawConfigModeScreen() {
   
   tft.setTextDatum(TL_DATUM); // Reset ustawień
 }
+
+#endif
 
 // Function to check if WiFi is lost (for main.cpp screen rotation pause)
 bool isWiFiLost() {
@@ -900,6 +850,10 @@ void handleBackgroundReconnect() {
       }
     }
   }
+}
+
+bool wifiTouch_isConnected() {
+  return WiFi.status() == WL_CONNECTED;
 }
 
 void checkWiFiConnection() {
@@ -1059,6 +1013,7 @@ void handleWiFiLoss() {
   }
 }
 
+#if 0 // moved to wifi_touch_interface_ui.cpp
 void handleTouchInput(int16_t x, int16_t y) {
   Serial.printf("HandleTouch: State=%d, X=%d, Y=%d\n", currentState, x, y);
   
@@ -1423,6 +1378,9 @@ if (currentState == STATE_SCAN_NETWORKS) {
   }
 }
 
+#endif
+
+#if 0 // moved to wifi_touch_interface_ui.cpp
 void handleKeyboardTouch(int16_t x, int16_t y) {
   int keyWidth = 25;
   int keyHeight = 28;
@@ -1534,6 +1492,8 @@ void handleKeyboardTouch(int16_t x, int16_t y) {
 
 // === LOCATION SELECTION IMPLEMENTATION ===
 
+#endif
+
 void enterLocationSelectionMode(TFT_eSPI& tft) {
   Serial.println("Entering LOCATION SELECTION MODE");
   currentState = STATE_SELECT_LOCATION;
@@ -1543,6 +1503,7 @@ void enterLocationSelectionMode(TFT_eSPI& tft) {
   drawLocationScreen(tft);
 }
 
+#if 0 // moved to wifi_touch_interface_ui.cpp
 void drawLocationScreen(TFT_eSPI& tft) {
   tft.fillScreen(BLACK);
   tft.setTextColor(CYAN);
@@ -1861,6 +1822,8 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
   }
 }
 
+#endif
+
 void enterCoordinatesMode(TFT_eSPI& tft) {
   Serial.println("Entering CUSTOM COORDINATES MODE");
   currentState = STATE_ENTER_COORDINATES;
@@ -1875,6 +1838,7 @@ void enterCoordinatesMode(TFT_eSPI& tft) {
   drawCoordinatesScreen(tft);
 }
 
+#if 0 // moved to wifi_touch_interface_ui.cpp
 void drawCoordinatesScreen(TFT_eSPI& tft) {
   tft.fillScreen(BLACK);
   tft.setTextColor(WHITE);
@@ -2224,5 +2188,8 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
   }
 }
 
+#endif
+
 // OLD TOUCH FUNCTIONS REMOVED - kod używa teraz tft.getTouch() z kalibracją
+
 // Lepsze dla kompatybilności i używa skalibrowanej macierzy dotyku

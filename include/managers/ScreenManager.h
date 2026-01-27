@@ -6,7 +6,7 @@
 #include "config/timing_config.h" 
 
 #define TEST_MODE 0
-#define TEST_SCREEN SCREEN_LOCAL_SENSORS
+#define TEST_SCREEN SCREEN_WEEKLY
 
 extern bool isOfflineMode;
 
