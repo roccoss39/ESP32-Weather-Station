@@ -1,4 +1,5 @@
 #include "display/current_weather_display.h"
+#include "display/display_utils.h"
 #include "managers/WeatherCache.h"
 #include "wifi/wifi_touch_interface.h"
 #include "display/weather_icons.h"
@@ -199,7 +200,16 @@ void displayCurrentWeather(TFT_eSPI& tft) {
         return; 
     }
     
+    extern bool isWeatherRefreshInProgress;
+    extern unsigned long weatherRefreshStartMs;
+    extern unsigned long weatherRefreshTimeoutMs;
+
     if (!weather.isValid) {
+        if (isWeatherRefreshInProgress && (millis() - weatherRefreshStartMs) < weatherRefreshTimeoutMs) {
+            drawLoadingSpinner(tft, "Ladowanie pogody...");
+            return;
+        }
+
         tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
         tft.setTextDatum(MC_DATUM);
         tft.setTextFont(1);

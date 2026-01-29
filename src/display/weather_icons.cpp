@@ -4,7 +4,7 @@
 void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconCode) {
   tft.fillRect(x, y, ICON_SIZE, ICON_SIZE, COLOR_BACKGROUND); // Wyczyść obszar ikony
   
-  Serial.println("Rysowanie ikony dla: main='" + condition + "', icon='" + iconCode + "'");
+  //Serial.println("[DEBUG] Rysowanie ikony dla: main='" + condition + "', icon='" + iconCode + "'");
   
   // Ikony na podstawie oficjalnej listy OpenWeatherMap
   // Group 800: Clear

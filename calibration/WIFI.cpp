@@ -704,11 +704,11 @@ void checkWiFiConnection() {
     wifiWasConnected = isConnected;
     
     // Debug WiFi status
-    if (currentState == STATE_CONNECTED) {
-      Serial.printf("WiFi status: %s, RSSI: %d dBm\n", 
-                   isConnected ? "CONNECTED" : "DISCONNECTED", 
-                   isConnected ? WiFi.RSSI() : 0);
-    }
+    // if (currentState == STATE_CONNECTED) {
+    //   Serial.printf("WiFi status: %s, RSSI: %d dBm\n", 
+    //                isConnected ? "CONNECTED" : "DISCONNECTED", 
+    //                isConnected ? WiFi.RSSI() : 0);
+    // }
   }
 }
 

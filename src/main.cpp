@@ -68,6 +68,12 @@ SystemManager sysManager;
 bool weatherErrorModeGlobal = false;
 bool forecastErrorModeGlobal = false;
 bool weeklyErrorModeGlobal = false;
+
+// Set to true for a short window after location change to show loading UI instead of error messages
+bool isWeatherRefreshInProgress = false;
+unsigned long weatherRefreshStartMs = 0;
+unsigned long weatherRefreshTimeoutMs = 10000UL;
+
 bool isNtpSyncPending = false;      
 bool isLocationSavePending = false; 
 
@@ -302,10 +308,10 @@ void setup() {
   } else {
     Serial.println("\nWiFi failed - funkcje API niedostępne");
     tft.fillScreen(COLOR_BACKGROUND);
-    tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
+    tft.setTextColor(TFT_WHITE, COLOR_BACKGROUND);
     tft.setTextSize(2);
     tft.setTextDatum(MC_DATUM);
-    tft.drawString("BLAD WiFi", tft.width() / 2, tft.height() / 2 - 20);
+    tft.drawString("Brak polaczenia WiFi", tft.width() / 2, tft.height() / 2 - 20);
     tft.setTextSize(1);
     tft.drawString("Sprawdz ustawienia sieci", tft.width() / 2, tft.height() / 2 + 10);
     delay(3000);
@@ -398,6 +404,17 @@ void loop() {
     locationManager.saveLocationToPreferences();
     isLocationSavePending = false; 
   }
+
+  // Clear weather refresh UI flag when data becomes available or after timeout
+  if (isWeatherRefreshInProgress) {
+    const bool timedOut = (millis() - weatherRefreshStartMs) > weatherRefreshTimeoutMs;
+    const bool haveForecast = forecast.isValid && forecast.count > 0;
+    const bool haveWeekly = weeklyForecast.isValid && weeklyForecast.count > 0;
+    if (timedOut || haveForecast || haveWeekly) {
+      isWeatherRefreshInProgress = false;
+    }
+  }
+
   
   if (!isOfflineMode) {
       static unsigned long lastWiFiSystemCheck = 0;
@@ -489,10 +506,9 @@ void loop() {
     
       // 1. Ekran Pogody (Tylko czas)
       if (currentScreen == SCREEN_CURRENT_WEATHER && !isWiFiConfigActive()) {
-          if (WiFi.status() == WL_CONNECTED) {
-            displayTime(tft);
-          }
-      }
+         // Update time even if WiFi is currently disconnected (time may still be valid after NTP sync)
+         displayTime(tft);
+     }
       // 2. Ekran Sensorów (SHT31/DHT22) - POPRAWIONE
       // Obsługuje zarówno tryb Offline jak i Online
       else if (currentScreen == SCREEN_LOCAL_SENSORS) {
@@ -509,6 +525,11 @@ void loop() {
 }
 
 void onWiFiConnectedTasks() {
+    // After WiFi connects, show loading UI for a short window while weather/forecast are fetched
+    isWeatherRefreshInProgress = true;
+    weatherRefreshStartMs = millis();
+    weatherRefreshTimeoutMs = 10000UL;
+
     Serial.println("onWiFiConnectedTasks: WiFi connected. Triggering NON-BLOCKING NTP sync...");
     configTzTime(TIMEZONE_INFO, NTP_SERVER);
     isNtpSyncPending = true; 

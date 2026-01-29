@@ -28,7 +28,7 @@ String getPolishDayName(int dayNum) {
 void displayTime(TFT_eSPI& tft) {
   struct tm timeinfo;
 
-  if (!getLocalTime(&timeinfo, 100)) {
+  if (!getLocalTime(&timeinfo, 200)) {
     Serial.println("Error reading time");
     tft.fillRect(TIME_AREA_X + 25, TIME_AREA_Y, 140, 20, COLOR_BACKGROUND);
     
@@ -82,17 +82,65 @@ void displayTime(TFT_eSPI& tft) {
     getTimeDisplayCache().setPrevDateStr(dateStr);
   }
 
-  // 3. CZAS (wyśrodkowany na ekranie - WIĘKSZA czcionka)
+  // 3. CZAS (minimalny redraw: aktualizuj tylko zmienione cyfry, żeby nie migało)
   if (getTimeDisplayCache().hasTimeChanged(timeStr)) {
-    Serial.println("Time changed - redrawing time");
-    // Wyczyść cały obszar czasu (wyśrodkowany)
-    tft.fillRect(TIME_AREA_X, TIME_AREA_Y + TIME_AREA_OFFSET_Y, 320, 25, COLOR_BACKGROUND);
-    
-    tft.setTextDatum(MC_DATUM);  // Middle Center - wyśrodkowanie
-    tft.setTextSize(FONT_SIZE_LARGE);  // ZWIĘKSZONA czcionka o 1
+    //Serial.println("[DEBUG] Time changed - redrawing time");
+
+    const uint8_t size = FONT_SIZE_LARGE;
+    const int charW = 6 * size;   // font 1 is 6px wide
+    const int charH = 8 * size;   // font 1 is 8px high
+
+    // "HH:MM:SS" length = 8, fixed width with font 1
+    const int totalW = 8 * charW;
+    const int x0 = 160 - (totalW / 2);
+    const int y0 = TIME_AREA_Y + TIME_AREA_OFFSET_Y; // top-left of time area
+
+    // On first draw (no previous value), draw everything
+    const String prev = getTimeDisplayCache().getPrevTimeStr();
+    const bool firstDraw = (prev.length() != 8);
+
+    tft.setTextDatum(TL_DATUM);
+    tft.setTextSize(size);
     tft.setTextColor(COLOR_TIME, COLOR_BACKGROUND);
-    tft.drawString(timeStr, 160, TIME_AREA_Y + TIME_AREA_OFFSET_Y + 12); // X=160 (środek ekranu 320/2)
-    
+
+    auto clearChars = [&](int startIndex, int count) {
+      tft.fillRect(x0 + startIndex * charW, y0, count * charW, charH, COLOR_BACKGROUND);
+    };
+    auto drawChars = [&](int startIndex, const char* s, int count) {
+      char buf[4] = {0};
+      for (int i = 0; i < count; i++) buf[i] = s[i];
+      tft.drawString(String(buf), x0 + startIndex * charW, y0);
+    };
+
+    if (firstDraw) {
+      // Clear full time area once to avoid leftovers from other screens
+      tft.fillRect(x0, y0, totalW, charH, COLOR_BACKGROUND);
+      tft.drawString(timeStr, x0, y0);
+    } else {
+      // Hours (0-1)
+      if (prev[0] != timeStr[0] || prev[1] != timeStr[1]) {
+        clearChars(0, 2);
+        drawChars(0, timeStr, 2);
+      }
+      // Minutes (3-4)
+      if (prev[3] != timeStr[3] || prev[4] != timeStr[4]) {
+        clearChars(3, 2);
+        drawChars(3, timeStr + 3, 2);
+      }
+      // Seconds (6-7) — changes every second
+      if (prev[6] != timeStr[6] || prev[7] != timeStr[7]) {
+        clearChars(6, 2);
+        drawChars(6, timeStr + 6, 2);
+      }
+      // Colons (2 and 5) rarely need redraw; draw once if they were missing
+      if (prev[2] != ':' || prev[5] != ':') {
+        clearChars(2, 1);
+        clearChars(5, 1);
+        drawChars(2, timeStr + 2, 1);
+        drawChars(5, timeStr + 5, 1);
+      }
+    }
+
     getTimeDisplayCache().setPrevTimeStr(timeStr);
   }
 

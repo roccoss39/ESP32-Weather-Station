@@ -164,17 +164,6 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.setTextFont(2);
         tft.setTextDatum(BL_DATUM);
 
-       
-
-        // tft.setTextColor(TFT_GREEN, CARD_BG_COLOR);
-        // tft.fillCircle(unitX - 5, unitY - 12, 2, TFT_GREEN);  // °
-        // tft.drawString("C", unitX, unitY);    
-
-
-        // tft.fillCircle(card1_X + cardW/2 + 35 - 5, valY + 8 + 3, 2, TFT_GREEN); 
-        // tft.drawString("'C", card1_X + cardW/2 + 35, valY + 8); 
-        // tft.drawString(" %", card2_X + cardW/2 + 25, valY + 8);
-        
         tft.drawRoundRect(card1_X + 8, cardStartY + cardH - 25, cardW - 16, 6, 3, TFT_DARKGREY);
         tft.drawRoundRect(card2_X + 8, cardStartY + cardH - 25, cardW - 16, 6, 3, TFT_DARKGREY);
     }
@@ -220,7 +209,7 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
 
         tft.setTextDatum(BL_DATUM);
         tft.setTextFont(2);
-        tft.drawString(" %", card2_X + cardW/2 + 25, valY + 8);
+        tft.drawString(" %", card2_X + cardW/2 + 27, valY + 8);
         drawProgressBar(tft, card2_X + 8, cardStartY + cardH - 25, cardW - 16, 6, hum, 0, 100, humColor);
     } else {
         tft.setTextColor(TFT_RED, CARD_BG_COLOR);

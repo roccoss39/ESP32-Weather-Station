@@ -2,6 +2,7 @@
 #include "config/display_config.h"
 #include "config/location_config.h"
 #include "weather/forecast_data.h"
+#include "display/display_utils.h"
 
 // Extern dependencies
 extern WeeklyForecastData weeklyForecast;
@@ -18,7 +19,16 @@ void displayWeeklyForecast(TFT_eSPI& tft) {
   Serial.println("📱 Ekran wyczyszczony - rysowanie: WEEKLY");
   
   // Sprawdzenie danych
+  extern bool isWeatherRefreshInProgress;
+  extern unsigned long weatherRefreshStartMs;
+  extern unsigned long weatherRefreshTimeoutMs;
+
   if (!weeklyForecast.isValid || weeklyForecast.count == 0) {
+    if (isWeatherRefreshInProgress && (millis() - weatherRefreshStartMs) < weatherRefreshTimeoutMs) {
+      drawLoadingSpinner(tft, "Ladowanie tygodniowej...");
+      return;
+    }
+
     tft.setTextColor(TFT_RED);
     tft.setTextSize(2);
     tft.setTextDatum(MC_DATUM);

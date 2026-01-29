@@ -586,6 +586,14 @@ void wifiTouchUI_handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
           lastForecastCheckGlobal = millis() - 20000;
           lastWeeklyUpdate = millis() - 15000000;
 
+          // Show loading state for up to 10 seconds after location change
+          extern bool isWeatherRefreshInProgress;
+          extern unsigned long weatherRefreshStartMs;
+          isWeatherRefreshInProgress = true;
+          weatherRefreshStartMs = millis();
+          extern unsigned long weatherRefreshTimeoutMs;
+          weatherRefreshTimeoutMs = 10000UL;
+
           wifiTouchUI_drawLocationScreen(tft);
         }
         return;
@@ -911,6 +919,14 @@ void wifiTouchUI_handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       lastWeatherCheckGlobal = millis() - 20000;
       lastForecastCheckGlobal = millis() - 20000;
       lastWeeklyUpdate = millis() - 15000000;
+
+      // Show loading state for up to 10 seconds after location change
+      extern bool isWeatherRefreshInProgress;
+      extern unsigned long weatherRefreshStartMs;
+      isWeatherRefreshInProgress = true;
+      weatherRefreshStartMs = millis();
+      extern unsigned long weatherRefreshTimeoutMs;
+      weatherRefreshTimeoutMs = 10000UL;
 
       currentState = STATE_SELECT_LOCATION;
       wifiTouchUI_drawLocationScreen(tft);
@@ -1339,6 +1355,14 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
           wifiLostTime = 0;
           reconnectAttemptInProgress = false;
           backgroundReconnectActive = false;
+
+          // After exiting config mode, show loading UI for a short window
+          extern bool isWeatherRefreshInProgress;
+          extern unsigned long weatherRefreshStartMs;
+          extern unsigned long weatherRefreshTimeoutMs;
+          isWeatherRefreshInProgress = true;
+          weatherRefreshStartMs = millis();
+          weatherRefreshTimeoutMs = 5000UL;
 
           extern ScreenManager& getScreenManager();
           getScreenManager().resetScreenTimer();

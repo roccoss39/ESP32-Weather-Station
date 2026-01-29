@@ -3,11 +3,22 @@
 #include "config/display_config.h"
 #include "weather/forecast_data.h"
 #include "weather/weather_data.h"
+#include "display/display_utils.h"
 
 // formatTemperature moved to display_config.h
 
 void displayForecast(TFT_eSPI& tft) {
+  extern bool isWeatherRefreshInProgress;
+  extern unsigned long weatherRefreshStartMs;
+  extern unsigned long weatherRefreshTimeoutMs;
+
   if (!forecast.isValid || forecast.count == 0) {
+    // After location change we expect a short window where forecast is not ready yet.
+    if (isWeatherRefreshInProgress && (millis() - weatherRefreshStartMs) < weatherRefreshTimeoutMs) {
+      drawLoadingSpinner(tft, "Ladowanie prognozy...");
+      return;
+    }
+
     // Brak danych prognozy - wyświetl komunikat
     tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
     tft.setTextSize(2);
@@ -124,9 +135,9 @@ void drawForecastItems(TFT_eSPI& tft, int startY) {
     tft.drawString(windStr, centerX, startY + iconSize + 25);
     
     // Debug info
-    Serial.println("Item " + String(i+1) + ": " + forecast.items[i].time + 
-                  " " + String(forecast.items[i].temperature, 1) + "°C " + 
-                  String(windKmh, 0) + "km/h " + forecast.items[i].icon);
+    // Serial.println("[DEBUG] Item " + String(i+1) + ": " + forecast.items[i].time + 
+    //               " " + String(forecast.items[i].temperature, 1) + "°C " + 
+    //               String(windKmh, 0) + "km/h " + forecast.items[i].icon);
   }
 }
 

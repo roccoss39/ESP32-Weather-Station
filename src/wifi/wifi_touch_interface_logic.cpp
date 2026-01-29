@@ -10,6 +10,11 @@
 #include "weather/forecast_data.h"  
 #include "display/display_utils.h"
 
+#ifndef DEBUG_LONG_PRESS
+#define DEBUG_LONG_PRESS 1
+#endif
+
+
 extern bool isNtpSyncPending;
 extern bool isLocationSavePending;
 extern bool weatherErrorModeGlobal;  // <-- DODAJ TĘ LINIĘ
@@ -528,6 +533,12 @@ void connectToWiFi() {
     // Save successful credentials
     preferences.putString("ssid", currentSSID);
     preferences.putString("password", currentPassword);
+
+    // If we managed to connect, we are no longer in offline mode
+    if (isOfflineMode) {
+      isOfflineMode = false;
+      Serial.println("[WiFi] connected -> leaving OFFLINE mode");
+    }
     
     // RESET screen rotation timer for full 60s cycle before sleep
     extern ScreenManager& getScreenManager();
@@ -538,6 +549,12 @@ void connectToWiFi() {
     currentState = STATE_CONNECTED;
     drawConnectedScreen(tft);
     Serial.println("\nConnected successfully! Screen timer reset for 60s cycle.");
+
+    // Show CONNECTED screen briefly, then return to normal station screens
+    delay(1000);
+    tft.fillScreen(COLOR_BACKGROUND);
+    forceScreenRefresh(tft);
+
   } else {
     Serial.println("\nConnection failed!");
     tft.fillScreen(RED);
@@ -569,29 +586,65 @@ void handleLongPress(TFT_eSPI& tft) {
 
   uint16_t x, y;
   bool currentTouch = tft.getTouch(&x, &y);
+
+#if DEBUG_LONG_PRESS
+  static unsigned long lastProgressLogMs = 0;
+  static unsigned long lastLostLogMs = 0;
+#endif
+
+  // Tolerate brief touch dropouts from the resistive touch controller
+  static unsigned long lastTouchSeenMs = 0;
+  const unsigned long TOUCH_GLITCH_TOLERANCE_MS = 120;
+  const unsigned long TAP_REFRESH_MAX_MS = 700;
   
   // 1. Jeśli trzymasz palec, resetujemy timer wygaszania
   if (currentTouch) {
+    lastTouchSeenMs = millis();
     extern ScreenManager& getScreenManager();
     getScreenManager().resetScreenTimer();
   }
-
   // 2. POCZĄTEK DOTYKU
   if (currentTouch && !touchActive) {
     touchStartTime = millis();
     touchActive = true;
     longPressDetected = false;
+#if DEBUG_LONG_PRESS
+    Serial.printf("[LP] START x=%u y=%u state=%d\n", x, y, currentState);
+    lastProgressLogMs = 0;
+#endif
   }
   
-  // 3. KONIEC DOTYKU (PUSZCZENIE PALCA)
+  // 3. KONIEC DOTYKU (PUSZCZENIE PALCA) lub chwilowa utrata dotyku
   else if (!currentTouch && touchActive) {
+    // brief glitches from getTouch() should not cancel long-press
+    if ((millis() - lastTouchSeenMs) < TOUCH_GLITCH_TOLERANCE_MS) {
+      return;
+    }
+
     unsigned long elapsed = millis() - touchStartTime;
+
+#if DEBUG_LONG_PRESS
+    // If this happens before the threshold, long-press can be cancelled by a brief false from getTouch().
+    unsigned long now = millis();
+    if (elapsed < WIFI_LONG_PRESS_TIME && (now - lastLostLogMs) > 150) {
+      lastLostLogMs = now;
+      Serial.printf("[LP] LOST/END elapsed=%lu ms (<%u) state=%d\n", elapsed, (unsigned)WIFI_LONG_PRESS_TIME, currentState);
+    }
+#endif
     
     // Odśwież ekran TYLKO jeśli był to krótki dotyk (pasek się pojawił)
     // ORAZ (to zapewnia blokada na górze) jesteśmy w STATE_CONNECTED
     if (elapsed >= 200 && elapsed < WIFI_LONG_PRESS_TIME) {
-      Serial.println("Touch released on Main Screen - Refreshing...");
-      forceScreenRefresh(tft); 
+      // Only treat as a "tap" if it was short. If user was attempting long-press,
+      // avoid heavy refresh that can worsen touch stability.
+      if (elapsed <= TAP_REFRESH_MAX_MS) {
+        Serial.println("Touch released on Main Screen - Refreshing...");
+        forceScreenRefresh(tft);
+      } else {
+#if DEBUG_LONG_PRESS
+        Serial.printf("[LP] skip forceScreenRefresh (elapsed=%lu ms)\n", elapsed);
+#endif
+      }
     }
     
     touchActive = false;
@@ -603,6 +656,9 @@ void handleLongPress(TFT_eSPI& tft) {
     
     if (millis() - touchStartTime >= WIFI_LONG_PRESS_TIME) { 
       longPressDetected = true;
+#if DEBUG_LONG_PRESS
+      Serial.printf("[LP] TRIGGER elapsed=%lu ms state=%d\n", millis() - touchStartTime, currentState);
+#endif
       Serial.println("LONG PRESS - Config Mode!");
       // Tutaj nic nie robimy, main.cpp przejmie sterowanie
     }
@@ -615,6 +671,13 @@ void handleLongPress(TFT_eSPI& tft) {
         int progress = map(elapsed, 200, WIFI_LONG_PRESS_TIME, 0, 100);
         if (progress < 0) progress = 0;
         if (progress > 100) progress = 100;
+
+#if DEBUG_LONG_PRESS
+        if ((millis() - lastProgressLogMs) > 250) {
+          lastProgressLogMs = millis();
+          Serial.printf("[LP] progress=%d%% elapsed=%lu ms state=%d touch=%d\n", progress, elapsed, currentState, (int)currentTouch);
+        }
+#endif
         
         // Rysujemy pasek
         tft.fillRect(10, 10, 300, 20, BLACK);
@@ -888,11 +951,11 @@ void checkWiFiConnection() {
     wifiWasConnected = isConnected;
     
     // Debug WiFi status
-    if (currentState == STATE_CONNECTED) {
-      Serial.printf("WiFi status: %s, RSSI: %d dBm\n", 
-                   isConnected ? "CONNECTED" : "DISCONNECTED", 
-                   isConnected ? WiFi.RSSI() : 0);
-    }
+    // if (currentState == STATE_CONNECTED) {
+    //   Serial.printf("WiFi status: %s, RSSI: %d dBm\n", 
+    //                isConnected ? "CONNECTED" : "DISCONNECTED", 
+    //                isConnected ? WiFi.RSSI() : 0);
+    // }
   }
 }
 
