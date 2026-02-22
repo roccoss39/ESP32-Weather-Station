@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 #include <esp_sleep.h>
 #include <Preferences.h>
+#include "wifi/offline_mode_pref.h"
 #include "managers/SystemManager.h"
 #include "managers/GithubUpdateManager.h"
 
@@ -50,7 +51,9 @@
 bool isImageDownloadInProgress = false;
 
 // === FLAGA TRYBU OFFLINE (BEZ WIFI) ===
-bool isOfflineMode = false; 
+bool isOfflineMode = false;
+
+ 
 
 // --- EXTERNAL FUNCTION DECLARATIONS ---
 
@@ -85,6 +88,7 @@ unsigned long lastWeeklyUpdate = 0;
 uint16_t activeTouchCalibration[5] = {0, 0, 0, 0, 0};
 
 void setup() {
+  isOfflineMode = loadOfflineModePref();
   Serial.begin(115200);
   delay(DELAY_STABILIZATION); 
   
@@ -165,6 +169,13 @@ void setup() {
 
     case ESP_SLEEP_WAKEUP_TIMER:
       Serial.println("⏰ WAKE UP: NOCNA AKTUALIZACJA (03:00)");
+
+      if (isOfflineMode) {
+        Serial.println("[OFFLINE] Skipping nightly GitHub update (offline mode)");
+        // Go back to deep sleep without attempting WiFi.
+        esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
+        esp_deep_sleep_start();
+      }
 
       // === JITTER ===
       {
@@ -318,6 +329,13 @@ void setup() {
   }
   
   tft.fillScreen(COLOR_BACKGROUND); 
+
+  // If device boots in offline mode, start on offline-friendly screens
+  if (isOfflineMode) {
+    extern ScreenManager& getScreenManager();
+    getScreenManager().setCurrentScreen(SCREEN_LOCAL_SENSORS);
+    getScreenManager().resetScreenTimer();
+  }
   
   initMotionSensor();
 
@@ -329,7 +347,17 @@ void setup() {
   #endif
 
   locationManager.loadLocationFromPreferences();
-  initWiFiTouchInterface();
+
+  if (!isOfflineMode) {
+    initWiFiTouchInterface();
+  } else {
+    Serial.println("[OFFLINE] Boot in offline mode: skipping WiFi touch interface");
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    // Ensure WiFi UI state machine is not considered active
+    exitWiFiConfigMode();
+  }
+
   initNASAImageSystem();
   
   if (WiFi.status() == WL_CONNECTED) {
@@ -440,10 +468,14 @@ void loop() {
         else if (command == 'w' || command == 'W') getWeather();
         else if (command == 'x' || command == 'X') generateWeeklyForecast();
         else if (command == 'u' || command == 'U') {
-            Serial.println("🧪 TEST: Wymuszam sprawdzenie aktualizacji z GitHuba...");
-            GithubUpdateManager updateMgr;
-            updateMgr.checkForUpdate(); 
-            Serial.println("🏁 Koniec testu aktualizacji.");
+            if (isOfflineMode) {
+              Serial.println("[OFFLINE] Skipping GitHub update test (offline mode)");
+            } else {
+              Serial.println("🧪 TEST: Wymuszam sprawdzenie aktualizacji z GitHuba...");
+              GithubUpdateManager updateMgr;
+              updateMgr.checkForUpdate(); 
+              Serial.println("🏁 Koniec testu aktualizacji.");
+            }
         }
     } else {
         if (strchr("fwxuFWXU", command)) {

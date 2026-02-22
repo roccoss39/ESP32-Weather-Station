@@ -9,7 +9,7 @@
 #include <Arduino.h>
 
 // ===== CONFIGURATION =====
-#define PIR_PIN 27        // PIR sensor connected to GPIO 27
+#define PIR_PIN 17        // PIR sensor connected to GPIO 27
 #define LED_BUILTIN 5     // Built-in LED for visual indication (pin 5 on your ESP32 board)
 
 // PIR Logic Selection:

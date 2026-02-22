@@ -6,6 +6,7 @@
 #include "managers/ScreenManager.h"
 #include "managers/MotionSensorManager.h"
 #include "config/location_config.h"
+#include "wifi/offline_mode_pref.h"
 #include "weather/weather_data.h"
 #include "weather/forecast_data.h"
 
@@ -1085,6 +1086,7 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
       delay(500);
 
       isOfflineMode = true;
+      saveOfflineModePref(true);
       WiFi.disconnect(true);
       WiFi.mode(WIFI_OFF);
 
@@ -1241,12 +1243,17 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
           delay(200);
 
           isOfflineMode = false;
+          saveOfflineModePref(false);
           WiFi.mode(WIFI_STA);
 
-          String savedSSID = preferences.getString("ssid", "");
-          String savedPass = preferences.getString("password", "");
+          Preferences p;
+          p.begin("wifi", false);
+          String savedSSID = p.getString("ssid", "");
+          String savedPass = p.getString("password", "");
+          p.end();
 
           if (savedSSID.length() > 0) {
+            Serial.printf("[ONLINE] Trying saved WiFi: '%s'\n", savedSSID.c_str());
             tft.fillScreen(BLACK);
             tft.setTextColor(WHITE);
             tft.setTextSize(2);
@@ -1266,18 +1273,21 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
 
             if (WiFi.status() == WL_CONNECTED) {
               Serial.println("\nUdalo sie polaczyc!");
+              Serial.println("[ONLINE] Connected using saved WiFi");
               onWiFiConnectedTasks();
 
               currentState = STATE_CONNECTED;
-              tft.fillScreen(BLACK);
+              tft.fillScreen(COLOR_BACKGROUND);
               wifiLostDetected = false;
 
               extern ScreenManager& getScreenManager();
               getScreenManager().resetScreenTimer();
+              getScreenManager().forceScreenRefresh(tft);
               return;
             }
 
             Serial.println("\nBlad polaczenia - skanowanie...");
+            Serial.println("[ONLINE] Failed to connect saved WiFi -> scanning networks");
             currentState = STATE_SCAN_NETWORKS;
             scanNetworks();
             drawNetworkList(tft);
@@ -1290,6 +1300,7 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
           }
 
           Serial.println("Brak zapisanej sieci, skanuje...");
+          Serial.println("[ONLINE] No saved WiFi -> scanning networks");
           currentState = STATE_SCAN_NETWORKS;
           scanNetworks();
           drawNetworkList(tft);
@@ -1306,6 +1317,7 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
         delay(500);
 
         isOfflineMode = true;
+        saveOfflineModePref(true);
         WiFi.disconnect(true);
         WiFi.mode(WIFI_OFF);
 
@@ -1325,8 +1337,11 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
         tft.fillRect(2 + 3 * (btnW + gap), 190, btnW, 45, YELLOW);
         delay(100);
 
-        String savedSSID = preferences.getString("ssid", "");
-        String savedPass = preferences.getString("password", "");
+        Preferences p;
+        p.begin("wifi", false);
+        String savedSSID = p.getString("ssid", "");
+        String savedPass = p.getString("password", "");
+        p.end();
 
         if (savedSSID.length() > 0) {
           tft.fillScreen(BLACK);

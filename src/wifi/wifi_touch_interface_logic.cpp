@@ -9,6 +9,7 @@
 #include "weather/weather_data.h"   
 #include "weather/forecast_data.h"  
 #include "display/display_utils.h"
+#include "wifi/offline_mode_pref.h"
 
 #ifndef DEBUG_LONG_PRESS
 #define DEBUG_LONG_PRESS 1
@@ -45,6 +46,14 @@ extern bool isOfflineMode;
 extern TFT_eSPI tft; // global TFT instance
 // preferences is part of shared state (see wifi_touch_interface_internal.h)
 Preferences preferences;
+static bool wifiPrefsInitialized = false;
+static void ensureWiFiPrefs() {
+  if (!wifiPrefsInitialized) {
+    preferences.begin("wifi", false);
+    wifiPrefsInitialized = true;
+  }
+}
+
 
 extern void onWiFiConnectedTasks();
 
@@ -254,10 +263,12 @@ void enterWiFiConfigMode(TFT_eSPI& tft) {
 }
 
 bool isWiFiConfigActive() {
-  return (currentState == STATE_CONFIG_MODE || 
-          currentState == STATE_SCAN_NETWORKS || 
+  // Treat only real UI/config screens as "active".
+  // STATE_CONNECTING is a background state and must not block normal station screens,
+  // otherwise booting offline (or a transient connect attempt) can leave a black screen.
+  return (currentState == STATE_CONFIG_MODE ||
+          currentState == STATE_SCAN_NETWORKS ||
           currentState == STATE_ENTER_PASSWORD ||
-          currentState == STATE_CONNECTING ||
           currentState == STATE_SELECT_LOCATION ||
           currentState == STATE_ENTER_COORDINATES);
 }
@@ -531,12 +542,14 @@ void connectToWiFi() {
   
   if (WiFi.status() == WL_CONNECTED) {
     // Save successful credentials
+    ensureWiFiPrefs();
     preferences.putString("ssid", currentSSID);
     preferences.putString("password", currentPassword);
 
     // If we managed to connect, we are no longer in offline mode
     if (isOfflineMode) {
       isOfflineMode = false;
+      saveOfflineModePref(false);
       Serial.println("[WiFi] connected -> leaving OFFLINE mode");
     }
     
