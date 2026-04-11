@@ -329,6 +329,13 @@ void wifiTouchUI_drawConfigModeScreen(TFT_eSPI& tft) {
   tft.setCursor(10, 5);
   tft.println("TRYB KONFIGURACJI");
 
+  tft.fillRect(220, 5, 95, 24, DARK_GREEN);
+  tft.drawRect(220, 5, 95, 24, WHITE);
+  tft.setTextColor(WHITE);
+  tft.setTextSize(1);
+  tft.setTextDatum(MC_DATUM);
+  tft.drawString("KALIBRACJA", 220 + 95 / 2, 5 + 12);
+
   int yPos = 35;
   int maxNetworks = min(networkCount, 5);
 
