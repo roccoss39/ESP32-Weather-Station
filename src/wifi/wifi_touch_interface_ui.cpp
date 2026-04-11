@@ -357,6 +357,13 @@ void wifiTouchUI_drawConfigModeScreen(TFT_eSPI& tft) {
     yPos += 25;
   }
 
+  tft.fillRect(2, 145, 155, 38, DARK_GREEN);
+  tft.drawRect(2, 145, 155, 38, WHITE);
+  tft.setTextColor(WHITE);
+  tft.setTextSize(1);
+  tft.setTextDatum(MC_DATUM);
+  tft.drawString("KALIBRACJA EKRANU", 2 + 155 / 2, 145 + 19);
+
   int btnY = 190;
   int btnH = 45;
   int btnW = 75;
