@@ -3,6 +3,7 @@
 
 #include "display/display_utils.h"
 #include "config/timing_config.h"
+#include "config/hardware_config.h"
 #include "managers/ScreenManager.h"
 #include "managers/MotionSensorManager.h"
 #include "config/location_config.h"
@@ -36,6 +37,62 @@
 extern bool isOfflineMode;
 extern void onWiFiConnectedTasks();
 extern void forceScreenRefresh(TFT_eSPI& tft);
+
+static void saveTouchCalibrationToNvs(const uint16_t calData[5]) {
+  Preferences touchPrefs;
+  if (!touchPrefs.begin("touch_cal", false)) {
+    Serial.println("❌ [TOUCH CAL] Nie mozna otworzyc NVS namespace 'touch_cal'.");
+    return;
+  }
+
+  for (int i = 0; i < 5; ++i) {
+    const String key = "c" + String(i);
+    touchPrefs.putUShort(key.c_str(), calData[i]);
+  }
+  touchPrefs.putBool("cal_done", true);
+  touchPrefs.end();
+}
+
+static void runTouchCalibrationFromMenu(TFT_eSPI& tft) {
+  tft.fillScreen(BLACK);
+  tft.setTextDatum(TL_DATUM);
+  tft.setTextColor(WHITE);
+  tft.setTextSize(2);
+  tft.setCursor(10, 10);
+  tft.println("KALIBRACJA DOTYKU");
+  tft.setTextSize(1);
+  tft.setCursor(10, 45);
+  tft.println("Dotknij krzyzyki w rogach.");
+  tft.setCursor(10, 62);
+  tft.println("Wykonaj to precyzyjnie.");
+  delay(700);
+
+  uint16_t calData[5] = {0, 0, 0, 0, 0};
+  tft.calibrateTouch(calData, TFT_MAGENTA, TFT_BLACK, 15);
+
+  uint16_t* activeCal = getTouchCalibration();
+  if (activeCal != nullptr) {
+    for (int i = 0; i < 5; ++i) activeCal[i] = calData[i];
+  }
+  tft.setTouch(calData);
+  saveTouchCalibrationToNvs(calData);
+
+  Serial.printf("✅ [TOUCH CAL] Zapisano: [%u, %u, %u, %u, %u]\n",
+                calData[0], calData[1], calData[2], calData[3], calData[4]);
+
+  tft.fillScreen(BLACK);
+  tft.setTextColor(GREEN);
+  tft.setTextSize(2);
+  tft.setCursor(10, 85);
+  tft.println("KALIBRACJA OK");
+  tft.setTextColor(WHITE);
+  tft.setTextSize(1);
+  tft.setCursor(10, 120);
+  tft.println("Dane zapisane trwale (NVS).");
+  tft.setCursor(10, 140);
+  tft.println("Nowe ustawienia aktywne od razu.");
+  delay(1200);
+}
 
 // ===== Public API wrappers (keep old names from wifi_touch_interface.h) =====
 
@@ -291,6 +348,13 @@ void wifiTouchUI_drawConfigModeScreen(TFT_eSPI& tft) {
 
     yPos += 25;
   }
+
+  tft.fillRect(2, 145, 155, 38, DARK_GREEN);
+  tft.drawRect(2, 145, 155, 38, WHITE);
+  tft.setTextColor(WHITE);
+  tft.setTextSize(1);
+  tft.setTextDatum(MC_DATUM);
+  tft.drawString("KALIBRACJA EKRANU", 2 + 155 / 2, 145 + 19);
 
   int btnY = 190;
   int btnH = 45;
@@ -1184,6 +1248,20 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
 
   if (currentState == STATE_CONFIG_MODE) {
     Serial.printf("CONFIG MODE TOUCH: X=%d, Y=%d\n", x, y);
+
+    if (x >= 2 && x <= 157 && y >= 145 && y <= 183) {
+      Serial.println("BTN: TOUCH CALIBRATION");
+      tft.fillRect(2, 145, 155, 38, YELLOW);
+      tft.setTextColor(BLACK);
+      tft.setTextDatum(MC_DATUM);
+      tft.drawString("START...", 2 + 155 / 2, 145 + 19);
+      tft.setTextDatum(TL_DATUM);
+      delay(250);
+
+      runTouchCalibrationFromMenu(tft);
+      drawConfigModeScreen();
+      return;
+    }
 
     if (y >= 35 && y <= 180) {
       int selectedIndex = (y - 35) / 25;
