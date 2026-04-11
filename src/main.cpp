@@ -53,8 +53,6 @@ bool isImageDownloadInProgress = false;
 // === FLAGA TRYBU OFFLINE (BEZ WIFI) ===
 bool isOfflineMode = false;
 
- 
-
 // --- EXTERNAL FUNCTION DECLARATIONS ---
 
 extern void checkWiFiConnection();
@@ -62,10 +60,12 @@ extern void handleWiFiLoss();
 extern void handleBackgroundReconnect();
 extern bool isWiFiLost();
 void onWiFiConnectedTasks();
+void checkAndShowGreeting(TFT_eSPI& tft);
 
 // --- GLOBALNE OBIEKTY ---
 TFT_eSPI tft = TFT_eSPI();
 SystemManager sysManager;
+RTC_DATA_ATTR int lastGreetingDay = -1;
 
 // --- GLOBALNE FLAGI ERROR MODE ---
 bool weatherErrorModeGlobal = false;
@@ -243,23 +243,6 @@ void setup() {
 
   tft.fillScreen(COLOR_BACKGROUND);
 
-  if (esp_sleep_get_wakeup_cause() == ESP_SLEEP_WAKEUP_EXT0) {
-      struct tm timeinfo;
-      if (getLocalTime(&timeinfo, 10)) { 
-          if (timeinfo.tm_hour >= 5 && timeinfo.tm_hour < 11) {
-              Serial.println("☀️ Poranne wybudzenie - wyświetlam powitanie!");
-              tft.setTextColor(TFT_ORANGE, COLOR_BACKGROUND); 
-              tft.setTextDatum(MC_DATUM); 
-              tft.setTextSize(2);
-              tft.drawString("Dobrego", tft.width() / 2, tft.height() / 2 - 25);
-              tft.setTextSize(3);
-              tft.drawString("dnia!", tft.width() / 2, tft.height() / 2 + 15);
-              delay(3000);
-              tft.fillScreen(COLOR_BACKGROUND);
-          }
-      }
-  }
-  
   sysManager.restoreCorrectBrightness();
 
   tft.setTextColor(COLOR_TIME, COLOR_BACKGROUND);
@@ -394,6 +377,8 @@ void setup() {
   getScreenManager().resetScreenTimer();
   Serial.println("📱 Timer ekranu zresetowany - 10s do następnego przełączenia");
   
+  checkAndShowGreeting(tft);
+
   Serial.println("=== STACJA POGODOWA GOTOWA ===");
 }
 
@@ -574,4 +559,36 @@ void onWiFiConnectedTasks() {
     lastWeatherCheckGlobal = millis() - WEATHER_FORCE_REFRESH;
     lastForecastCheckGlobal = millis() - WEATHER_FORCE_REFRESH;
     lastWeeklyUpdate = millis() - WEEKLY_UPDATE_INTERVAL; 
+}
+
+void checkAndShowGreeting(TFT_eSPI& tft) {
+    extern bool isOfflineMode;
+    if (isOfflineMode) return; // W trybie offline nie znamy czasu, ignorujemy
+
+    struct tm timeinfo;
+    // Sprawdzamy, czy czas jest zsynchronizowany (rok > 2023)
+    if (getLocalTime(&timeinfo, 0) && timeinfo.tm_year > (2023 - 1900)) {
+        
+        // Jeśli jest między 5:00 a 11:00 rano
+        if (timeinfo.tm_hour >= 5 && timeinfo.tm_hour < 24) {
+            
+            // Jeśli dzisiaj się jeszcze nie witaliśmy (tm_yday to dzień roku 0-365)
+            if (lastGreetingDay != timeinfo.tm_yday) {
+                lastGreetingDay = timeinfo.tm_yday; // Zapisz, że powitanie zaliczone
+                
+                Serial.println("☀️ Wyświetlam powitanie: Dzien dobry!");
+                tft.fillScreen(TFT_BLACK);
+                tft.setTextColor(TFT_WHITE, TFT_BLACK);
+                tft.setTextDatum(MC_DATUM);
+                tft.setTextSize(3);
+                tft.drawString("Dzien dobry!", tft.width() / 2, tft.height() / 2);
+                
+                delay(3000); // Wyświetlaj przez 3 sekundy
+                
+                // Wymuś odświeżenie całego ekranu, żeby powrócić do normalnego interfejsu
+                extern void forceScreenRefresh(TFT_eSPI& tft);
+                forceScreenRefresh(tft);
+            }
+        }
+    }
 }

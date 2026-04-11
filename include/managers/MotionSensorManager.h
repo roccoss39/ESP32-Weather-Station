@@ -9,6 +9,7 @@
 
 // Deklarujemy, że sysManager istnieje (zdefiniowany w main.cpp)
 extern SystemManager sysManager;
+extern void checkAndShowGreeting(TFT_eSPI& tft);
 
 // ==========================================
 // DEFINICJA ENUMA (Musi być poza klasą)
@@ -175,6 +176,9 @@ public:
         sysManager.restoreCorrectBrightness();
         
         Serial.println("🔆 WAKE UP");
+        
+        checkAndShowGreeting(tft);
+
     }
 
     void sleepDisplay(TFT_eSPI& tft) {
