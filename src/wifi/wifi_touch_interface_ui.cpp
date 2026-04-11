@@ -356,6 +356,13 @@ void wifiTouchUI_drawConfigModeScreen(TFT_eSPI& tft) {
     yPos += 25;
   }
 
+  tft.fillRect(2, 145, 155, 38, DARK_GREEN);
+  tft.drawRect(2, 145, 155, 38, WHITE);
+  tft.setTextColor(WHITE);
+  tft.setTextSize(1);
+  tft.setTextDatum(MC_DATUM);
+  tft.drawString("KALIBRACJA EKRANU", 2 + 155 / 2, 145 + 19);
+
   int btnY = 190;
   int btnH = 45;
   int btnW = 75;
@@ -1249,12 +1256,12 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
   if (currentState == STATE_CONFIG_MODE) {
     Serial.printf("CONFIG MODE TOUCH: X=%d, Y=%d\n", x, y);
 
-    if (x >= 220 && x <= 315 && y >= 5 && y <= 29) {
+    if (x >= 2 && x <= 157 && y >= 145 && y <= 183) {
       Serial.println("BTN: TOUCH CALIBRATION");
-      tft.fillRect(220, 5, 95, 24, YELLOW);
+      tft.fillRect(2, 145, 155, 38, YELLOW);
       tft.setTextColor(BLACK);
       tft.setTextDatum(MC_DATUM);
-      tft.drawString("START...", 220 + 95 / 2, 5 + 12);
+      tft.drawString("START...", 2 + 155 / 2, 145 + 19);
       tft.setTextDatum(TL_DATUM);
       delay(250);
 
