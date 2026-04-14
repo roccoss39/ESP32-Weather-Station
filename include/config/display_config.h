@@ -87,6 +87,7 @@ inline String formatTemperature(float temp, int decimals = 1) {
 #define UPDATES_WEATHER_Y   (UPDATES_SECTION_Y + 45)   // "Pogoda: ..."
 #define UPDATES_WEEKLY_Y    (UPDATES_SECTION_Y + 60)   // "Pogoda tyg.: ..."
 #define UPDATES_WIFI_Y      (UPDATES_SECTION_Y + 75)   // "WiFi: ..."
+#define UPDATES_BATTERY_Y   (UPDATES_SECTION_Y + 90)   // "Bateria: ...V"
 
 // --- ROZMIARY CZCIONEK ---
 #define FONT_SIZE_LARGE     3

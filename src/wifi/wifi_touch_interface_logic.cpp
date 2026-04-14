@@ -726,11 +726,12 @@ void handleConfigModeTimeout() {
         lastUpdate = millis();
         int remaining = (WIFI_CONFIG_MODE_TIMEOUT - elapsed) / 1000;
 
-        tft.fillRect(250, 10, 65, 20, BLACK);
-        tft.setTextColor(YELLOW);
+        // Keep countdown inside WYJSCIE button to avoid a second "button-like" element.
+        tft.fillRect(240, 222, 72, 12, DARKGRAY);
+        tft.setTextColor(YELLOW, DARKGRAY);
         tft.setTextSize(1);
-        tft.setCursor(250, 15);
-        tft.printf("Exit: %d", remaining);
+        tft.setCursor(242, 224);
+        tft.printf("Exit:%d", remaining);
       }
     }
   }
