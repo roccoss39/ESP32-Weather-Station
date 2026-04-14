@@ -25,6 +25,7 @@ extern bool isOfflineMode;
   #define UPDATES_WEATHER_Y 190
   #define UPDATES_WEEKLY_Y  205
   #define UPDATES_WIFI_Y    220
+  #define UPDATES_BATTERY_Y 235
 #endif
 
 static void drawProgressBar(TFT_eSPI& tft, int x, int y, int w, int h, float val, float minVal, float maxVal, uint16_t color) {
@@ -36,6 +37,21 @@ static void drawProgressBar(TFT_eSPI& tft, int x, int y, int w, int h, float val
     int fillW = (int)((w - 4) * percent);
     tft.fillRoundRect(x + 2, y + 2, w - 4, h - 4, 2, 0x10A2);
     if (fillW > 0) tft.fillRoundRect(x + 2, y + 2, fillW, h - 4, 2, color);
+}
+
+static bool readBatteryVoltage(float& outVoltage) {
+    const uint8_t batteryPin = getBatteryAdcPin();
+    if (batteryPin == 255) {
+        return false;
+    }
+
+    const uint32_t adcMilliVolts = analogReadMilliVolts(batteryPin);
+    if (adcMilliVolts == 0) {
+        return false;
+    }
+
+    outVoltage = (adcMilliVolts / 1000.0f) * getBatteryDividerRatio();
+    return true;
 }
 
 // === NOWA FUNKCJA: SMART CENTERED LINE ===
@@ -356,6 +372,20 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
     uint16_t wifiColor = (WiFi.status() == WL_CONNECTED) ? TFT_DARKGREY : TFT_RED;
     tft.setTextColor(wifiColor, COLOR_BACKGROUND);
     tft.drawString(wifiTxt, 160, UPDATES_WIFI_Y);
+
+    float batteryVoltage = 0.0f;
+    if (readBatteryVoltage(batteryVoltage)) {
+        String batteryTxt = "Bateria: " + String(batteryVoltage, 2) + "V";
+
+        uint16_t batteryColor = TFT_DARKGREY;
+        if (batteryVoltage < 3.45f) batteryColor = TFT_RED;
+        else if (batteryVoltage < 3.65f) batteryColor = TFT_ORANGE;
+        else batteryColor = TFT_GREEN;
+
+        tft.setTextColor(batteryColor, COLOR_BACKGROUND);
+        tft.drawString(batteryTxt, 160, UPDATES_BATTERY_Y);
+    }
+
     tft.setTextPadding(0);
     
     // Wersja

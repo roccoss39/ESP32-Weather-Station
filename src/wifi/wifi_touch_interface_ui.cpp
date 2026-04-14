@@ -1002,11 +1002,13 @@ void wifiTouchUI_handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
 }
 
 void wifiTouchUI_updateConfigModeCountdown(TFT_eSPI& tft, int remainingSeconds) {
-  tft.fillRect(248, 170, 70, 18, BLACK);
-  tft.setTextColor(YELLOW);
+  // Render countdown inside WYJSCIE button area, so it is not perceived
+  // as a separate/fake button.
+  tft.fillRect(240, 222, 72, 12, DARKGRAY);
+  tft.setTextColor(YELLOW, DARKGRAY);
   tft.setTextSize(1);
-  tft.setCursor(250, 174);
-  tft.printf("Exit: %d", remainingSeconds);
+  tft.setCursor(242, 224);
+  tft.printf("Exit:%d", remainingSeconds);
 }
 
 void wifiTouchUI_drawLongPressProgress(TFT_eSPI& tft, int progressPercent) {

@@ -161,4 +161,30 @@ inline uint8_t getStatusLedPin()
     }
 }
 
+inline uint8_t getBatteryAdcPin()
+{
+    switch (ACTIVE_ESP_MODEL)
+    {
+        case LOLIN32v1_0_0:
+            // Wemos/LOLIN32 ma dzielnik napięcia baterii podpięty do ADC
+            // (VBAT -> GPIO35 przez dzielnik 1:1).
+            return 35;
+
+        default:
+            return 255; // Brak obsługi baterii dla innych modeli
+    }
+}
+
+inline float getBatteryDividerRatio()
+{
+    switch (ACTIVE_ESP_MODEL)
+    {
+        case LOLIN32v1_0_0:
+            return 2.0f; // Dzielnik 1:1 => napięcie baterii = ADC * 2
+
+        default:
+            return 1.0f;
+    }
+}
+
 #endif // HARDWARE_CONFIG_H
