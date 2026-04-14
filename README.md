@@ -80,6 +80,10 @@
 // Built-in LED
 #define LED_BUILTIN 2
 
+//SHT
+#define PIN_I2C_SDA 32
+#define PIN_I2C_SCL 33  
+
 // Note: TFT and Touch share SPI pins (MOSI=23, SCLK=18, MISO=19)
 // but use separate Chip Select pins (TFT_CS=5, TOUCH_CS=22)
 ```
@@ -144,7 +148,9 @@ All timeouts centralized in `include/config/timing_config.h`:
 | VCC | VCC | 5V (or 3.3V) | Power supply |
 | GND | GND | GND | Ground |
 | OUT | OUT | GPIO 27 | Motion signal |
-
+| **SHT** |
+| PIN_I2C_SDA 32 |
+| PIN_I2C_SCL 33 |
 #### **🔗 Shared SPI Pins (Important!)**
 
 TFT Display i Touch Interface **współdzielą magistralę SPI**:
