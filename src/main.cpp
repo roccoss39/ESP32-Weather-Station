@@ -452,6 +452,11 @@ void loop() {
         if (command == 'f' || command == 'F') getForecast();
         else if (command == 'w' || command == 'W') getWeather();
         else if (command == 'x' || command == 'X') generateWeeklyForecast();
+        else if (command == 'r' || command == 'R') {
+        Serial.println("🔄 Zdalny restart stacji...");
+        delay(500);
+        ESP.restart();
+        }
         else if (command == 'u' || command == 'U') {
             if (isOfflineMode) {
               Serial.println("[OFFLINE] Skipping GitHub update test (offline mode)");

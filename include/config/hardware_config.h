@@ -94,7 +94,7 @@ enum TftModel {
 // === 4. LOGIKA OSZCZĘDZANIA ENERGII ===
 // Ustaw 1: TRYB HYBRYDOWY (Dzień: Ekran OFF + CPU ON, Noc: Deep Sleep)
 // Ustaw 0: PEŁNE UŚPIENIE (Zawsze Deep Sleep po wygaszeniu - resetuje stację)
-#define USE_HYBRID_SLEEP        1  
+#define USE_HYBRID_SLEEP        0  
 
 // Godziny dla trybu hybrydowego (działają tylko gdy USE_HYBRID_SLEEP == 1)
 #define HYBRID_SLEEP_START_HOUR 0   // Od 00:00 (Północ) -> Deep Sleep
