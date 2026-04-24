@@ -1,3 +1,4 @@
+//motion_sensor.cpp
 #include "sensors/motion_sensor.h"
 #include "config/hardware_config.h"
 #include "config/display_config.h"
@@ -40,3 +41,10 @@ void sleepDisplay(TFT_eSPI& tft) {
 DisplayState getDisplayState() {
   return getMotionSensorManager().getDisplayState();
 }
+
+void clearPirFlagGlobal() {
+    // Ponieważ ta funkcja jest w tym samym pliku co nasz static obiekt,
+    // ma do niego pełen dostęp i może wyczyścić flagę!
+    motionSensorManager.clearMotionFlag(); 
+}
+

@@ -97,7 +97,7 @@ public:
         motionDetected = false;
         Serial.println("🧹 DEBUG: Flaga PIR wyczyszczona (Ignoruję zakłócenia)");
     }
-    
+
     // Gettery i Settery
     bool isMotionActive() const { return (millis() - lastMotionTime) <= SCREEN_AUTO_OFF_MS; }
     DisplayState getDisplayState() const { return currentDisplayState; }
@@ -214,5 +214,7 @@ public:
         #endif
     }
 };
+
+void clearPirFlagGlobal();
 
 #endif
