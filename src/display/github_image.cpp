@@ -3,6 +3,8 @@
 #include <TJpg_Decoder.h>
 #include <HTTPClient.h>
 #include <LittleFS.h> // <--- ZMIANA: LittleFS zamiast SPIFFS
+#include "managers/MotionSensorManager.h"
+#include "sensors/motion_sensor.h"
 
 #define TEST_ONE_IMG 0  // 0 = Normalny tryb losowy, 1 = Test jednego URL
 #define DEBUG_IMAGES 0  // 0 = Mniej logów, 1 = Pełne logi debugowania
@@ -13,6 +15,7 @@ CurrentImageData currentImage;
 // --- DEKLARACJA DISPLAYA (RAZ, NA GÓRZE) ---
 extern TFT_eSPI tft;
 
+extern SystemManager sysManager;
 // --- INCLUDE ULTIMATE NASA COLLECTION ---
 #include "photo_display/esp32_nasa_ultimate.h"
 
@@ -189,6 +192,8 @@ void displayGitHubImage(TFT_eSPI& tft) {
       Serial.println("✅ NASA obraz wyświetlony pomyślnie!");
       lastImageChange = millis();
       firstRun = false;
+      motionManager.clearMotionFlag();
+
     } else {
       Serial.println("❌ Nie udało się wyświetlić NASA obrazka - próbuję inny...");
       

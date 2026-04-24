@@ -80,6 +80,7 @@ private:
 // SEKCJA PUBLICZNA (Funkcje dostępne dla main.cpp)
 // ==========================================
 public:
+
     MotionSensorManager() {
         currentDisplayState = DISPLAY_ACTIVE;
         lastMotionTime = millis();
@@ -92,6 +93,11 @@ public:
         }
     }
 
+    void clearMotionFlag() {
+        motionDetected = false;
+        Serial.println("🧹 DEBUG: Flaga PIR wyczyszczona (Ignoruję zakłócenia)");
+    }
+    
     // Gettery i Settery
     bool isMotionActive() const { return (millis() - lastMotionTime) <= SCREEN_AUTO_OFF_MS; }
     DisplayState getDisplayState() const { return currentDisplayState; }
@@ -141,6 +147,7 @@ public:
         // 2. Obsługa wykrytego ruchu
         if (motionDetected) {
             motionDetected = false;
+            Serial.println("🚨 DEBUG: Czujnik PIR wykrył ruch!");
             // Jeśli ekran wygaszony -> obudź go (Light Sleep Wakeup)
             if (currentDisplayState == DISPLAY_SLEEPING) {
                 wakeUpDisplay(tft);
