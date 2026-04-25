@@ -45,6 +45,10 @@ static bool readBatteryVoltage(float& outVoltage) {
         return false;
     }
 
+    //"Budzik" dla ADC po Deep Sleep ---
+    analogRead(batteryPin); 
+    delay(5);
+
     const uint32_t adcMilliVolts = analogReadMilliVolts(batteryPin);
     if (adcMilliVolts == 0) {
         return false;
@@ -382,8 +386,12 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         else if (batteryVoltage < 3.65f) batteryColor = TFT_ORANGE;
         else batteryColor = TFT_GREEN;
 
+        printf("[DEBUG] Stan baterii: %f", batteryVoltage);
         tft.setTextColor(batteryColor, COLOR_BACKGROUND);
         tft.drawString(batteryTxt, 160, UPDATES_BATTERY_Y);
+    }else {
+        tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
+        tft.drawString("Bateria: Blad odczytu (0V)", 160, UPDATES_BATTERY_Y);
     }
 
     tft.setTextPadding(0);
