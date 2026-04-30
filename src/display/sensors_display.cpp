@@ -160,7 +160,7 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
     uint8_t card1_X = 10;
     uint8_t card2_X = 165;
 
-    // STATYCZNE
+    // --- STATYCZNE (Rysowane tylko przy zmianie ekranu) ---
     if (!onlyUpdate) {
         uint8_t headerY = 55;
         tft.drawFastHLine(0, headerY, 320, TFT_DARKGREY); 
@@ -168,6 +168,7 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.setTextDatum(MC_DATUM);
         tft.drawString("WARUNKI W POMIESZCZENIU", 160, headerY - 10);
 
+        // Kafelki
         tft.fillRoundRect(card1_X, cardStartY, cardW, cardH, 6, CARD_BG_COLOR);
         tft.fillRoundRect(card2_X, cardStartY, cardW, cardH, 6, CARD_BG_COLOR);
         tft.drawRoundRect(card1_X, cardStartY, cardW, cardH, 6, TFT_DARKGREY);
@@ -179,19 +180,28 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.setTextColor(TFT_CYAN, CARD_BG_COLOR);
         tft.drawString("WILGOTNOSC", card2_X + cardW/2, cardStartY + 10);
 
-        int valY = cardStartY + 48;
-        tft.setTextColor(isValid ? TFT_GREEN : TFT_RED, CARD_BG_COLOR);
-        tft.setTextFont(2);
-        tft.setTextDatum(BL_DATUM);
-
         tft.drawRoundRect(card1_X + 8, cardStartY + cardH - 25, cardW - 16, 6, 3, TFT_DARKGREY);
         tft.drawRoundRect(card2_X + 8, cardStartY + cardH - 25, cardW - 16, 6, 3, TFT_DARKGREY);
+
+        // ==========================================
+        // PROFESJONALNA STOPKA - ELEMENTY STATYCZNE
+        // ==========================================
+        int footerLineY = 175; // Podniesione o 20px (z 195)
+        tft.drawFastHLine(10, footerLineY, 300, 0x39E7); // Stalowy szary
+        
+        // Zmiana koloru na TFT_ORANGE (bardziej pro niż czerwony)
+        tft.setTextSize(1);
+        tft.setTextFont(2);
+        tft.setTextDatum(MC_DATUM);
+        tft.setTextColor(TFT_ORANGE, COLOR_BACKGROUND);
+        tft.drawString("[ SYSTEM OFFLINE ]", 160, footerLineY + 18);
     }
 
-    // DYNAMICZNE
+    // --- DYNAMICZNE (Rysowane i aktualizowane w locie) ---
     tft.setTextSize(1);
     int valY = cardStartY + 48;
     
+    // Temperatura
     if (isValid) {
         uint16_t tempColor = TFT_GREEN;
         if (temp < 18) tempColor = TFT_CYAN;
@@ -206,7 +216,7 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         int unitY = valY;
 
         tft.setTextFont(2);
-        tft.fillCircle(unitX - 9, unitY - 6, 2, tempColor);  // °
+        tft.fillCircle(unitX - 9, unitY - 6, 2, tempColor);
         tft.drawString("C", unitX, unitY);    
 
         drawProgressBar(tft, card1_X + 8, cardStartY + cardH - 25, cardW - 16, 6, temp, 0, 40, tempColor);
@@ -217,6 +227,7 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.drawString("--.-", card1_X + cardW/2, cardStartY + 48);
     }
 
+    // Wilgotność
     if (isValid) {
         uint16_t humColor = TFT_GREEN;
         if (hum < 30) humColor = TFT_YELLOW;
@@ -237,6 +248,93 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         tft.setTextDatum(MC_DATUM);
         tft.drawString("--", card2_X + cardW/2, cardStartY + 48);
     }
+
+    // ==========================================
+    // PROFESJONALNA STOPKA - ELEMENTY DYNAMICZNE
+    // ==========================================
+    int footerTextY = 215; 
+    tft.setTextSize(1);
+    tft.setTextFont(2);
+
+    // 1. LEWA STRONA: Mikro-ikona baterii + Zasilanie (Bez Mrugania)
+    int batX = 10;
+    
+    float batteryVoltage = 0.0f;
+    if (readBatteryVoltage(batteryVoltage)) {
+        
+        // Czyścimy TYLKO malutki obszar samej grafiki baterii
+        tft.fillRect(batX, footerTextY, 24, 15, COLOR_BACKGROUND);
+        
+        // Rysowanie obwódki ikony baterii
+        tft.drawRect(batX, footerTextY + 2, 20, 10, TFT_DARKGREY);
+        tft.fillRect(batX + 20, footerTextY + 5, 2, 4, TFT_DARKGREY);
+        
+        tft.setTextDatum(TL_DATUM);
+        
+        // LOGIKA 1: BRAK BATERII (Fantomy / Pływający pin poniżej 1.0V)
+        if (batteryVoltage < 1.0f) {
+            // Nie rysujemy paska w środku baterii (zostaje pusta)
+            tft.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND);
+            tft.drawString("PWR: ", batX + 28, footerTextY);
+            tft.setTextColor(TFT_CYAN, COLOR_BACKGROUND); // Cyjan dla zasilania zewnętrznego
+            tft.drawString(" USB      ", batX + 58, footerTextY);
+        }
+        // LOGIKA 2: ŁADOWANIE LUB USB (Powyżej 4.15V)
+        else if (batteryVoltage > 4.15f) {
+            tft.fillRect(batX + 2, footerTextY + 4, 16, 6, TFT_GREEN); // Pełna bateria
+            tft.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND);
+            tft.drawString("PWR: ", batX + 28, footerTextY);
+            tft.setTextColor(TFT_GREEN, COLOR_BACKGROUND);
+            tft.drawString("USB / CHRG  ", batX + 58, footerTextY); 
+        } 
+        // LOGIKA 3: NORMALNA PRACA NA BATERII
+        else {
+            uint16_t batColor = TFT_GREEN;
+            if (batteryVoltage < 3.45f) batColor = TFT_RED;
+            else if (batteryVoltage < 3.65f) batColor = TFT_ORANGE;
+            
+            float pct = (batteryVoltage - 3.2f) / 1.0f; 
+            if (pct > 1.0f) pct = 1.0f;
+            if (pct < 0.0f) pct = 0.0f;
+            int fillW = (int)(16 * pct);
+            if (fillW > 0) tft.fillRect(batX + 2, footerTextY + 4, fillW, 6, batColor);
+            
+            tft.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND);
+            tft.drawString("BAT: ", batX + 28, footerTextY);
+            tft.setTextColor(batColor, COLOR_BACKGROUND);
+            tft.drawString(String(batteryVoltage, 2) + "V   ", batX + 58, footerTextY); 
+        }
+    } else {
+        tft.setTextDatum(TL_DATUM);
+        tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
+        tft.drawString("BAT: ERR          ", batX, footerTextY);
+    
+    }
+
+    // 2. PRAWA STRONA: Dioda statusu + Sensor (Bez Mrugania)
+    int sensX = 310;
+    
+    uint16_t sensorColor = isValid ? TFT_GREEN : TFT_RED;
+    String statusStr = isValid ? "OK" : "BLAD";
+    
+    tft.setTextDatum(TR_DATUM);
+    
+    // Rysowanie z tłem eliminuje potrzebę fillRect
+    tft.setTextColor(sensorColor, COLOR_BACKGROUND);
+    tft.drawString(statusStr + "  ", sensX, footerTextY); // Spacje zapobiegają ucinaniu
+    
+    int statusWidth = tft.textWidth(statusStr + "  ");
+    tft.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND);
+    tft.drawString(sensorName + " ", sensX - statusWidth, footerTextY);
+    
+    // Diodę rysujemy na czystym fragmencie (żeby nie zostawiała ducha po zmianie koloru)
+    int nameWidth = tft.textWidth(sensorName + " ");
+    int dotX = sensX - statusWidth - nameWidth - 6;
+    tft.fillRect(dotX - 4, footerTextY + 4, 8, 8, COLOR_BACKGROUND);
+    tft.fillCircle(dotX, footerTextY + 7, 3, sensorColor);
+    // ==========================================
+  
+  
   } 
   // ##################################################################
   // TRYB ONLINE (KOMPAKT + STOPKA ZERO MIGANIA)

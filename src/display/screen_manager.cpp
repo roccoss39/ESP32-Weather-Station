@@ -102,7 +102,7 @@ void ScreenManager::renderImageScreen(TFT_eSPI& tft) {
       tft.setTextSize(1);
       tft.setTextDatum(BC_DATUM);
       tft.setTextColor(TFT_ORANGE, TFT_BLACK); 
-      tft.drawString("GALERIA OFFLINE", tft.width() / 2, tft.height() - 5);
+      tft.drawString(" ", tft.width() / 2, tft.height() - 5);
   } else {
       // W trybie online normalnie
       displayGitHubImage(tft);
