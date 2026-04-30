@@ -1,5 +1,6 @@
 #include "managers/SystemManager.h"
 #include "timing_config.h"
+#include "weather/weather_data.h"
 
 // Zmienne zewnętrzne (z main.cpp)
 extern bool isImageDownloadInProgress; 
@@ -80,18 +81,39 @@ void SystemManager::setBrightness(uint8_t value) {
 }
 
 void SystemManager::restoreCorrectBrightness() {
-    struct tm timeinfo;
     uint8_t targetBrightness = BRIGHTNESS_DAY; // Domyślnie dzień
+    unsigned long currentUnixTime = time(nullptr); // Pobierz aktualny czas w formacie UNIX
 
-    if (getLocalTime(&timeinfo, 0)) {
-        int hour = timeinfo.tm_hour;
+    // 1. GŁÓWNA LOGIKA: Oparta na Słońcu (jeśli mamy dane z internetu)
+    if (weather.isValid && weather.sunrise > 0 && weather.sunset > 0) {
         
-        if (hour >= 8 && hour < 20) {
+        if (currentUnixTime >= weather.sunrise && currentUnixTime < weather.sunset) {
+            // Słońce na niebie -> Pełna jasność
             targetBrightness = BRIGHTNESS_DAY;
-        } else if (hour >= 20 && hour < 23) {
+        } 
+        else if (currentUnixTime >= weather.sunset && currentUnixTime < (weather.sunset + 5400)) {
+            // Od zachodu słońca przez kolejne 1.5 godziny (5400 sekund) -> Wieczór
             targetBrightness = BRIGHTNESS_EVENING;
-        } else {
+        } 
+        else {
+            // Przed wschodem lub długo po zachodzie -> Noc
             targetBrightness = BRIGHTNESS_NIGHT;
+        }
+        
+    } 
+    // 2. AWARYJNA LOGIKA (FALLBACK): Jeśli tryb Offline lub API pogody nie odpowiedziało
+    else {
+        struct tm timeinfo;
+        if (getLocalTime(&timeinfo, 0)) {
+            int hour = timeinfo.tm_hour;
+            
+            if (hour >= 8 && hour < 20) {
+                targetBrightness = BRIGHTNESS_DAY;
+            } else if (hour >= 20 && hour < 23) {
+                targetBrightness = BRIGHTNESS_EVENING;
+            } else {
+                targetBrightness = BRIGHTNESS_NIGHT;
+            }
         }
     }
     

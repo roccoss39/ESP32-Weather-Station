@@ -77,8 +77,9 @@ void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
     // Upewnij się w sensors_display.cpp, że rysują się niżej (y > 70)
     displayLocalSensors(tft);
     
-    getTimeDisplayCache().resetCache();
-    displayTime(tft); 
+    // BEZ CZASU
+    // getTimeDisplayCache().resetCache();
+    // displayTime(tft); 
 
     // tft.setTextSize(1);
     // tft.setTextDatum(MC_DATUM);
