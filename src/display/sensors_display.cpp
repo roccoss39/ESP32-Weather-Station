@@ -467,7 +467,7 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
     
     drawCenteredCompactLine(tft, UPDATES_WEEKLY_Y, "Pogoda tyg.: ", fTime, " (co 4h)");
 
-    // WiFi
+    // WiFi (zostawiasz bez zmian)
     tft.setTextDatum(TC_DATUM);
     tft.setTextPadding(320); 
     String wifiTxt = (WiFi.status() == WL_CONNECTED) ? "WiFi: " + String(WiFi.SSID()) : "WiFi: Rozlaczony";
@@ -475,26 +475,74 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
     tft.setTextColor(wifiColor, COLOR_BACKGROUND);
     tft.drawString(wifiTxt, 160, UPDATES_WIFI_Y);
 
+   // ==========================================
+    // INTELIGENTNY STATUS ZASILANIA (ONLINE)
+    // ==========================================
     float batteryVoltage = 0.0f;
     if (readBatteryVoltage(batteryVoltage)) {
-        String batteryTxt = "Bateria: " + String(batteryVoltage, 2) + "V";
+        String labelTxt;
+        String valTxt;
+        uint16_t valColor;
 
-        uint16_t batteryColor = TFT_DARKGREY;
-        if (batteryVoltage < 3.45f) batteryColor = TFT_RED;
-        else if (batteryVoltage < 3.65f) batteryColor = TFT_ORANGE;
-        else batteryColor = TFT_GREEN;
+        // LOGIKA 1: BRAK BATERII (Fantomy poniżej 1.0V)
+        if (batteryVoltage < 1.0f) {
+            labelTxt = "Zasilanie: ";
+            valTxt = "USB";
+            valColor = TFT_CYAN; 
+        } 
+        // LOGIKA 2: ŁADOWANIE LUB USB (Powyżej 4.15V)
+        else if (batteryVoltage > 4.17f) {
+            labelTxt = "Zasilanie: ";
+            valTxt = "USB";
+            valColor = TFT_GREEN;
+        } 
+        // LOGIKA 3: NORMALNA PRACA NA BATERII
+        else {
+            labelTxt = "Bateria: ";
+            valTxt = String(batteryVoltage, 2) + "V";
+            valColor = TFT_DARKGREY;
+            if (batteryVoltage < 3.45f) valColor = TFT_RED;
+            else if (batteryVoltage < 3.65f) valColor = TFT_ORANGE;
+            else valColor = TFT_GREEN;
+        }
 
-        printf("[DEBUG] Stan baterii: %f", batteryVoltage);
-        tft.setTextColor(batteryColor, COLOR_BACKGROUND);
-        tft.drawString(batteryTxt, 160, UPDATES_BATTERY_Y);
-    }else {
+        printf("[DEBUG] Stan baterii: %f\n", batteryVoltage);
+        
+        tft.setTextPadding(0); // Wyłączamy padding automatyczny
+        
+        // Obliczamy szerokości, żeby idealnie wyśrodkować całość
+        int wLabel = tft.textWidth(labelTxt);
+        int wVal = tft.textWidth(valTxt);
+        int totalW = wLabel + wVal;
+        int startX = (320 - totalW) / 2;
+        
+        // 1. Czyścimy TYLKO lewy margines (żeby zapobiec mruganiu)
+        if (startX > 0) tft.fillRect(0, UPDATES_BATTERY_Y, startX, 15, COLOR_BACKGROUND);
+        
+        tft.setTextDatum(TL_DATUM); // Rysujemy od lewej do prawej
+        
+        // 2. Rysujemy szarą etykietę
+        tft.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND);
+        tft.drawString(labelTxt, startX, UPDATES_BATTERY_Y);
+        
+        // 3. Rysujemy kolorową wartość zaraz za etykietą
+        tft.setTextColor(valColor, COLOR_BACKGROUND);
+        tft.drawString(valTxt, startX + wLabel, UPDATES_BATTERY_Y);
+        
+        // 4. Czyścimy TYLKO prawy margines
+        int endX = startX + totalW;
+        if (endX < 320) tft.fillRect(endX, UPDATES_BATTERY_Y, 320 - endX, 15, COLOR_BACKGROUND);
+        
+    } else {
+        tft.setTextPadding(320);
+        tft.setTextDatum(TC_DATUM);
         tft.setTextColor(TFT_RED, COLOR_BACKGROUND);
-        tft.drawString("Bateria: Blad odczytu (0V)", 160, UPDATES_BATTERY_Y);
+        tft.drawString("Bateria: Blad odczytu", 160, UPDATES_BATTERY_Y);
     }
+    // ==========================================
 
-    tft.setTextPadding(0);
+    tft.setTextPadding(0); // Zdejmuje padding dla numeru wersji poniżej
     
-    // Wersja
     tft.setTextDatum(BR_DATUM);
     tft.setTextColor(TFT_DARKGREY, COLOR_BACKGROUND);
     tft.drawString("v" + String(FIRMWARE_VERSION), 315, 235);
