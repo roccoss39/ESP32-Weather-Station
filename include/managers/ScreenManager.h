@@ -31,7 +31,7 @@ public:
         Serial.println("📱 ScreenManager initialized");
     }
     
-    // --- GETTERS ---
+    // --- GETTERY ---
     ScreenType getCurrentScreen() const { return currentScreen; }
     unsigned long getLastSwitch() const { return lastScreenSwitch; }
     unsigned long getSwitchInterval() const { return SCREEN_SWITCH_INTERVAL; }

@@ -1,18 +1,18 @@
 #pragma once
 
-// Internal header shared between wifi_touch_interface.cpp (logic) and wifi_touch_interface_ui.cpp (UI).
-// Not part of the public API.
+// Wewnętrzny nagłówek współdzielony między wifi_touch_interface.cpp (logika) i wifi_touch_interface_ui.cpp (UI).
+// Nie jest częścią publicznego API.
 
 #include <Arduino.h>
 #include <Preferences.h>
 #include <WiFi.h>
 #include <TFT_eSPI.h>
-#include "wifi/wifi_touch_interface.h" // WiFiState enum + public API types
+#include "wifi/wifi_touch_interface.h" // Enum WiFiState + typy publicznego API
 
-// Global display instance (defined elsewhere, used by UI wrappers)
+// Globalna instancja wyświetlacza (zdefiniowana gdzie indziej, używana przez wrappery UI)
 extern TFT_eSPI tft;
 
-// Externs for shared state (defined in wifi_touch_interface.cpp)
+// Deklaracje extern współdzielonego stanu (zdefiniowanego w wifi_touch_interface.cpp)
 extern Preferences preferences;
 extern WiFiState currentState;
 extern int selectedNetworkIndex;
@@ -36,7 +36,7 @@ extern unsigned long wifiLostTime;
 extern bool wifiWasConnected;
 extern bool wifiLostDetected;
 
-// Cross-module flags (defined in main.cpp)
+// Flagi między modułami (zdefiniowane w main.cpp)
 extern bool isLocationSavePending;
 extern unsigned long lastReconnectAttempt;
 extern bool backgroundReconnectActive;
@@ -49,8 +49,8 @@ extern String networkNames[20];
 extern int networkRSSI[20];
 extern bool networkSecure[20];
 
-// Location selection state
-// Internal enum copied from original wifi_touch_interface.cpp
+// Stan wyboru lokalizacji
+// Wewnętrzny enum skopiowany z oryginalnego wifi_touch_interface.cpp
 enum LocationMenuState {
   MENU_MAIN,
   MENU_DISTRICTS
@@ -67,5 +67,5 @@ extern String customLongitude;
 extern bool editingLatitude;
 extern int coordinatesCursorPos;
 
-// Helper accessors
+// Pomocnicze akcesory
 bool wifiTouch_isConnected();

@@ -7,7 +7,7 @@
 
 class TimeDisplayCache {
 private:
-    // Previous values for comparison
+    // Poprzednie wartości do porównania
     char prevTimeStr[9];
     char prevDateStr[11];
     String prevDayStr;
@@ -18,13 +18,13 @@ public:
         resetCache();
     }
     
-    // --- GETTERS ---
+    // --- GETTERY ---
     const char* getPrevTimeStr() const { return prevTimeStr; }
     const char* getPrevDateStr() const { return prevDateStr; }
     String getPrevDayStr() const { return prevDayStr; }
     int getPrevWifiStatus() const { return prevWifiStatus; }
     
-    // --- SETTERS ---
+    // --- SETTERY ---
     void setPrevTimeStr(const char* timeStr) { 
         strncpy(prevTimeStr, timeStr, sizeof(prevTimeStr) - 1); 
         prevTimeStr[sizeof(prevTimeStr) - 1] = '\0'; 
@@ -43,7 +43,7 @@ public:
         prevWifiStatus = status; 
     }
     
-    // --- UTILITY METHODS ---
+    // --- METODY POMOCNICZE ---
     
     /**
      * Resetuje cały cache - wymusza ponowne rysowanie

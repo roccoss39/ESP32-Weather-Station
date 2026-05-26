@@ -14,7 +14,7 @@ void drawLoadingSpinner(TFT_eSPI& tft, const String& message) {
     int centerX = tft.width() / 2;
     int centerY = tft.height() / 2 - 10;
 
-    // Same simple spinner style as github_image.cpp
+    // Ten sam prosty styl spinnera co w github_image.cpp
     tft.drawCircle(centerX, centerY, 20, TFT_CYAN);
     tft.drawCircle(centerX, centerY, 15, TFT_BLUE);
     tft.drawLine(centerX, centerY, centerX + 15, centerY - 10, TFT_WHITE);
