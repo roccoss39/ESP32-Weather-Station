@@ -51,7 +51,6 @@ bool isImageDownloadInProgress = false;
 // === FLAGA TRYBU OFFLINE (BEZ WIFI) ===
 bool isOfflineMode = false;
 
-// --- EXTERNAL FUNCTION DECLARATIONS ---
 
 extern void checkWiFiConnection();
 extern void handleWiFiLoss();
@@ -70,7 +69,6 @@ bool weatherErrorModeGlobal = false;
 bool forecastErrorModeGlobal = false;
 bool weeklyErrorModeGlobal = false;
 
-// Set to true for a short window after location change to show loading UI instead of error messages
 bool isWeatherRefreshInProgress = false;
 unsigned long weatherRefreshStartMs = 0;
 unsigned long weatherRefreshTimeoutMs = 10000UL;
@@ -136,7 +134,6 @@ void setup() {
               Serial.println("✅ Znaleziono dane w secrets.h - Zapisuję do pamięci...");
               for (int i = 0; i < 5; i++) {
                   activeTouchCalibration[i] = factoryCal[i];
-                  // Debug zapisu
                   String key = "c" + String(i);
                   size_t saved = prefs.putUShort(key.c_str(), activeTouchCalibration[i]);
                   if (saved == 0) Serial.println("❌ Błąd zapisu klucza: " + key);
@@ -170,7 +167,6 @@ void setup() {
 
       if (isOfflineMode) {
         Serial.println("[OFFLINE] Skipping nightly GitHub update (offline mode)");
-        // Go back to deep sleep without attempting WiFi.
         esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
         esp_deep_sleep_start();
       }
@@ -311,7 +307,7 @@ void setup() {
   
   tft.fillScreen(COLOR_BACKGROUND); 
 
-  // If device boots in offline mode, start on offline-friendly screens
+  
   if (isOfflineMode) {
     extern ScreenManager& getScreenManager();
     getScreenManager().setCurrentScreen(SCREEN_LOCAL_SENSORS);
@@ -335,7 +331,6 @@ void setup() {
     Serial.println("[OFFLINE] Boot in offline mode: skipping WiFi touch interface");
     WiFi.disconnect(true);
     WiFi.mode(WIFI_OFF);
-    // Ensure WiFi UI state machine is not considered active
     exitWiFiConfigMode();
   }
 
@@ -418,7 +413,6 @@ void loop() {
     isLocationSavePending = false; 
   }
 
-  // Clear weather refresh UI flag when data becomes available or after timeout
   if (isWeatherRefreshInProgress) {
     const bool timedOut = (millis() - weatherRefreshStartMs) > weatherRefreshTimeoutMs;
     const bool haveForecast = forecast.isValid && forecast.count > 0;
@@ -528,7 +522,6 @@ void loop() {
     
       // 1. Ekran Pogody (Tylko czas)
       if (currentScreen == SCREEN_CURRENT_WEATHER && !isWiFiConfigActive()) {
-         // Update time even if WiFi is currently disconnected (time may still be valid after NTP sync)
          displayTime(tft);
      }
       // 2. Ekran Sensorów (SHT31/DHT22) - POPRAWIONE
@@ -547,7 +540,6 @@ void loop() {
 }
 
 void onWiFiConnectedTasks() {
-    // After WiFi connects, show loading UI for a short window while weather/forecast are fetched
     isWeatherRefreshInProgress = true;
     weatherRefreshStartMs = millis();
     weatherRefreshTimeoutMs = 10000UL;
