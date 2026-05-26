@@ -43,8 +43,6 @@ DisplayState getDisplayState() {
 }
 
 void clearPirFlagGlobal() {
-    // Ponieważ ta funkcja jest w tym samym pliku co nasz static obiekt,
-    // ma do niego pełen dostęp i może wyczyścić flagę!
     motionSensorManager.clearMotionFlag(); 
 }
 

@@ -4,15 +4,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 
-/**
- * ⏰ TimeDisplayCache - Smart cache management dla time display
- * 
- * Zastępuje 4 extern variables lepszą enkapsulacją:
- * - char timeStrPrev[9]
- * - char dateStrPrev[11] 
- * - String dayStrPrev
- * - int wifiStatusPrev
- */
+
 class TimeDisplayCache {
 private:
     // Previous values for comparison
@@ -22,7 +14,6 @@ private:
     int prevWifiStatus;
 
 public:
-    // --- CONSTRUCTOR ---
     TimeDisplayCache() {
         resetCache();
     }
@@ -36,12 +27,12 @@ public:
     // --- SETTERS ---
     void setPrevTimeStr(const char* timeStr) { 
         strncpy(prevTimeStr, timeStr, sizeof(prevTimeStr) - 1); 
-        prevTimeStr[sizeof(prevTimeStr) - 1] = '\0'; // Ensure null termination
+        prevTimeStr[sizeof(prevTimeStr) - 1] = '\0'; 
     }
     
     void setPrevDateStr(const char* dateStr) { 
         strncpy(prevDateStr, dateStr, sizeof(prevDateStr) - 1); 
-        prevDateStr[sizeof(prevDateStr) - 1] = '\0'; // Ensure null termination
+        prevDateStr[sizeof(prevDateStr) - 1] = '\0'; 
     }
     
     void setPrevDayStr(const String& dayStr) { 

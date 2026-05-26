@@ -30,7 +30,7 @@ bool getWeather() {
   Serial.println("Getting weather...");
   
   http.begin(url);
-  http.setTimeout(5000); // 5 sekund timeout
+  http.setTimeout(5000); 
   int httpCode = http.GET();
   
   if (httpCode == HTTP_CODE_OK) {
@@ -47,9 +47,9 @@ bool getWeather() {
     JsonDocument doc;
     if (deserializeJson(doc, payload) == DeserializationError::Ok) {
       weather.temperature = doc["main"]["temp"];
-      weather.feelsLike = doc["main"]["feels_like"];  // Temperatura odczuwalna
+      weather.feelsLike = doc["main"]["feels_like"];  
       weather.humidity = doc["main"]["humidity"];
-      weather.pressure = doc["main"]["pressure"];  // Ciśnienie w hPa
+      weather.pressure = doc["main"]["pressure"];  
       
       // Używaj angielskiego description (szczegółowy opis)
       weather.description = doc["weather"][0]["description"].as<String>();  // "light rain", "clear sky", etc.
@@ -68,8 +68,8 @@ bool getWeather() {
       
       // --- DANE O OPADACH ---
       weather.rainLastHour = 0;  // Domyślnie brak
-      weather.snowLastHour = 0;  // Domyślnie brak
-      weather.cloudiness = 0;    // Domyślnie brak
+      weather.snowLastHour = 0;  
+      weather.cloudiness = 0;    
       
       // Sprawdź opady deszczu w ostatniej godzinie
       if (doc["rain"] && doc["rain"]["1h"]) {

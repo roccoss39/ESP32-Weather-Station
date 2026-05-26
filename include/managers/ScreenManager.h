@@ -36,7 +36,7 @@ public:
     unsigned long getLastSwitch() const { return lastScreenSwitch; }
     unsigned long getSwitchInterval() const { return SCREEN_SWITCH_INTERVAL; }
     
-    // --- SETTERS (THE BOUNCER / BRAMKARZ) ---
+    // --- SETTERS  ---
     
     void setCurrentScreen(ScreenType screen) { 
         if (isOfflineMode) {
@@ -183,7 +183,7 @@ public:
         if (isOfflineMode) {
             if (screen != SCREEN_LOCAL_SENSORS && screen != SCREEN_IMAGE) {
                  Serial.println("⛔ Offline Mode: Próba wejścia na ekran internetowy zablokowana.");
-                 return; // Po prostu nic nie rób, zostań gdzie jesteś
+                 return; 
             }
         }
 

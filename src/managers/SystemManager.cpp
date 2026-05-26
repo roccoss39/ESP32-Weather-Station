@@ -2,13 +2,12 @@
 #include "timing_config.h"
 #include "weather/weather_data.h"
 
-// Zmienne zewnętrzne (z main.cpp)
 extern bool isImageDownloadInProgress; 
 extern bool isWiFiConfigActive(); 
 
 SystemManager::SystemManager() {
     lastCheckTime = 0;
-    currentBrightness = 255; // Domyślna wartość startowa
+    currentBrightness = 255; 
 }
 
 void SystemManager::init() {
@@ -28,14 +27,13 @@ void SystemManager::loop() {
     // 1. Nakarm psa (Watchdog)
     esp_task_wdt_reset();
 
-    // 2. Zadania okresowe (np. co 1s)
+    // 2. Zadania okresowe 
     if (millis() - lastCheckTime > 1000) {
         lastCheckTime = millis();
-        // Tutaj można dodać inne zadania w tle
+        
     }
 }
 
-// Sprawdza czy jest czas na Deep Sleep (00:00 - 05:00)
 // Sprawdza czy jest czas na Deep Sleep (00:00 - 05:00)
 bool SystemManager::isNightDeepSleepTime() {
     struct tm timeinfo;
@@ -121,7 +119,6 @@ void SystemManager::restoreCorrectBrightness() {
     setBrightness(targetBrightness);
 }
 
-// NOWA FUNKCJA: Płynne ściemnianie/rozjaśnianie
 void SystemManager::fadeBacklight(uint8_t from, uint8_t to) {
     if (from == to) return;
 
@@ -135,6 +132,6 @@ void SystemManager::fadeBacklight(uint8_t from, uint8_t to) {
         delay(2); // Szybkość efektu (2ms * 255 kroków = ~0.5 sekundy)
     }
     
-    // Na koniec upewnij się, że wartość jest idealnie równa 'to' i zaktualizuj zmienną
+    // Na koniec upewnienie się, że wartość jest idealnie równa 'to' i zaktualizowanie zmiennej
     setBrightness(to);
 }

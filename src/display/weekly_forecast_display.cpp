@@ -4,11 +4,11 @@
 #include "weather/forecast_data.h"
 #include "display/display_utils.h"
 
-// Extern dependencies
+
 extern WeeklyForecastData weeklyForecast;
 extern LocationManager locationManager;
 
-// Extern funkcja drawWeatherIcon z weather_icons.cpp
+
 extern void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconCode);
 
 // ================================================================

@@ -30,13 +30,11 @@
 #include "managers/ScreenManager.h"
 #include "display/screen_manager.h"
 #include "display/github_image.h"
-
-// === DODANO TEN IMPORT, ŻEBY NAPRAWIĆ BŁĄD ===
 #include "display/sensors_display.h" 
 
 // --- SENSORY ---
 #include "sensors/motion_sensor.h"
-#include "sensors/dht22_sensor.h" 
+
 
 // --- WIFI TOUCH INTERFACE ---
 #include "wifi/wifi_touch_interface.h"

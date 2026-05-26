@@ -4,18 +4,6 @@
 #include <Arduino.h>
 #include "weather/weather_data.h"
 
-/**
- * 🌤️ WeatherCache - Smart cache management dla weather display
- * 
- * Zastępuje 7 extern variables lepszą enkapsulacją:
- * - weatherCachePrev_temperature
- * - weatherCachePrev_feelsLike  
- * - weatherCachePrev_humidity
- * - weatherCachePrev_windSpeed
- * - weatherCachePrev_pressure
- * - weatherCachePrev_description
- * - weatherCachePrev_icon
- */
 class WeatherCache {
 private:
     // Previous values for comparison

@@ -5,8 +5,6 @@
 #include "weather/weather_data.h"
 #include "display/display_utils.h"
 
-// formatTemperature moved to display_config.h
-
 void displayForecast(TFT_eSPI& tft) {
   extern bool isWeatherRefreshInProgress;
   extern unsigned long weatherRefreshStartMs;
@@ -32,10 +30,10 @@ void displayForecast(TFT_eSPI& tft) {
   // Rysuj wykres temperatury na górze
   drawTemperatureGraph(tft, 10, 20, 300, 80);
   
-  // Rysuj ikony, godziny i wiatr (podniesione o 15px)
+  // Rysuj ikony, godziny i wiatr 
   drawForecastItems(tft, 105);
   
-  // Rysuj podsumowanie na dole (podniesione o 15px)
+  // Rysuj podsumowanie na dole 
   drawForecastSummary(tft, 200);
 }
 
@@ -109,7 +107,7 @@ void drawForecastItems(TFT_eSPI& tft, int startY) {
   if (forecast.count == 0) return;
   
   int itemWidth = 320 / forecast.count;  // Szerokość na każdy element
-  uint8_t iconSize = 40;                     // Rozmiar ikony
+  uint8_t iconSize = 40;                 
   
   for (int i = 0; i < forecast.count; i++) {
     int centerX = (i * itemWidth) + (itemWidth / 2);
@@ -119,9 +117,9 @@ void drawForecastItems(TFT_eSPI& tft, int startY) {
     int iconY = startY;
     drawWeatherIcon(tft, iconX, iconY, forecast.items[i].description, forecast.items[i].icon);
     
-    // Godzina pod ikoną (bez dwukropka)
+    // Godzina pod ikoną 
     String timeStr = forecast.items[i].time;
-    timeStr.replace(":", "");  // Usuń dwukropek
+    timeStr.replace(":", "");  
     tft.setTextColor(TFT_WHITE, COLOR_BACKGROUND);
     tft.setTextSize(2);
     tft.setTextDatum(TC_DATUM);
@@ -133,11 +131,6 @@ void drawForecastItems(TFT_eSPI& tft, int startY) {
     tft.setTextSize(1);
     String windStr = String(windKmh, 0) + "km/h";
     tft.drawString(windStr, centerX, startY + iconSize + 25);
-    
-    // Debug info
-    // Serial.println("[DEBUG] Item " + String(i+1) + ": " + forecast.items[i].time + 
-    //               " " + String(forecast.items[i].temperature, 1) + "°C " + 
-    //               String(windKmh, 0) + "km/h " + forecast.items[i].icon);
   }
 }
 
@@ -167,17 +160,14 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
   tft.setTextDatum(TL_DATUM);
   
   // === SEKCJA 1: TEMP i WIATR ===
-  // Bazowy Y dla wartości (duża czcionka) to: y - 10
-  // Bazowy Y dla etykiet (mała czcionka) przesuwamy w dół o 5px: y - 5
-  
+
   // Temp: z małą czcionką - wyśrodkowane w pionie względem wartości
   tft.setTextSize(1);
-  tft.drawString("TEMP:", 10, y - 5); // Zmiana z -10 na -5 (obniżenie)
+  tft.drawString("TEMP:", 10, y - 5); 
   
   // Wartości temperatury z normalną czcionką
   tft.setTextSize(2);
   
-  // Sprawdź czy temperatura jest bardzo niska (≤ -5°C)
   if (minTemp <= -5.0 || maxTemp <= -5.0) {
     String minTempStr = formatTemperature(minTemp, 0);
     String maxTempStr = formatTemperature(maxTemp, 0);
@@ -206,7 +196,7 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
   // Wiatr.max: z małą czcionką - wyśrodkowane w pionie względem wartości
   tft.setTextSize(1);
   tft.setTextColor(TFT_LIGHTGREY, COLOR_BACKGROUND);
-  tft.drawString("WIATR.MAX:", 160, y - 5); // Zmiana z -10 na -5 (obniżenie)
+  tft.drawString("WIATR.MAX:", 160, y - 5); 
   
   // Wartości wiatru z normalną czcionką
   tft.setTextSize(2);
@@ -229,13 +219,10 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
     String sunriseTime = (sunriseHour < 10 ? "0" : "") + String(sunriseHour) + ":" + (sunriseMin < 10 ? "0" : "") + String(sunriseMin);
     String sunsetTime = (sunsetHour < 10 ? "0" : "") + String(sunsetHour) + ":" + (sunsetMin < 10 ? "0" : "") + String(sunsetMin);
     
-    // Bazowy Y dla wartości (duża czcionka): y + 12
-    // Bazowy Y dla etykiet (mała czcionka): y + 17 (obniżenie o 5px względem wartości)
-    
     // Wschód słońca - etykieta
     tft.setTextSize(1);
     tft.setTextColor(TFT_YELLOW, COLOR_BACKGROUND);
-    tft.drawString("WSCHOD: ", 10, y + 17); // Zmiana z 15 na 17 (wyśrodkowanie względem dużej czcionki)
+    tft.drawString("WSCHOD: ", 10, y + 17); 
     
     // Godzina wschodu - wartość
     tft.setTextSize(2);
@@ -243,7 +230,7 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
     
     // Zachód słońca - etykieta
     tft.setTextSize(1);
-    tft.drawString("ZACHOD: ", 160, y + 17); // Zmiana z 15 na 17
+    tft.drawString("ZACHOD: ", 160, y + 17); 
     
     // Godzina zachodu - wartość
     tft.setTextSize(2);

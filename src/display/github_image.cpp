@@ -2,20 +2,17 @@
 #include "config/display_config.h"
 #include <TJpg_Decoder.h>
 #include <HTTPClient.h>
-#include <LittleFS.h> // <--- ZMIANA: LittleFS zamiast SPIFFS
+#include <LittleFS.h> 
 #include "managers/MotionSensorManager.h"
+#include "photo_display/esp32_nasa_ultimate.h"
 
 #define TEST_ONE_IMG 0  // 0 = Normalny tryb losowy, 1 = Test jednego URL
 #define DEBUG_IMAGES 0  // 0 = Mniej logów, 1 = Pełne logi debugowania
 
-// --- ZMIENNE GLOBALNE ---
 CurrentImageData currentImage;
 
-// --- DEKLARACJA DISPLAYA (RAZ, NA GÓRZE) ---
 extern TFT_eSPI tft;
 
-// --- INCLUDE ULTIMATE NASA COLLECTION ---
-#include "photo_display/esp32_nasa_ultimate.h"
 
 // === HELPER FUNCTION: Generate Title from Filename ===
 String generateTitleFromFilename(const String& filename) {
@@ -53,19 +50,16 @@ bool tft_output_nasa(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bit
 bool loadFallbackImageFromLittleFS() {
   Serial.println("🛡️ Ładuję fallback image z LittleFS...");
   
-  // ZMIANA: LittleFS zamiast SPIFFS
   if (!LittleFS.begin()) {
     Serial.println("❌ LittleFS mount failed");
     return false;
   }
   
-  // Sprawdź czy plik istnieje
   if (!LittleFS.exists("/fallback_error_img.jpg")) {
     Serial.println("❌ Fallback image nie istnieje w LittleFS");
     return false;
   }
   
-  // Otwórz plik
   File file = LittleFS.open("/fallback_error_img.jpg", "r");
   if (!file) {
     Serial.println("❌ Nie można otworzyć fallback image");
@@ -166,8 +160,7 @@ bool getRandomNASAImage() {
 // GŁÓWNA PĘTLA WYŚWIETLANIA (Logic Controller)
 // ================================================================
 void displayGitHubImage(TFT_eSPI& tft) {
-  // Serial.println("=== EKRAN NASA ULTIMATE ==="); // Opcjonalnie, żeby nie spamować logów
-  
+
   static unsigned long lastImageChange = 0;
   static bool firstRun = true;
   

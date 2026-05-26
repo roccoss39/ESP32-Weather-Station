@@ -14,11 +14,10 @@
 #include "config/location_config.h"
 #include "config/hardware_config.h" 
 
-// --- EXTERNAL DEPENDENCIES ---
 extern WeeklyForecastData weeklyForecast;
 extern unsigned long lastWeatherCheckGlobal;
 extern bool isOfflineMode;
-// Te funkcje muszą być dostępne:
+
 extern void drawNASAImage(TFT_eSPI& tft, bool forceFallback); 
 extern void displaySystemStatus(TFT_eSPI& tft);
 
@@ -42,8 +41,6 @@ void updateScreenManager() {
 // GŁÓWNA FUNKCJA RENDERUJĄCA (GLOBAL WRAPPER)
 // ================================================================
 void switchToNextScreen(TFT_eSPI& tft) {
-    // W starej wersji tu była logika. Teraz logika jest w klasie.
-    // Po prostu każemy Managerowi narysować to, co aktualnie ma ustawione.
     getScreenManager().renderCurrentScreen(tft);
 }
 
@@ -56,7 +53,6 @@ void forceScreenRefresh(TFT_eSPI& tft) {
 // ================================================================
 
 void ScreenManager::renderWeatherScreen(TFT_eSPI& tft) {
-    // Wyczyść jest już w renderCurrentScreen w .h, ale dla pewności tło pogody:
     tft.fillScreen(COLOR_BACKGROUND); 
     displayTime(tft);
     displayCurrentWeather(tft);  
@@ -73,19 +69,7 @@ void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
 // === EKRAN 4: LOCAL SENSORS (Tu trafi Twój kod daty!) ===
 void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
    if (isOfflineMode) {
-    // 1. Wyświetl sensory (zewnętrzna funkcja)
-    // Upewnij się w sensors_display.cpp, że rysują się niżej (y > 70)
     displayLocalSensors(tft);
-    
-    // BEZ CZASU
-    // getTimeDisplayCache().resetCache();
-    // displayTime(tft); 
-
-    // tft.setTextSize(1);
-    // tft.setTextDatum(MC_DATUM);
-    // tft.setTextColor(TFT_WHITE, 0x1082);
-    // tft.drawString("Podlacz jednorazowo WiFi do synch. czasu", (tft.width()) / 2, ((tft.height()) / 2) + 75);
-   
   }
   else 
   displayLocalSensors(tft);

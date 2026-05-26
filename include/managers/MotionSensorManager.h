@@ -11,9 +11,6 @@
 extern SystemManager sysManager;
 extern void checkAndShowGreeting(TFT_eSPI& tft);
 
-// ==========================================
-// DEFINICJA ENUMA (Musi być poza klasą)
-// ==========================================
 enum DisplayState {
   DISPLAY_SLEEPING = 0,   // Wyświetlacz wyłączony, czeka na ruch
   DISPLAY_ACTIVE = 1,     // Wyświetlacz aktywny, pokazuje dane
@@ -21,9 +18,7 @@ enum DisplayState {
 };
 
 class MotionSensorManager {
-// ==========================================
-// SEKCJA PRYWATNA (Zmienne i funkcja pomocnicza)
-// ==========================================
+
 private:
     volatile bool motionDetected = false;
     DisplayState currentDisplayState = DISPLAY_SLEEPING;
@@ -59,11 +54,11 @@ private:
                 // Jest np. 01:00, budzimy się za 2h
                 secondsToSleep = (targetMinutes - currentMinutes) * 60;
             } else {
-                // Jest np. 23:00, budzimy się jutro (doba ma 1440 min)
+                // Jest np. 23:00, budzimy się jutro 
                 secondsToSleep = ((24 * 60) - currentMinutes + targetMinutes) * 60;
             }
             
-            // Odejmij sekundy dla precyzji
+            // Odejmowanie sekund dla precyzji
             secondsToSleep -= timeinfo.tm_sec;
 
             if (secondsToSleep > 0) {
@@ -72,13 +67,9 @@ private:
             }
         }
 
-        // Dobranoc
         esp_deep_sleep_start();
     }
 
-// ==========================================
-// SEKCJA PUBLICZNA (Funkcje dostępne dla main.cpp)
-// ==========================================
 public:
 
     MotionSensorManager() {

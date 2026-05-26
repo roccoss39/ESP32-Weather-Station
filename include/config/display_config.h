@@ -60,26 +60,26 @@ inline String formatTemperature(float temp, int decimals = 1) {
 #define ICON_X_OFFSET       5
 #define ICON_Y_OFFSET       0
 
-#define TEMP_X_OFFSET       60   // Przywrócone do oryginalnej pozycji
+#define TEMP_X_OFFSET       60 
 #define TEMP_Y_OFFSET       40
 
-#define DESC_X_OFFSET       5    // Przywrócone do oryginalnej pozycji
+#define DESC_X_OFFSET       5    
 #define DESC_Y_OFFSET       55
 
-#define HUMIDITY_X_OFFSET   5    // Przywrócone do oryginalnej pozycji
+#define HUMIDITY_X_OFFSET   5    
 #define HUMIDITY_Y_OFFSET   85
 
-#define WIND_X_OFFSET       5    // Przywrócone do oryginalnej pozycji
+#define WIND_X_OFFSET       5    
 #define WIND_Y_OFFSET       115
 
-#define PRESSURE_X_OFFSET   5    // Przywrócone do oryginalnej pozycji
+#define PRESSURE_X_OFFSET   5    
 #define PRESSURE_Y_OFFSET   145
 
 // --- WEATHER CARD TEMPERATURE OFFSET (screen_manager.cpp - lewa karta) ---
 #define WEATHER_CARD_TEMP_Y_OFFSET  20  // Główny offset Y - przesuwa temp, °C, opis i "odczuwalna" razem
 
 // --- POZYCJE SEKCJI AKTUALIZACJI (SENSORS SCREEN) ---
-#define UPDATES_SECTION_Y   140   // Punkt odniesienia dla sekcji aktualizacji (było 155, teraz 140 = -15px)
+#define UPDATES_SECTION_Y   140   // Punkt odniesienia dla sekcji aktualizacji 
 #define UPDATES_CLEAR_Y     145   // Y pozycja czyszczenia obszaru
 #define UPDATES_TITLE_Y     (UPDATES_SECTION_Y + 0)    // Etykieta "AKTUALIZACJE:"
 #define UPDATES_DHT22_Y     (UPDATES_SECTION_Y + 15)   // "DHT22: Gotowy"  

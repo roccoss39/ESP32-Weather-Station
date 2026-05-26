@@ -58,7 +58,6 @@ static bool readBatteryVoltage(float& outVoltage) {
     return true;
 }
 
-// === NOWA FUNKCJA: SMART CENTERED LINE ===
 // Eliminuje miganie poprzez unikanie czyszczenia całego paska.
 // Czyści tylko lewy i prawy margines, a tekst nadpisuje "w locie".
 void drawCenteredCompactLine(TFT_eSPI& tft, int y, String label, String timeText, String suffix) {
@@ -186,10 +185,10 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
         // ==========================================
         // PROFESJONALNA STOPKA - ELEMENTY STATYCZNE
         // ==========================================
-        int footerLineY = 175; // Podniesione o 20px (z 195)
+        int footerLineY = 175; 
         tft.drawFastHLine(10, footerLineY, 300, 0x39E7); // Stalowy szary
         
-        // Zmiana koloru na TFT_ORANGE (bardziej pro niż czerwony)
+        // Zmiana koloru na TFT_ORANGE 
         tft.setTextSize(1);
         tft.setTextFont(2);
         tft.setTextDatum(MC_DATUM);
@@ -467,7 +466,7 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
     
     drawCenteredCompactLine(tft, UPDATES_WEEKLY_Y, "Pogoda tyg.: ", fTime, " (co 4h)");
 
-    // WiFi (zostawiasz bez zmian)
+    // WiFi 
     tft.setTextDatum(TC_DATUM);
     tft.setTextPadding(320); 
     String wifiTxt = (WiFi.status() == WL_CONNECTED) ? "WiFi: " + String(WiFi.SSID()) : "WiFi: Rozlaczony";

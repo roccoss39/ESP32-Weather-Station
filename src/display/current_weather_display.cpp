@@ -77,7 +77,6 @@ void drawTrendArrow(TFT_eSPI& tft, int x, int y, int direction, uint16_t color) 
     
     // Tło czyszczące ("Gumka") - przywrócone i dopasowane
     // Musi być włączone, żeby strzałki nie nakładały się na siebie przy zmianie pogody
-    // Zakres Y: od -2 do +14 (pokrywa Twoje offsety 0 i 5)
     tft.fillRect(x - 4, y - 2, 9, 10, 0x1082); 
     
     // Kod 99 oznacza "Brak ikony" (dla dolnej linii w trybie stabilnym)
@@ -85,26 +84,23 @@ void drawTrendArrow(TFT_eSPI& tft, int x, int y, int direction, uint16_t color) 
 
     if (direction >= 1) { 
         // GÓRA 
-        // Twój offset: 5
         int off = 5; 
         tft.fillTriangle(x, y - h + off, x - w/2, y + off, x + w/2, y + off, color);
     } 
     else if (direction <= -1) { 
         // DÓŁ 
-        // Twój offset: 0
         int off = 0; 
         tft.fillTriangle(x, y + h + off, x - w/2, y + off, x + w/2, y + off, color);
     }
     else { 
         // KRESKA (Stabilnie)
-        // Twoja pozycja: y + 6
         tft.fillRect(x - 2, y + 6, 5, 2, color); 
     }
 }
 
 
 // ================================================================
-// LOGIKA TRENDU CIŚNIENIA - FINALNA (REALNE DANE + TWOJE STRINGI)
+// LOGIKA TRENDU CIŚNIENIA 
 // ================================================================
 
 void getPressureTrendInfo(float currentPressure, String &trendText, String &forecastText, uint16_t &trendColor, int &dir1, int &dir2) {
@@ -146,7 +142,7 @@ void getPressureTrendInfo(float currentPressure, String &trendText, String &fore
     float thresholdStable = 0.5; // +/- 0.5 hPa 
     float thresholdStorm = 4.0;  // +/- 4.0 hPa
 
-    // Logika mapowania trendu (Twoje stringi z testu)
+    // Logika mapowania trendu 
     
     if (diff > thresholdStorm) {
         // Szybko rośnie
@@ -159,14 +155,14 @@ void getPressureTrendInfo(float currentPressure, String &trendText, String &fore
     } else if (diff > thresholdStable) {
         // Rośnie
         trendText = "Rosnie";
-        forecastText = "Wiatr Chmury"; // Zmienione na "Chmury" (zgodnie z testem)
+        forecastText = "Wiatr Chmury"; 
         trendColor = TFT_GREEN;
         dir1 = -1; // Strzałka dół
         dir2 = -1; // Strzałka dół
         
     } else if (diff < -thresholdStorm) {
         // Gwałtownie spada
-        trendText = "Spada gwaltownie"; // Zmienione na "Spada gwaltownie"
+        trendText = "Spada gwaltownie"; 
         forecastText = "Wiatr BURZA!";
         trendColor = TFT_RED;
         dir1 = 2; // Strzałka góra
@@ -183,7 +179,7 @@ void getPressureTrendInfo(float currentPressure, String &trendText, String &fore
     } else {
         // Stabilnie
         trendText = "Stabilne";
-        forecastText = "Pogoda Bez zm."; // Zmienione na "Bez zm."
+        forecastText = "Pogoda Bez zm."; 
         trendColor = TFT_CYAN;
         dir1 = 0;  // Kreska
         dir2 = 99; // Brak ikony

@@ -16,7 +16,7 @@
 // === SCHEDULED UPDATES (GODZINY AKTUALIZACJI) ===
 #define FIRMWARE_UPDATE_HOUR    3   // Godzina (Format 0-23)
 #define FIRMWARE_UPDATE_MINUTE  00    // Minuta (Format 0-59)
-#define FIRMWARE_UPDATE_JITTER  300//300
+#define FIRMWARE_UPDATE_JITTER  300 
 
 // SET IN SECRETS.H
 enum EspModel {

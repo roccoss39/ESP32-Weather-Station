@@ -3,8 +3,8 @@
 **Professional grade weather station with motion detection, NASA imagery, and emergency WiFi management**
 
 ## MY SUGGESTIONS
-1. First calibrate screen by special file calibrate.cpp
-2. Copy results from serial monitor and add new define in secrets with name. For example: constexpr uint16_t TOUCH_CAL_DAWID[5] = {    350, 3267, 523, 3020, 1};
+1. First calibrate screen by function in main menu after turn on the station or special file calibrate.cpp in software.
+2. If use software option copy results from serial monitor and add new define in secrets with name. For example: constexpr uint16_t TOUCH_CAL_DAWID[5] = {    350, 3267, 523, 3020, 1};
 3. Add in secrests set new ACTIVE_ESP_MODEL and ACTIVE_TFT_MODEL. Tft model is unique. Give new name for model (maybe with name). Esp model can be repeatable from enum.
 4. Add new varibles to hardware_config: enum TftModel, maybe enum EspModel, inline const uint16_t* getTouchCalibration(), possible inline uint8_t getStatusLedPin().
 5. Helpfull testing files: calibrate.cpp, pir check, wifi check with display check.
@@ -104,7 +104,6 @@
 
 ### 🚀 **Smart Features**
 - **Conditional debugging** with `#ifdef DEBUG_WEATHER_API`
-- **Floating-point -0.0 fix** for temperature display
 - **Automatic error recovery** for network and sensor failures
 - **Background WiFi monitoring** with seamless reconnection
 
@@ -251,7 +250,7 @@ build_flags =
 |-----------|---------|
 | **Microcontroller** | ESP32-WROOM-32 (240MHz, 320KB RAM) |
 | **Display** | ILI9341 TFT 320x240 with resistive touch (landscape) |
-| **Temperature/Humidity** | DHT22 sensor (±0.5°C, ±2% RH accuracy) |
+| **Temperature/Humidity** | DHT22 sensor or sht31  |
 | **Motion Detection** | PIR sensor HC-SR501 (3-7m detection range) |
 | **Connectivity** | Built-in WiFi 802.11 b/g/n |
 | **Storage** | 4MB Flash with SPIFFS for fallback images |
@@ -273,7 +272,7 @@ build_flags =
 - [x] Production-ready security measures
 
 ### 🎯 **Quality Metrics**
-- **Code Quality**: 100% OOP, zero global variables
+- **Code Quality**: 100% OOP
 - **Memory Safety**: Buffer overflow protection, resource cleanup
 - **Performance**: 70% faster string operations, 30% less RAM usage
 - **Reliability**: Smart retry mechanisms, fallback systems

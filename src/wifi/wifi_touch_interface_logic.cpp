@@ -10,6 +10,7 @@
 #include "weather/forecast_data.h"  
 #include "display/display_utils.h"
 #include "wifi/offline_mode_pref.h"
+#include "config/hardware_config.h"  // For TFT_BL pin definition
 
 #ifndef DEBUG_LONG_PRESS
 #define DEBUG_LONG_PRESS 1
@@ -18,13 +19,11 @@
 
 extern bool isNtpSyncPending;
 extern bool isLocationSavePending;
-extern bool weatherErrorModeGlobal;  // <-- DODAJ TĘ LINIĘ
-extern bool forecastErrorModeGlobal; // <-- DODAJ TĘ LINIĘ
+extern bool weatherErrorModeGlobal;  
+extern bool forecastErrorModeGlobal; 
 extern bool weeklyErrorModeGlobal;
 extern bool isOfflineMode;
 
-// Hardware pins - moved to hardware_config.h
-#include "config/hardware_config.h"  // For TFT_BL pin definition
 
 // Colors
 #define BLACK   0x0000
@@ -234,12 +233,12 @@ void handleWiFiTouchLoop(TFT_eSPI& tft) {
     extern ScreenManager& getScreenManager();
     getScreenManager().resetScreenTimer();
 
-    // --- POPRAWKA UŚPIENIA (KROK 2) ---
+  
     // Ręcznie zresetuj 10-sekundowy timer bezczynności,
     // ponieważ właśnie wykryliśmy PRAWDZIWĄ aktywność (dotyk).
     extern MotionSensorManager& getMotionSensorManager();
     getMotionSensorManager().handleMotionInterrupt(); // Ta funkcja resetuje timer
-    // --- KONIEC POPRAWKI ---
+  
 
     Serial.printf("Calibrated Touch: X=%d, Y=%d\n", x, y);
     handleTouchInput((int16_t)x, (int16_t)y);
@@ -252,7 +251,7 @@ bool checkWiFiLongPress(TFT_eSPI& tft) {
   handleLongPress(tft);
   
   if (longPressDetected) {
-    longPressDetected = false; // <-- POPRAWKA: Zużyj flagę po odczytaniu
+    longPressDetected = false; 
     return true;
   }
   return false;
@@ -276,12 +275,9 @@ bool isWiFiConfigActive() {
 void exitWiFiConfigMode() {
   currentState = STATE_CONNECTED;
   
-  // Execute deferred location save (ROZWIĄZANIE PROBLEMU ROZŁĄCZENIA WiFi)
+  // Execute deferred location save 
 }
-  // End of handleWiFiTouchLoop
-
-// UI functions moved to src/wifi/wifi_touch_interface_ui.cpp
-
+ 
 void scanNetworks() {
   drawStatusMessage(tft, "Szukam sieci...");
   WiFi.mode(WIFI_STA);
@@ -311,7 +307,7 @@ void drawNetworkList(TFT_eSPI& tft) {
   // 1. Wyczyść ekran
   tft.fillScreen(BLACK);
   
-  // === FIX: RESET USTAWIEŃ TEKSTU (To naprawia "niewidzialną listę") ===
+
   tft.setTextDatum(TL_DATUM);     // Wyrównanie: Lewy-Górny Róg (Kluczowe!)
   tft.setTextColor(WHITE, BLACK); // Biały tekst na czarnym tle
   tft.setTextSize(1);             // Rozmiar standardowy
@@ -588,12 +584,12 @@ void connectToWiFi() {
 extern void forceScreenRefresh(TFT_eSPI& tft);
 
 void handleLongPress(TFT_eSPI& tft) {
-  // === 🛑 BLOKADA BEZPIECZEŃSTWA (Najważniejsza zmiana) ===
+  // === BLOKADA BEZPIECZEŃSTWA  ===
   // Jeśli NIE jesteśmy na ekranie głównym (czyli np. wpisujemy hasło, skanujemy sieci),
   // to natychmiast przerywamy działanie tej funkcji.
   if (currentState != STATE_CONNECTED) {
       touchActive = false; // Resetujemy flagę dotyku dla bezpieczeństwa
-      return; // Wychodzimy, nie robimy nic więcej
+      return; 
   }
   // ========================================================
 
@@ -873,7 +869,7 @@ void handleBackgroundReconnect() {
     return;
   }
 
-  // --- CZĘŚĆ 2: Sprawdź, czy czas rozpocząć NOWĄ próbę połączenia ---
+  
   // === SPRAWDŹ CZY NIE TRWA POBIERANIE OBRAZKA ===
   extern bool isImageDownloadInProgress;
   if (isImageDownloadInProgress) {
@@ -908,7 +904,7 @@ void handleBackgroundReconnect() {
     }
   }
 
-  // --- CZĘŚĆ 3: Aktualizuj licznik (tylko jeśli NIE próbujemy się teraz łączyć) ---
+  // Aktualizuj licznik (tylko jeśli NIE próbujemy się teraz łączyć) ---
   if (!reconnectAttemptInProgress) {
     static unsigned long lastUpdateTime = 0;
     if (millis() - lastUpdateTime > WIFI_UI_UPDATE_INTERVAL) { // Aktualizuj co 5 sekund
@@ -917,9 +913,8 @@ void handleBackgroundReconnect() {
       int nextAttempt = (WIFI_RECONNECT_INTERVAL - elapsed) / 1000;
       
       if (nextAttempt > 0 && nextAttempt <= 19) {
-        // Rysuj na tej samej pozycji X co REFRESH (240) i tej samej szerokości (75)
-        // Ustaw Y tuż pod przyciskiem REFRESH (120 + 30 + 5 odstępu = 155)
-        tft.fillRect(240, 155, 75, 30, BLUE); // Dopasowano X, Y, W, H
+     
+        tft.fillRect(240, 155, 75, 30, BLUE); 
         tft.setTextColor(WHITE);
         tft.setTextSize(1);
         tft.setCursor(250, 165); // Wyśrodkuj tekst
@@ -974,14 +969,14 @@ void checkWiFiConnection() {
 }
 
 void handleWiFiLoss() {
-  // Wyjdź, jeśli nie powinniśmy nic robić
+ 
   if (!wifiLostDetected || currentState != STATE_CONNECTED) {
     return;
   }
 
   unsigned long elapsed = millis() - wifiLostTime;
 
-  // --- CZĘŚĆ 1: Sprawdź, czy próba połączenia jest W TRAKCIE ---
+  // Sprawdź, czy próba połączenia jest W TRAKCIE ---
   if (reconnectAttemptInProgress) {
     
     // 1.1: Sprawdź, czy się udało
@@ -1009,7 +1004,7 @@ void handleWiFiLoss() {
     return;
   }
 
-  // --- CZĘŚĆ 2: Sprawdź, czy czas rozpocząć NOWĄ próbę (co 19s) ---
+  // Sprawdź, czy czas rozpocząć NOWĄ próbę (co 19s) ---
   // (Tylko jeśli nie minęło jeszcze 60 sekund)
   // === SPRAWDŹ CZY NIE TRWA POBIERANIE OBRAZKA ===
   extern bool isImageDownloadInProgress;
@@ -1100,10 +1095,7 @@ if (currentState == STATE_SCAN_NETWORKS) {
     delay(100);
 
     // === 1. NAJPIERW SPRAWDZAMY PRZYCISKI PO PRAWEJ STRONIE ===
-    // Dzięki temu, jeśli klikniesz przycisk, kod nie wejdzie do "wybierania sieci"
-    
-    // PRZYCISK: OFFLINE (Y: 80-110)
-    // PRZYCISK: OFFLINE (Y: 80-110)
+  
     if (x >= 240 && x <= 315 && y >= 80 && y <= 110) {
        Serial.println("BTN: OFFLINE MODE (Scan Screen)");
        
@@ -1128,18 +1120,18 @@ if (currentState == STATE_SCAN_NETWORKS) {
        extern bool wifiLostDetected;
        wifiLostDetected = false;
        
-       // === FIX: WYMUSZENIE NATYCHMIASTOWEGO ODŚWIEŻENIA ===
+      
        // Bez tego ekran byłby czarny przez kilka sekund (do timeoutu timera)
        extern ScreenManager& getScreenManager();
        extern void forceScreenRefresh(TFT_eSPI& tft);
 
        clearAndShowMessage(tft, "Podlacz jednorazowo WiFi do synchro. czasu");
        delay(2000);
-      //  tft.drawString("Podlacz jednorazowo WiFi do synch. czasu", (tft.width()) / 2, ((tft.height()) / 2) + 75);
+     
 
        getScreenManager().setCurrentScreen(SCREEN_LOCAL_SENSORS); // Ustaw start na sensory
-       getScreenManager().resetScreenTimer(); // Resetuj timer
-       forceScreenRefresh(tft); // <--- RYSUJ NATYCHMIAST!
+       getScreenManager().resetScreenTimer();
+       forceScreenRefresh(tft); 
        // ====================================================
 
        return; 
@@ -1167,10 +1159,10 @@ if (currentState == STATE_SCAN_NETWORKS) {
         scanNetworks();
         drawNetworkList(tft);
       }
-      return; // <--- WAŻNE: Kończymy funkcję
+      return; 
     }
 
-    // === 2. DOPIERO TERAZ LISTA SIECI (LEWA STRONA) ===
+    // === 2. LISTA SIECI (LEWA STRONA) ===
     // Warunek x < 240 GWARANTUJE, że nie klikniemy sieci klikając przyciski
     else if (x < 240 && y >= 25 && y <= 240) {  
       int selectedIndex = (y - 30) / 30;
@@ -1652,7 +1644,7 @@ void drawLocationScreen(TFT_eSPI& tft) {
     } else if (currentMenuState == MENU_DISTRICTS) {
       // Wyświetlanie dzielnic wybranego miasta
       
-      // --- FIX: POPRAWIONA LOGIKA PODŚWIETLANIA NA ZIELONO ---
+     
       // Sprawdzamy, czy nazwa wyświetlana (Dzielnica) jest identyczna
       bool isCurrent = (String(cityList[itemIndex].displayName) == String(currentLoc.displayName));
       // -------------------------------------------------------
@@ -1823,7 +1815,7 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
           isLocationSavePending = true;
           Serial.printf("Location set to: %s\n", selectedLocation.displayName);
           
-          // === FIX: RESETUJEMY DANE POGODOWE ===
+       
           // To usuwa "duchy" starego miasta
           weather.isValid = false;
           weeklyForecast.isValid = false;
@@ -1850,7 +1842,7 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
 
           extern unsigned long lastWeatherCheckGlobal;
           extern unsigned long lastForecastCheckGlobal;
-          lastWeatherCheckGlobal = millis() - 20000; // Użyj stałej jeśli masz zdefiniowaną
+          lastWeatherCheckGlobal = millis() - 20000; 
           lastForecastCheckGlobal = millis() - 20000;
 
           extern unsigned long lastWeeklyUpdate;
@@ -1978,7 +1970,7 @@ void drawCoordinatesScreen(TFT_eSPI& tft) {
   tft.setCursor(255, 95);
   tft.print(editingLatitude ? "DO DLG" : "DO SZR");
   
-  // === POPRAWIONA KLAWIATURA NUMERYCZNA (LEWA STRONA) ===
+  // KLAWIATURA NUMERYCZNA (LEWA STRONA) ===
   // Zaczynamy od X=5, Klawisze węższe (28px)
   int keyW = 28; 
   int keyH = 25;
@@ -2267,6 +2259,4 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
 
 #endif
 
-// OLD TOUCH FUNCTIONS REMOVED - kod używa teraz tft.getTouch() z kalibracją
 
-// Lepsze dla kompatybilności i używa skalibrowanej macierzy dotyku

@@ -1,9 +1,6 @@
 #ifndef DEBUG_CONFIG_H
 #define DEBUG_CONFIG_H
 
-// 🐛 KONFIGURACJA DEBUGOWANIA
-// Odkomentuj linie żeby włączyć debug dla konkretnych modułów
-
 // --- WEATHER API DEBUG ---
 #define DEBUG_WEATHER_API        // Pokazuje pełny JSON z API pogodowego
 

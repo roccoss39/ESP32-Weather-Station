@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
-#include <HTTPClient.h> // <--- NOWOŚĆ: Potrzebne do pobrania pliku tekstowego
+#include <HTTPClient.h>
 #include <HTTPUpdate.h>
 #include <esp_task_wdt.h> 
 #include "config/hardware_config.h"
@@ -23,7 +23,7 @@ public:
         Serial.println("🔍 Sprawdzanie dostępności nowej wersji (version.txt)...");
 
         // Definicja URL do pliku wersji (musi być RAW)
-        // Upewnij się, że ten plik istnieje na GitHubie!
+        // Upewnij się, że ten plik istnieje na GitHubie
         String versionUrl = "https://raw.githubusercontent.com/roccoss39/ESP32-Weather-Station/main/version.txt";
 
         WiFiClientSecure client;

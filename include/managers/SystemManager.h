@@ -9,7 +9,7 @@
 class SystemManager {
 private:
     unsigned long lastCheckTime = 0;
-    uint8_t currentBrightness = 255;  // Track current brightness
+    uint8_t currentBrightness = 255;
 
 public:
     SystemManager();
@@ -19,7 +19,7 @@ public:
     
     // Sterowanie jasnością
     void setBrightness(uint8_t value);
-    uint8_t getCurrentBrightness() const { return currentBrightness; }  // Getter
+    uint8_t getCurrentBrightness() const { return currentBrightness; } 
     void restoreCorrectBrightness(); 
     void fadeBacklight(uint8_t from, uint8_t to);
     

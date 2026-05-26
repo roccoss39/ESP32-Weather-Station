@@ -10,8 +10,6 @@ TimeDisplayCache& getTimeDisplayCache() {
   return timeDisplayCache;
 }
 
-// ❌ USUNIĘTE: 4 extern variables zastąpione TimeDisplayCache class
-
 String getPolishDayName(int dayNum) {
   switch(dayNum) {
     case 0: return "Niedziela";
@@ -54,10 +52,10 @@ void displayTime(TFT_eSPI& tft) {
   String polishDay = getPolishDayName(dayNum);
   
 
-  // 1. DZIEŃ TYGODNIA (przesunięty o kolejne 10px w lewo)
+  // 1. DZIEŃ TYGODNIA 
   if (getTimeDisplayCache().hasDayChanged(polishDay)) {
     Serial.println("Day changed - redrawing day");
-    // Wyczyść tylko obszar dnia (przesunięty o 25px w lewo - było +35, teraz +25)
+    // Wyczyść tylko obszar dnia 
     tft.fillRect(TIME_AREA_X + 25, TIME_AREA_Y, 140, 20, COLOR_BACKGROUND);
     
     tft.setTextDatum(TL_DATUM);
@@ -68,10 +66,10 @@ void displayTime(TFT_eSPI& tft) {
     getTimeDisplayCache().setPrevDayStr(polishDay);
   }
 
-  // 2. DATA (przesunięta o 10px w lewo)
+  // 2. DATA
   if (getTimeDisplayCache().hasDateChanged(dateStr)) {
     Serial.println("Date changed - redrawing date");
-    // Wyczyść tylko obszar daty (przesunięty o 15px w lewo - było +185, teraz +175)
+    // Wyczyść tylko obszar daty 
     tft.fillRect(TIME_AREA_X + 175, TIME_AREA_Y, 120, 20, COLOR_BACKGROUND);
     
     tft.setTextDatum(TL_DATUM);

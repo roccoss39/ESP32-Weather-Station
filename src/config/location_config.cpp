@@ -49,7 +49,7 @@ void LocationManager::loadLocationFromPreferences() {
             customSaved.latitude = prefs.getFloat("latitude", 53.44);
             customSaved.longitude = prefs.getFloat("longitude", 14.56);
             
-            // To też jest teraz bezpieczne
+        
             customSaved.displayName = prefs.getString("displayName", "Wlasny GPS");
             customSaved.timezone = "UTC0";
             
@@ -80,7 +80,6 @@ void LocationManager::loadLocationFromPreferences() {
         if (!found) {
             Serial.println("Saved location not found in predefined cities, checking secrets.h");
             
-            // Sprawdź czy lokalizacja z secrets.h jest w naszej liście
             if (findLocationFromSecrets()) {
                 Serial.println("Using location from secrets.h: " + String(WEATHER_CITY));
             } else {
