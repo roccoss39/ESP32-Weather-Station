@@ -14,6 +14,7 @@ struct WeatherData {
   String icon = "";
   unsigned long sunrise = 0;  // Wschód słońca (timestamp Unix)
   unsigned long sunset = 0;   // Zachód słońca (timestamp Unix)
+  long timezone = 0;
   
   // --- DANE O OPADACH ---
   float rainLastHour = 0;     // mm deszczu w ostatniej godzinie

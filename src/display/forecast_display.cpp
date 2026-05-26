@@ -218,8 +218,8 @@ void drawForecastSummary(TFT_eSPI& tft, int y) {
   // === SEKCJA 2: WSCHÓD i ZACHÓD ===
   
   if (weather.sunrise > 0 && weather.sunset > 0) {
-    unsigned long sunriseLocal = weather.sunrise + 3600; // UTC+1
-    unsigned long sunsetLocal = weather.sunset + 3600;
+    unsigned long sunriseLocal = weather.sunrise + weather.timezone; 
+    unsigned long sunsetLocal = weather.sunset + weather.timezone;
     
     uint8_t sunriseHour = (sunriseLocal % 86400) / 3600;
     uint8_t sunriseMin = (sunriseLocal % 3600) / 60;

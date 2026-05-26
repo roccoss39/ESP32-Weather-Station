@@ -284,7 +284,7 @@ void setup() {
     Serial.print("Waiting for time synchronization...");
     struct tm timeinfo;
     int retry = 0;
-    const int retry_count = 15; 
+    const int retry_count = 5; 
 
     while (!getLocalTime(&timeinfo, 5000) || timeinfo.tm_year < (2023 - 1900)) {
         Serial.print(".");
@@ -378,6 +378,8 @@ void setup() {
   Serial.println("📱 Timer ekranu zresetowany - 10s do następnego przełączenia");
   
   checkAndShowGreeting(tft);
+
+  sysManager.restoreCorrectBrightness(); // Aktualizacja jasności z poprawnym czasem
 
   Serial.println("=== STACJA POGODOWA GOTOWA ===");
 }

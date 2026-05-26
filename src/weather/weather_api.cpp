@@ -64,6 +64,7 @@ bool getWeather() {
       // Dodaj dane wschodu i zachodu słońca
       weather.sunrise = doc["sys"]["sunrise"];
       weather.sunset = doc["sys"]["sunset"];
+      weather.timezone = doc["timezone"].as<long>();
       
       // --- DANE O OPADACH ---
       weather.rainLastHour = 0;  // Domyślnie brak

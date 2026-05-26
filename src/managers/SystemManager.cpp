@@ -107,7 +107,7 @@ void SystemManager::restoreCorrectBrightness() {
         if (getLocalTime(&timeinfo, 0)) {
             int hour = timeinfo.tm_hour;
             
-            if (hour >= 8 && hour < 20) {
+            if (hour >= 6 && hour < 20) {
                 targetBrightness = BRIGHTNESS_DAY;
             } else if (hour >= 20 && hour < 23) {
                 targetBrightness = BRIGHTNESS_EVENING;
