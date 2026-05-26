@@ -6,7 +6,7 @@
 
 class WeatherCache {
 private:
-    // Previous values for comparison
+    // Poprzednie wartości do porównania
     float prevTemperature = -999.0f;
     float prevFeelsLike = -999.0f;
     float prevHumidity = -999.0f;
@@ -16,7 +16,7 @@ private:
     String prevIcon = "";
 
 public:
-    // --- GETTERS ---
+    // --- GETTERY ---
     float getPrevTemperature() const { return prevTemperature; }
     float getPrevFeelsLike() const { return prevFeelsLike; }
     float getPrevHumidity() const { return prevHumidity; }
@@ -25,7 +25,7 @@ public:
     String getPrevDescription() const { return prevDescription; }
     String getPrevIcon() const { return prevIcon; }
     
-    // --- SETTERS ---
+    // --- SETTERY ---
     void setPrevTemperature(float temp) { prevTemperature = temp; }
     void setPrevFeelsLike(float feels) { prevFeelsLike = feels; }
     void setPrevHumidity(float humidity) { prevHumidity = humidity; }
@@ -34,7 +34,7 @@ public:
     void setPrevDescription(const String& desc) { prevDescription = desc; }
     void setPrevIcon(const String& icon) { prevIcon = icon; }
     
-    // --- UTILITY METHODS ---
+    // --- METODY POMOCNICZE ---
     
     /**
      * Resetuje cały cache - wymusza ponowne rysowanie

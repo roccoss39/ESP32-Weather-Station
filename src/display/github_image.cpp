@@ -18,12 +18,12 @@ extern TFT_eSPI tft;
 String generateTitleFromFilename(const String& filename) {
   String title = filename;
   
-  // Remove .jpg extension
+  // Usuń rozszerzenie .jpg
   if (title.endsWith(".jpg")) {
     title = title.substring(0, title.length() - 4);
   }
   
-  // Replace underscores with spaces
+  // Zamień podkreślenia na spacje
   title.replace("_", " ");
   
   return title;
@@ -45,7 +45,7 @@ bool tft_output_nasa(int16_t x, int16_t y, uint16_t w, uint16_t h, uint16_t* bit
 }
 
 // ================================================================
-// FALLBACK: ŁADOWANIE Z LITTLEFS
+// AWARYJNIE: ŁADOWANIE Z LITTLEFS
 // ================================================================
 bool loadFallbackImageFromLittleFS() {
   Serial.println("🛡️ Ładuję fallback image z LittleFS...");
@@ -251,7 +251,7 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
   http.setTimeout(10000); 
   http.setConnectTimeout(5000);
 
-  // Test Mode Override
+  // Nadpisanie trybu testowego
   if (TEST_ONE_IMG == 1) {
      Serial.println("⚠️ TEST MODE: Podmieniam URL na testowy");
      fullImageURL = "https://roccoss39.github.io/nasa.github.io-/nasa-images/NGC_3628_The_Hamburger_Galaxy.jpg";
@@ -319,10 +319,10 @@ bool downloadAndDisplayImage(TFT_eSPI& tft, int imageIndex) {
   if (remainingBytes > 0) {
     unsigned long readStartTime = millis();
     size_t additionalRead = 0;
-    size_t chunkSize = min(remainingBytes, (size_t)1024); // 1KB chunks
+    size_t chunkSize = min(remainingBytes, (size_t)1024); // Fragmenty po 1KB
     
     while (additionalRead < remainingBytes) {
-      if (millis() - readStartTime > 8000) break; // Timeout 8s
+      if (millis() - readStartTime > 8000) break; // Limit czasu 8s
       
       if (stream->available() == 0) {
         delay(50);

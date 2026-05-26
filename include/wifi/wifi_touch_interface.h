@@ -1,7 +1,7 @@
 #ifndef WIFI_TOUCH_INTERFACE_H
 #define WIFI_TOUCH_INTERFACE_H
 
-// WiFi timeouts are now in timing_config.h
+// Limity czasu WiFi są teraz w timing_config.h
 
 #include <Arduino.h>
 #include <TFT_eSPI.h>
@@ -9,7 +9,7 @@
 #include <Preferences.h>
 #include "config/timing_config.h"
 
-// --- WiFi STATES ---
+// --- STANY WiFi ---
 enum WiFiState {
   STATE_SCAN_NETWORKS = 0,
   STATE_ENTER_PASSWORD = 1,
@@ -21,7 +21,7 @@ enum WiFiState {
   STATE_ENTER_COORDINATES = 7
 };
 
-// --- COLORS ---
+// --- KOLORY ---
 #define BLACK   0x0000
 #define WHITE   0xFFFF
 #define RED     0xF800
@@ -31,11 +31,11 @@ enum WiFiState {
 #define PURPLE  0xF81F
 #define CYAN    0x07FF
 
-// --- TOUCH CALIBRATION PINS ---
-// TOUCH_CS defined in platformio.ini as build flag
-#define T_IRQ  -1  // Not used
+// --- PINY KALIBRACJI DOTYKU ---
+// TOUCH_CS zdefiniowany w platformio.ini jako flaga kompilacji
+#define T_IRQ  -1  // Nieużywane
 
-// --- MAIN FUNCTIONS ---
+// --- GŁÓWNE FUNKCJE ---
 void initWiFiTouchInterface();
 void handleWiFiTouchLoop(TFT_eSPI& tft);
 bool checkWiFiLongPress(TFT_eSPI& tft);
@@ -43,13 +43,13 @@ void enterWiFiConfigMode(TFT_eSPI& tft);
 bool isWiFiConfigActive();
 void exitWiFiConfigMode();
 
-// --- WIFI FUNCTIONS ---
+// --- FUNKCJE WIFI ---
 void scanNetworks();
 void connectToWiFi();
 void saveCredentials(String ssid, String password);
 bool loadCredentials(String& ssid, String& password);
 
-// --- DISPLAY FUNCTIONS ---
+// --- FUNKCJE WYŚWIETLACZA ---
 void drawNetworkList(TFT_eSPI& tft);
 void drawPasswordScreen();
 void drawConnectedScreen(TFT_eSPI& tft);
@@ -60,23 +60,23 @@ void drawStatusMessage(TFT_eSPI& tft, String message);
 void drawKeyboard();
 void enterConfigMode();
 
-// --- LOCATION SELECTION FUNCTIONS ---
+// --- FUNKCJE WYBORU LOKALIZACJI ---
 void drawLocationScreen(TFT_eSPI& tft);
 void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft);
 void enterLocationSelectionMode(TFT_eSPI& tft);
 
-// --- CUSTOM COORDINATES FUNCTIONS ---
+// --- FUNKCJE WŁASNYCH WSPÓŁRZĘDNYCH ---
 void drawCoordinatesScreen(TFT_eSPI& tft);
 void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft);
 void enterCoordinatesMode(TFT_eSPI& tft);
 
-// --- TOUCH FUNCTIONS ---
+// --- FUNKCJE DOTYKU ---
 void handleTouchInput(int16_t x, int16_t y);
 void handleKeyboardTouch(int16_t x, int16_t y);
 bool getTouchPoint(int16_t &x, int16_t &y);
 uint16_t readTouch(uint8_t command);
 
-// --- BACKGROUND FUNCTIONS ---
+// --- FUNKCJE TŁA ---
 void checkWiFiConnection();
 void handleWiFiLoss();
 void handleBackgroundReconnect();

@@ -2,8 +2,8 @@
 
 #include <Arduino.h>
 
-// Persist offline mode across resets/deep sleep.
-// Stored in NVS (Preferences).
+// Zachowuje tryb offline po resetach/deep sleep.
+// Przechowywane w NVS (Preferences).
 
 bool loadOfflineModePref();
 void saveOfflineModePref(bool offline);

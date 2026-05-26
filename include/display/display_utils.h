@@ -6,7 +6,7 @@
 
 void clearAndShowMessage(TFT_eSPI& tft, String message, uint16_t color = TFT_WHITE,uint8_t size = 1);
 
-// Simple loading screen (reused for weather refresh and images)
+// Prosty ekran ładowania (używany ponownie przy odświeżaniu pogody i obrazach)
 void drawLoadingSpinner(TFT_eSPI& tft, const String& message = "Ladowanie...");
 
 
