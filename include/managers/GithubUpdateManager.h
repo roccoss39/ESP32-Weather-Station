@@ -50,7 +50,7 @@ public:
 
                 if (remoteVersion > FIRMWARE_VERSION) {
                     Serial.println("🚀 ZNALEZIONO NOWĄ WERSJĘ! Uruchamiam aktualizację...");
-                    http.end(); // Zamykamy połączenie HTTPClient
+                    http.end(); 
                     
                     // === KROK 2: Właściwa aktualizacja (Ciężki plik .bin) ===
                     performUpdate(); 

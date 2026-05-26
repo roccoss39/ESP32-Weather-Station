@@ -17,9 +17,7 @@ uint16_t getWindColor(float windKmh);
 uint16_t getPressureColor(float pressure);
 uint16_t getHumidityColor(float humidity);
 
-// --- NOWY OOP CACHE SYSTEM ---
-// Zastąpiono 7 extern variables WeatherCache class
-// Forward declaration zamiast include w header
+
 class WeatherCache;
 
 // Singleton instance WeatherCache

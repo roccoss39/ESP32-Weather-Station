@@ -8,9 +8,6 @@
 void displayTime(TFT_eSPI& tft);
 String getPolishDayName(int dayNum);
 
-// --- NOWY OOP CACHE SYSTEM ---
-// Zastąpiono 4 extern variables TimeDisplayCache class
-// Forward declaration zamiast include w header
 class TimeDisplayCache;
 
 // Singleton instance TimeDisplayCache

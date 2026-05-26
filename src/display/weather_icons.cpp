@@ -31,7 +31,7 @@ void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconC
   }
   // Group 2xx: Thunderstorm
   else if (iconCode.indexOf("11") >= 0 || condition.indexOf("thunderstorm") >= 0) {
-    // 11d/11n = thunderstorm (codes 200-232)
+    
     // Ciemne chmury burzy
     tft.fillCircle(x + 15, y + 20, 10, TFT_DARKGREY);
     tft.fillCircle(x + 25, y + 15, 12, TFT_LIGHTGREY);
