@@ -8,6 +8,7 @@
 #include <ArduinoJson.h>
 #include <time.h>
 
+
 // Definicje globalnych zmiennych
 ForecastData forecast;
 WeeklyForecastData weeklyForecast;

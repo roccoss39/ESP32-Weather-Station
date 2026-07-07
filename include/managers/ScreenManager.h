@@ -222,6 +222,7 @@ public:
     void renderLocalSensorsScreen(TFT_eSPI& tft);
     void renderImageScreen(TFT_eSPI& tft);
     void resetWeatherAndTimeCache();
+    void renderPressureScreen(TFT_eSPI& tft);
 };
 
 void updateScreenManager();

@@ -1,11 +1,13 @@
 #include "managers/ScreenManager.h"
-#include "display/screen_manager.h" // Upewnij się, że nie dublujesz includów
+#include "display/screen_manager.h" 
 #include "display/current_weather_display.h"
 #include "display/forecast_display.h"
 #include "display/weekly_forecast_display.h"
 #include "display/sensors_display.h"
 #include "display/time_display.h"
 #include "display/github_image.h"
+#include "display/display_pressure.h"
+
 #include "config/display_config.h"
 #include "sensors/motion_sensor.h"
 #include "sensors/dht22_sensor.h"
@@ -13,6 +15,7 @@
 #include "managers/TimeDisplayCache.h"
 #include "config/location_config.h"
 #include "config/hardware_config.h" 
+
 
 extern WeeklyForecastData weeklyForecast;
 extern unsigned long lastWeatherCheckGlobal;
@@ -62,11 +65,15 @@ void ScreenManager::renderForecastScreen(TFT_eSPI& tft) {
   displayForecast(tft);
 }
 
+void ScreenManager::renderPressureScreen(TFT_eSPI& tft) {
+  displayPressureScreen(tft);
+}
+
 void ScreenManager::renderWeeklyScreen(TFT_eSPI& tft) {
   displayWeeklyForecast(tft);  
 }
 
-// === EKRAN 4: LOCAL SENSORS (Tu trafi Twój kod daty!) ===
+
 void ScreenManager::renderLocalSensorsScreen(TFT_eSPI& tft) {
    if (isOfflineMode) {
     displayLocalSensors(tft);

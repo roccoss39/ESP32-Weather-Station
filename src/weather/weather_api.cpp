@@ -4,6 +4,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include "config/debug_config.h"
 
 // Definicje globalnych zmiennych
 WeatherData weather;
