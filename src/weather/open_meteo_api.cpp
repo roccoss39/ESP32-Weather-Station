@@ -1,15 +1,12 @@
 #include "weather/open_meteo_api.h"
+#include "config/location_config.h" 
 #include <HTTPClient.h>
-#include <WiFiClientSecure.h> 
+#include <WiFiClientSecure.h>
 #include <ArduinoJson.h>
 #include <WiFi.h>
 
 static float pressureHistoryData[12] = {0};
 static bool dataValid = false;
-
-// TODO: Zmień na współrzędne pobierane z Twojego menedżera lokalizacji
-const String LATITUDE = "53.4289";  // Szczecin
-const String LONGITUDE = "14.553";
 
 // --- IMPLEMENTACJA GETTERÓW ---
 const float* getOpenMeteoPressureHistory() {
@@ -28,28 +25,28 @@ void fetchOpenMeteoPressure() {
         return;
     }
 
-    // Dodajemy klienta zabezpieczonego (Secure)
+    WeatherLocation currentLoc = locationManager.getCurrentLocation();
+
     WiFiClientSecure client;
-    client.setInsecure(); // Akceptujemy każdy certyfikat - bezpieczne dla pobierania pogody
+    client.setInsecure(); // Akceptujemy każdy certyfikat
 
     HTTPClient http;
-    String url = "https://api.open-meteo.com/v1/forecast?latitude=" + LATITUDE + "&longitude=" + LONGITUDE + "&hourly=surface_pressure&past_hours=11&forecast_hours=1";
     
-    Serial.println("🌐 [Open-Meteo] Pobieranie historii ciśnienia...");
+    // Dynamicznie budujemy URL używając zmiennych z LocationManagera (z dokładnością do 4 miejsc po przecinku)
+    String url = "https://api.open-meteo.com/v1/forecast?latitude=" + String(currentLoc.latitude, 4) + 
+                 "&longitude=" + String(currentLoc.longitude, 4) + 
+                 "&hourly=surface_pressure&past_hours=11&forecast_hours=1";
+    
+    Serial.printf("🌐 [Open-Meteo] Pobieranie historii ciśnienia dla: %s (%.2f, %.2f)\n", 
+                  currentLoc.displayName.c_str(), currentLoc.latitude, currentLoc.longitude);
 
-    // Podajemy klienta zabezpieczonego jako pierwszy argument
     http.begin(client, url); 
     int httpCode = http.GET();
 
     if (httpCode == HTTP_CODE_OK) {
-        // Zamiast czytać ze strumienia, pobieramy całość do tekstu
         String payload = http.getString(); 
         
-        // Możesz odkomentować poniższą linię, aby zobaczyć surowe dane z internetu:
-         Serial.println("📦 [Open-Meteo] Surowe dane: " + payload);
-
         JsonDocument doc; 
-        // Parsujemy pobrany przed chwilą tekst
         DeserializationError error = deserializeJson(doc, payload);
 
         if (error) {
