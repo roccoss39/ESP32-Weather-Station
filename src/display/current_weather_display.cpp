@@ -5,6 +5,7 @@
 #include "display/weather_icons.h"
 #include "config/display_config.h"
 #include "weather/forecast_data.h"
+#include "weather/open_meteo_api.h" 
 
 // Singleton instance WeatherCache  
 static WeatherCache weatherCache;
@@ -75,8 +76,7 @@ void drawTrendArrow(TFT_eSPI& tft, int x, int y, int direction, uint16_t color) 
     int w = 5; 
     int h = 5; 
     
-    // Tło czyszczące ("Gumka") - przywrócone i dopasowane
-    // Musi być włączone, żeby strzałki nie nakładały się na siebie przy zmianie pogody
+    // Tło czyszczące ("Gumka")
     tft.fillRect(x - 4, y - 2, 9, 10, 0x1082); 
     
     // Kod 99 oznacza "Brak ikony" (dla dolnej linii w trybie stabilnym)
@@ -100,50 +100,28 @@ void drawTrendArrow(TFT_eSPI& tft, int x, int y, int direction, uint16_t color) 
 
 
 // ================================================================
-// LOGIKA TRENDU CIŚNIENIA 
+// LOGIKA TRENDU CIŚNIENIA - BAZUJĄCA NA OPEN-METEO API
 // ================================================================
 
 void getPressureTrendInfo(float currentPressure, String &trendText, String &forecastText, uint16_t &trendColor, int &dir1, int &dir2) {
-    // --- KONFIGURACJA ---
-    const int HISTORY_SIZE = 13;       // 12 slotów po 15 min = 3h (+1 na bieżący)
-    const unsigned long INTERVAL = 15 * 60 * 1000UL; // Co 15 minut zapisujemy punkt
     
-    // Zmienne statyczne
-    static float history[HISTORY_SIZE] = {0}; 
-    static bool isInitialized = false;
-    static unsigned long lastUpdate = 0;
-    static int count = 0; 
-
-    // 1. INICJALIZACJA
-    if (!isInitialized || history[0] == 0) {
-        for (int i = 0; i < HISTORY_SIZE; i++) {
-            history[i] = currentPressure;
-        }
-        isInitialized = true;
-        lastUpdate = millis();
-        count = 1;
+    float pressure3hAgo = currentPressure; // Domyślnie brak zmiany, jeśli API nie działa
+    
+    // Pobieramy natychmiastową historię sprzed 3 godzin z API!
+    if (isOpenMeteoDataValid()) {
+        const float* apiHistory = getOpenMeteoPressureHistory();
+        // Indeks 11 to teraz. Indeks 8 to dokładnie 3 godziny temu.
+        pressure3hAgo = apiHistory[8]; 
     }
 
-    // 2. AKTUALIZACJA HISTORII
-    if (millis() - lastUpdate >= INTERVAL) {
-        lastUpdate = millis();
-        for (int i = HISTORY_SIZE - 1; i > 0; i--) {
-            history[i] = history[i - 1];
-        }
-        history[0] = currentPressure; 
-        if (count < HISTORY_SIZE) count++; 
-    }
-    
-    // 3. OBLICZANIE RÓŻNICY
-    float pressure3hAgo = history[count - 1]; 
+    // OBLICZANIE RÓŻNICY
     float diff = currentPressure - pressure3hAgo;
 
-    // 4. USTALANIE STATUSU (PROGI)
+    // USTALANIE STATUSU (PROGI)
     float thresholdStable = 0.5; // +/- 0.5 hPa 
     float thresholdStorm = 4.0;  // +/- 4.0 hPa
 
     // Logika mapowania trendu 
-    
     if (diff > thresholdStorm) {
         // Szybko rośnie
         trendText = "Szybko rosnie";
@@ -320,7 +298,7 @@ void displayCurrentWeather(TFT_eSPI& tft) {
     uint16_t trendCol;
     int dir1, dir2; 
     
-    // Pobieramy dane z logiki trendu
+    // Pobieramy dane z nowej, ulepszonej logiki trendu
     getPressureTrendInfo(weather.pressure, trendTxt, forecastTxt, trendCol, dir1, dir2);
 
     // Etykieta CIS.
@@ -340,7 +318,7 @@ void displayCurrentWeather(TFT_eSPI& tft) {
     int textXOffset = 22; 
     int arrowX = rightX + 12;
     
-    // TWOJE NOWE POZYCJE LINII
+    // Pozycje linii
     int row1_Y = y3 + 17; 
     int row2_Y = y3 + 30; 
     

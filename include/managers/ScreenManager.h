@@ -6,7 +6,7 @@
 #include "config/timing_config.h" 
 
 #define TEST_MODE 0
-#define TEST_SCREEN SCREEN_WEEKLY
+#define TEST_SCREEN SCREEN_PRESSURE
 
 extern bool isOfflineMode;
 
@@ -16,7 +16,8 @@ enum ScreenType {
   SCREEN_FORECAST = 1,
   SCREEN_WEEKLY = 2,
   SCREEN_LOCAL_SENSORS = 3,
-  SCREEN_IMAGE = 4
+  SCREEN_IMAGE = 4,
+  SCREEN_PRESSURE = 5
 };
 
 class ScreenManager {
@@ -135,8 +136,12 @@ public:
                 currentScreen = SCREEN_IMAGE;
                 break;
             case SCREEN_IMAGE:
+                currentScreen = SCREEN_PRESSURE;
+                break;
+            case SCREEN_PRESSURE:
                 currentScreen = SCREEN_CURRENT_WEATHER;
                 break;
+            
             default:
                 currentScreen = SCREEN_CURRENT_WEATHER;
                 break;
@@ -171,6 +176,7 @@ public:
             case SCREEN_WEEKLY:          renderWeeklyScreen(tft); break;
             case SCREEN_LOCAL_SENSORS:   renderLocalSensorsScreen(tft); break;
             case SCREEN_IMAGE:           renderImageScreen(tft); break;
+            case SCREEN_PRESSURE:        renderPressureScreen(tft); break;
         }
     }
     
@@ -202,6 +208,7 @@ public:
             case SCREEN_WEEKLY: return "WEEKLY";
             case SCREEN_LOCAL_SENSORS: return "LOCAL_SENSORS";
             case SCREEN_IMAGE: return "IMAGE";
+            case SCREEN_PRESSURE: return "PRESSURE";
             default: return "UNKNOWN";
         }
     }
@@ -212,6 +219,8 @@ public:
             case SCREEN_FORECAST: break;
             case SCREEN_WEEKLY: break;
             case SCREEN_IMAGE: break;
+            case SCREEN_PRESSURE: break;
+            
         }
     }
     

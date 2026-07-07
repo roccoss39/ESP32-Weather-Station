@@ -22,6 +22,7 @@
 #include "weather/weather_api.h"
 #include "weather/forecast_data.h"
 #include "weather/forecast_api.h"
+#include "weather/open_meteo_api.h"
 
 // --- WYŚWIETLANIE ---
 #include "display/current_weather_display.h"
@@ -31,6 +32,7 @@
 #include "display/screen_manager.h"
 #include "display/github_image.h"
 #include "display/sensors_display.h" 
+#include "display/display_pressure.h" 
 
 // --- SENSORY ---
 #include "sensors/motion_sensor.h"
@@ -346,14 +348,24 @@ void setup() {
     tft.drawString("Pobieranie pogody...", tft.width() / 2, tft.height() / 2 + 10);
     
     getWeather();
+    delay(150);
     if (!weather.isValid) {
       weatherErrorModeGlobal = true;
       lastWeatherCheckGlobal = millis() - WEATHER_FORCE_REFRESH;
       Serial.println("Weather error mode AKTYWNY");
     }
+    fetchOpenMeteoPressure();
+    delay(150);
     
     tft.drawString("Pobieranie prognozy...", tft.width() / 2, tft.height() / 2 + 10);
     getForecast();
+    delay(150);
+
+    if (isOpenMeteoDataValid()) {
+        const float* meteoData = getOpenMeteoPressureHistory();
+        weather.pressure = meteoData[11];
+    }
+    
     generateWeeklyForecast();
     
     if (!forecast.isValid) {
@@ -486,6 +498,7 @@ void loop() {
       if (millis() - lastWeatherCheckGlobal >= weatherInterval) {
         if (WiFi.status() == WL_CONNECTED) {
           getWeather();
+          fetchOpenMeteoPressure();
           if (weather.isValid) {
             weatherErrorModeGlobal = false;
           } else {
@@ -505,6 +518,8 @@ void loop() {
         lastForecastCheckGlobal = millis();
       }
   } 
+
+
 
   // --- ODŚWIEŻANIE ZAWARTOŚCI EKRANU ---
   static ScreenType previousScreen = SCREEN_IMAGE;
