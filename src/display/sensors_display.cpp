@@ -505,7 +505,7 @@ void displayLocalSensors(TFT_eSPI& tft, bool onlyUpdate) {
             else valColor = TFT_GREEN;
         }
 
-        printf("[DEBUG] Stan baterii: %f\n", batteryVoltage);
+        //printf("[DEBUG] Stan baterii: %f\n", batteryVoltage);
         
         tft.setTextPadding(0); // Wyłączamy padding automatyczny
         

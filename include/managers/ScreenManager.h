@@ -16,8 +16,8 @@ enum ScreenType {
   SCREEN_FORECAST = 1,
   SCREEN_WEEKLY = 2,
   SCREEN_LOCAL_SENSORS = 3,
-  SCREEN_IMAGE = 4,
-  SCREEN_PRESSURE = 5
+  SCREEN_PRESSURE = 4,
+  SCREEN_IMAGE = 5,
 };
 
 class ScreenManager {
@@ -133,20 +133,19 @@ public:
                 currentScreen = SCREEN_LOCAL_SENSORS;
                 break;
             case SCREEN_LOCAL_SENSORS:
-                currentScreen = SCREEN_IMAGE;
-                break;
-            case SCREEN_IMAGE:
                 currentScreen = SCREEN_PRESSURE;
                 break;
             case SCREEN_PRESSURE:
+                currentScreen = SCREEN_IMAGE;
+                break;
+            case SCREEN_IMAGE:
                 currentScreen = SCREEN_CURRENT_WEATHER;
                 break;
-            
+                
             default:
                 currentScreen = SCREEN_CURRENT_WEATHER;
                 break;
         }
-        
         return previousScreen;
     }
     
