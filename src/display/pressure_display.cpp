@@ -6,6 +6,7 @@
 
 void displayPressureScreen(TFT_eSPI& tft) {
     // Kolory interfejsu (Format RGB565)
+    Serial.print("Rysowanie Pressure Screen\n");
     uint16_t COLOR_BG = TFT_BLACK;
     uint16_t COLOR_GRID = tft.color565(50, 50, 50);
     uint16_t COLOR_TEXT_MUTED = tft.color565(150, 150, 150);

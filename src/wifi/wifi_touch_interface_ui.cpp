@@ -16,6 +16,9 @@
 #define DEBUG_LOCATION_UI 1
 #endif
 
+// ZMIENNE DO OBSŁUGI PRZEWIJANIA LISTY SIECI WIFI
+static int networkScrollOffset = 0;       // Do głównego ekranu sieci
+static int configNetworkScrollOffset = 0; // Do trybu konfiguracji
 
 // Colors duplicated from original file (UI concern)
 #define BLACK   0x0000
@@ -94,7 +97,7 @@ static void runTouchCalibrationFromMenu(TFT_eSPI& tft) {
   delay(1200);
 }
 
-// ===== Public API wrappers (keep old names from wifi_touch_interface.h) =====
+// ===== Public API wrappers =====
 
 void drawStatusMessage(TFT_eSPI& tft, String message) { wifiTouchUI_drawStatusMessage(tft, message); }
 void drawConnectedScreen(TFT_eSPI& tft) { wifiTouchUI_drawConnectedScreen(tft); }
@@ -105,16 +108,16 @@ void drawConfigModeScreen() { wifiTouchUI_drawConfigModeScreen(tft); }
 
 void drawLocationScreen(TFT_eSPI& tft) { wifiTouchUI_drawLocationScreen(tft); }
 void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) { wifiTouchUI_handleLocationTouch(x, y, tft); }
-void enterLocationSelectionMode(TFT_eSPI& tft); // implemented in logic file
+void enterLocationSelectionMode(TFT_eSPI& tft); 
 
 void drawCoordinatesScreen(TFT_eSPI& tft) { wifiTouchUI_drawCoordinatesScreen(tft); }
 void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) { wifiTouchUI_handleCoordinatesTouch(x, y, tft); }
-void enterCoordinatesMode(TFT_eSPI& tft); // implemented in logic file
+void enterCoordinatesMode(TFT_eSPI& tft); 
 
 void handleTouchInput(int16_t x, int16_t y) { wifiTouchUI_handleTouchInput(x, y, tft); }
 void handleKeyboardTouch(int16_t x, int16_t y) { wifiTouchUI_handleKeyboardTouch(x, y, tft); }
 
-// ===== Drawing functions (moved from wifi_touch_interface.cpp) =====
+// ===== Drawing functions =====
 
 void wifiTouchUI_drawStatusMessage(TFT_eSPI& tft, const String& message) {
   tft.fillScreen(BLACK);
@@ -169,44 +172,60 @@ void wifiTouchUI_drawNetworkList(TFT_eSPI& tft) {
   tft.setTextSize(1);
   tft.setFreeFont(NULL);
 
-  tft.setCursor(10, 10);
+  tft.setCursor(10, 5);
   tft.println("Wybierz siec WiFi:");
 
   int yPos = 30;
-  int maxNetworks = min(networkCount, 7);
-  for (int i = 0; i < maxNetworks; i++) {
-    if (i == selectedNetworkIndex) tft.fillRect(0, yPos - 2, 240, 30, BLUE);
+  // Pokazujemy 6 na raz, żeby było widać scrolla
+  int maxVisible = 6;
+  
+  for (int i = 0; i < min(maxVisible, networkCount - networkScrollOffset); i++) {
+    int netIdx = i + networkScrollOffset;
+    
+    if (netIdx == selectedNetworkIndex) tft.fillRect(0, yPos - 2, 240, 30, BLUE);
 
     tft.setTextColor(WHITE);
     tft.setCursor(10, yPos + 5);
-    if (networkSecure[i]) tft.print("[*] ");
+    if (networkSecure[netIdx]) tft.print("[*] ");
     else tft.print("[ ] ");
 
-    String displayName = networkNames[i];
-    if (displayName.length() > 25) displayName = displayName.substring(0, 25) + "...";
+    String displayName = networkNames[netIdx];
+    if (displayName.length() > 22) displayName = displayName.substring(0, 22) + "..";
     tft.print(displayName);
 
     tft.setCursor(200, yPos + 5);
-    tft.print(networkRSSI[i]);
+    tft.print(networkRSSI[netIdx]);
 
     yPos += 30;
   }
 
-  // Right buttons
-  tft.fillRect(240, 80, 75, 30, ORANGE);
-  tft.setTextColor(BLACK);
+  // --- PRAWE MENU PRZYCISKÓW ---
   tft.setTextDatum(MC_DATUM);
-  tft.drawString("OFFLINE", 240 + 75 / 2, 80 + 30 / 2);
 
-  tft.fillRect(240, 120, 75, 30, BLUE);
+  // 1. UP
+  tft.fillRect(240, 10, 75, 30, DARKGRAY);
   tft.setTextColor(WHITE);
-  tft.drawString("ODSWIEZ", 240 + 75 / 2, 120 + 30 / 2);
+  tft.drawString("GORA", 240 + 75 / 2, 10 + 30 / 2);
+
+  // 2. OFFLINE
+  tft.fillRect(240, 60, 75, 30, ORANGE);
+  tft.setTextColor(BLACK);
+  tft.drawString("OFFLINE", 240 + 75 / 2, 60 + 30 / 2);
+
+  // 3. ODSWIEZ
+  tft.fillRect(240, 110, 75, 30, BLUE);
+  tft.setTextColor(WHITE);
+  tft.drawString("ODSWIEZ", 240 + 75 / 2, 110 + 30 / 2);
+
+  // 4. DOWN
+  tft.fillRect(240, 160, 75, 30, DARKGRAY);
+  tft.setTextColor(WHITE);
+  tft.drawString("DOL", 240 + 75 / 2, 160 + 30 / 2);
 
   tft.setTextDatum(TL_DATUM);
 }
 
 void wifiTouchUI_drawKeyboard(TFT_eSPI& tft) {
-  // Copied as-is (uses capsLock/specialMode globals)
   String keys[4][12];
 
   if (specialMode) {
@@ -336,23 +355,36 @@ void wifiTouchUI_drawConfigModeScreen(TFT_eSPI& tft) {
   tft.setTextDatum(MC_DATUM);
   tft.drawString("KALIBRACJA", 220 + 95 / 2, 13);
   tft.drawString("EKRANU", 220 + 95 / 2, 24);
+  tft.setTextDatum(TL_DATUM);
+
+  // Strzałki nawigacji
+  if (networkCount > 5) {
+    tft.fillRect(275, 50, 40, 35, DARKGRAY);
+    tft.setTextColor(WHITE);
+    tft.setTextDatum(MC_DATUM);
+    tft.drawString("UP", 275 + 20, 50 + 17);
+
+    tft.fillRect(275, 110, 40, 35, DARKGRAY);
+    tft.drawString("DN", 275 + 20, 110 + 17);
+    tft.setTextDatum(TL_DATUM);
+  }
 
   int yPos = 35;
-  int maxNetworks = min(networkCount, 5);
-
-  for (int i = 0; i < maxNetworks; i++) {
+  for (int i = 0; i < min(5, networkCount - configNetworkScrollOffset); i++) {
+    int netIdx = i + configNetworkScrollOffset;
+    
     tft.setTextColor(WHITE);
     tft.setCursor(10, yPos + 5);
 
-    if (networkSecure[i]) tft.print("[*] ");
+    if (networkSecure[netIdx]) tft.print("[*] ");
     else tft.print("[ ] ");
 
-    String displayName = networkNames[i];
-    if (displayName.length() > 25) displayName = displayName.substring(0, 25) + "...";
+    String displayName = networkNames[netIdx];
+    if (displayName.length() > 22) displayName = displayName.substring(0, 22) + "...";
     tft.print(displayName);
 
-    tft.setCursor(270, yPos + 5);
-    tft.print(networkRSSI[i]);
+    tft.setCursor(240, yPos + 5);
+    tft.print(networkRSSI[netIdx]);
 
     yPos += 25;
   }
@@ -390,7 +422,7 @@ void wifiTouchUI_drawConfigModeScreen(TFT_eSPI& tft) {
   tft.setTextDatum(TL_DATUM);
 }
 
-// ===== Location screen (moved from wifi_touch_interface_logic.cpp) =====
+// ===== Location screen =====
 
 void wifiTouchUI_drawLocationScreen(TFT_eSPI& tft) {
   tft.fillScreen(BLACK);
@@ -404,7 +436,6 @@ void wifiTouchUI_drawLocationScreen(TFT_eSPI& tft) {
     tft.printf("DZIELNICE: %s", mainMenuOptions[selectedCityIndex]);
   }
 
-  // Określ źródło danych
   const WeatherLocation* cityList = nullptr;
   int cityCount = 0;
 
@@ -425,28 +456,7 @@ void wifiTouchUI_drawLocationScreen(TFT_eSPI& tft) {
 
   WeatherLocation currentLoc = locationManager.getCurrentLocation();
 
-#if DEBUG_LOCATION_UI
-  Serial.println("[LOC_UI] drawLocationScreen()");
-  const char* dn = currentLoc.displayName.c_str();
-  Serial.printf("[LOC_UI] currentLoc.displayName len=%d\n", currentLoc.displayName.length());
-  Serial.printf("[LOC_UI] currentLoc.displayName='%s'\n", dn);
-  // dump first 16 bytes
-  Serial.print("[LOC_UI] bytes: ");
-  for (int i = 0; i < 16; i++) {
-    unsigned char c = (unsigned char)dn[i];
-    Serial.printf("%02X ", c);
-    if (c == 0) break;
-  }
-  Serial.println();
-#endif
-
-  // Clear a larger area: punctuation like ',' has pixels below the baseline
-  // and can remain if the cleared rectangle is too small.
   tft.fillRect(0, 28, tft.width(), 24, BLACK);
-#if DEBUG_LOCATION_UI
-  // visualize cleared area (optional)
-  tft.drawRect(0, 28, tft.width(), 24, DARKGRAY);
-#endif
   tft.setTextColor(YELLOW, BLACK);
   tft.setTextSize(1);
   tft.setCursor(10, 35);
@@ -473,7 +483,7 @@ void wifiTouchUI_drawLocationScreen(TFT_eSPI& tft) {
     tft.setCursor(15, yPos + 2);
 
     if (currentMenuState == MENU_MAIN) {
-      if (isSelected) tft.print("→ ");
+      if (isSelected) tft.print("-> ");
       else tft.print("  ");
       tft.printf("%s", mainMenuOptions[itemIndex]);
     } else if (currentMenuState == MENU_DISTRICTS) {
@@ -481,9 +491,9 @@ void wifiTouchUI_drawLocationScreen(TFT_eSPI& tft) {
 
       if (isCurrent) {
         tft.fillRect(10, yPos - 2, 300, 22, GREEN);
-        tft.print("● ");
+        tft.print("[x] ");
       } else if (isSelected) {
-        tft.print("→ ");
+        tft.print("-> ");
       } else {
         tft.print("  ");
       }
@@ -534,9 +544,6 @@ void wifiTouchUI_drawLocationScreen(TFT_eSPI& tft) {
 }
 
 void wifiTouchUI_handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
-  Serial.printf("Location Touch: X=%d, Y=%d\n", x, y);
-
-  // Click list
   if (y >= 60 && y <= 185) {
     int clickedIndex = (y - 60) / 25;
 
@@ -557,7 +564,6 @@ void wifiTouchUI_handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
 
         currentMenuState = MENU_DISTRICTS;
         currentLocationIndex = 0;
-        Serial.printf("Wybrano miasto: %s\n", mainMenuOptions[selectedCityIndex]);
         wifiTouchUI_drawLocationScreen(tft);
         return;
       }
@@ -575,7 +581,6 @@ void wifiTouchUI_handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
     }
   }
 
-  // Nav buttons
   if (y >= 210 && y <= 235) {
     if (x >= 10 && x <= 60) {
       if (currentLocationIndex > 0) {
@@ -625,9 +630,7 @@ void wifiTouchUI_handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
           WeatherLocation selectedLocation = cityList[currentLocationIndex];
           locationManager.setLocation(selectedLocation);
           isLocationSavePending = true;
-          Serial.printf("Location set to: %s\n", selectedLocation.displayName);
 
-          // reset cached weather
           weather.isValid = false;
           weeklyForecast.isValid = false;
           forecast.isValid = false;
@@ -652,7 +655,6 @@ void wifiTouchUI_handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
           lastForecastCheckGlobal = millis() - 20000;
           lastWeeklyUpdate = millis() - 15000000;
 
-          // Show loading state for up to 10 seconds after location change
           extern bool isWeatherRefreshInProgress;
           extern unsigned long weatherRefreshStartMs;
           isWeatherRefreshInProgress = true;
@@ -690,7 +692,6 @@ void wifiTouchUI_handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
     }
   }
 
-  // Custom GPS
   if (y >= 240 && y <= 265 && x >= 10 && x <= 110) {
     tft.fillRect(10, 240, 100, 25, YELLOW);
     tft.setTextColor(BLACK);
@@ -701,7 +702,7 @@ void wifiTouchUI_handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
   }
 }
 
-// ===== Coordinates screen (moved from wifi_touch_interface_logic.cpp) =====
+// ===== Coordinates screen =====
 
 void wifiTouchUI_drawCoordinatesScreen(TFT_eSPI& tft) {
   tft.fillScreen(BLACK);
@@ -756,7 +757,6 @@ void wifiTouchUI_drawCoordinatesScreen(TFT_eSPI& tft) {
   tft.setCursor(255, 95);
   tft.print(editingLatitude ? "DO DLG" : "DO SZR");
 
-  // numeric keyboard (as in original)
   int keyW = 28;
   int keyH = 25;
   int gap = 4;
@@ -838,8 +838,6 @@ void wifiTouchUI_drawCoordinatesScreen(TFT_eSPI& tft) {
 }
 
 void wifiTouchUI_handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
-  Serial.printf("🎯 Coordinates Touch: X=%d, Y=%d\n", x, y);
-
   if (y >= 75 && y <= 95 && x >= 130 && x <= 230) {
     editingLatitude = true;
     coordinatesCursorPos = customLatitude.length();
@@ -897,7 +895,6 @@ void wifiTouchUI_handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       return;
     }
     if (x >= 175 && x <= 240) {
-      Serial.println("🚪 EXIT button pressed");
       tft.fillRect(175, 170, 65, 25, YELLOW);
       delay(200);
       currentState = STATE_SELECT_LOCATION;
@@ -905,7 +902,6 @@ void wifiTouchUI_handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       return;
     }
     if (x >= 245 && x <= 315) {
-      Serial.println("↩ BACK button pressed");
       tft.fillRect(245, 170, 70, 25, YELLOW);
       delay(200);
       currentState = STATE_SELECT_LOCATION;
@@ -934,14 +930,12 @@ void wifiTouchUI_handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
     }
 
     if (x >= 175 && x <= 240) {
-      Serial.println("🧪 TEST button pressed");
       tft.fillRect(175, 200, 65, 25, YELLOW);
       delay(200);
       wifiTouchUI_drawCoordinatesScreen(tft);
       return;
     }
     if (x >= 245 && x <= 315) {
-      Serial.println("✅ SET button pressed");
       tft.fillRect(245, 200, 70, 25, YELLOW);
       delay(200);
 
@@ -949,7 +943,6 @@ void wifiTouchUI_handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       double lon = customLongitude.toDouble();
 
       WeatherLocation customLoc;
-      // Format with hemispheres (N/S, E/W)
       const char latHem = (lat >= 0.0) ? 'N' : 'S';
       const char lonHem = (lon >= 0.0) ? 'E' : 'W';
       const double latAbs = fabs(lat);
@@ -958,16 +951,9 @@ void wifiTouchUI_handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       customLoc.latitude = lat;
       customLoc.longitude = lon;
 
-#if DEBUG_LOCATION_UI
-      Serial.println("[LOC_UI] SET custom GPS");
-      Serial.printf("[LOC_UI] lat=%.6f lon=%.6f\n", lat, lon);
-      Serial.printf("[LOC_UI] displayName='%s'\n", customLoc.displayName.c_str());
-#endif
-
       locationManager.setLocation(customLoc);
       isLocationSavePending = true;
 
-      // reset cached weather (same behavior as district selection)
       weather.isValid = false;
       weeklyForecast.isValid = false;
       forecast.isValid = false;
@@ -986,7 +972,6 @@ void wifiTouchUI_handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       lastForecastCheckGlobal = millis() - 20000;
       lastWeeklyUpdate = millis() - 15000000;
 
-      // Show loading state for up to 10 seconds after location change
       extern bool isWeatherRefreshInProgress;
       extern unsigned long weatherRefreshStartMs;
       isWeatherRefreshInProgress = true;
@@ -1002,8 +987,6 @@ void wifiTouchUI_handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
 }
 
 void wifiTouchUI_updateConfigModeCountdown(TFT_eSPI& tft, int remainingSeconds) {
-  // Render countdown inside WYJSCIE button area, so it is not perceived
-  // as a separate/fake button.
   tft.fillRect(240, 222, 72, 12, DARKGRAY);
   tft.setTextColor(YELLOW, DARKGRAY);
   tft.setTextSize(1);
@@ -1021,7 +1004,7 @@ void wifiTouchUI_drawLongPressProgress(TFT_eSPI& tft, int progressPercent) {
   tft.drawString("Trzymaj...", 130, 35);
 }
 
-// ===== Touch handlers (still UI/controller). The full original implementations will be moved next step. =====
+// ===== Touch handlers =====
 
 void wifiTouchUI_handleKeyboardTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
   (void)tft;
@@ -1029,22 +1012,17 @@ void wifiTouchUI_handleKeyboardTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
   int keyHeight = 28;
   int startY = 85;
 
-  // SHOW/HIDE password
   if (y >= 50 && y <= 75 && x >= 240 && x <= 315) {
     showPassword = !showPassword;
-    Serial.printf("Password visibility toggled: %s\n", showPassword ? "POKAZ" : "UKRYJ");
-
     tft.fillRect(240, 50, 75, 25, YELLOW);
     tft.setTextColor(BLACK);
     tft.setCursor(255, 58);
     tft.print("TOGGLE");
     delay(200);
-
     drawPasswordScreen();
     return;
   }
 
-  // Main keyboard grid
   if (y >= startY && y <= startY + 4 * (keyHeight + 1)) {
     int row = (y - startY) / (keyHeight + 1);
     int col = (x - 2) / (keyWidth + 1);
@@ -1076,37 +1054,28 @@ void wifiTouchUI_handleKeyboardTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
           key.toUpperCase();
         }
         enteredPassword += key;
-        Serial.printf("Added character: %s\n", key.c_str());
         drawPasswordScreen();
       }
     }
     return;
   }
 
-  // Special row
   if (y >= startY + 4 * (keyHeight + 1) && y <= startY + 5 * (keyHeight + 1)) {
     if (x >= 2 && x <= 37) {
-      if (specialMode) {
-        specialMode = false;
-        Serial.println("Switched to ABC mode");
-      } else {
-        capsLock = !capsLock;
-        Serial.println("CAPS LOCK toggled");
-      }
+      if (specialMode) specialMode = false;
+      else capsLock = !capsLock;
       drawPasswordScreen();
       return;
     }
 
     if (x >= 40 && x <= 75) {
       specialMode = !specialMode;
-      Serial.printf("Special mode: %s\n", specialMode ? "ON" : "OFF");
       drawPasswordScreen();
       return;
     }
 
     if (x >= 80 && x <= 140) {
       enteredPassword += " ";
-      Serial.println("SPACE added");
       drawPasswordScreen();
       return;
     }
@@ -1114,20 +1083,17 @@ void wifiTouchUI_handleKeyboardTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
     if (x >= 145 && x <= 180) {
       if (enteredPassword.length() > 0) {
         enteredPassword.remove(enteredPassword.length() - 1);
-        Serial.println("CHARACTER deleted");
         drawPasswordScreen();
       }
       return;
     }
 
     if (x >= 185 && x <= 235) {
-      Serial.println("CONNECT button pressed");
       connectToWiFi();
       return;
     }
 
     if (x >= 240 && x <= 315) {
-      Serial.println("BACK to network list");
       currentState = STATE_SCAN_NETWORKS;
       scanNetworks();
       drawNetworkList(tft);
@@ -1137,81 +1103,101 @@ void wifiTouchUI_handleKeyboardTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
 }
 
 void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
-  Serial.printf("HandleTouch: State=%d, X=%d, Y=%d\n", currentState, x, y);
-
   if (currentState == STATE_SCAN_NETWORKS) {
     tft.fillCircle(x, y, 5, YELLOW);
-    delay(100);
+    delay(50);
 
-    if (x >= 240 && x <= 315 && y >= 80 && y <= 110) {
-      Serial.println("BTN: OFFLINE MODE (Scan Screen)");
-
-      tft.fillRect(240, 80, 75, 30, YELLOW);
-      tft.setTextColor(BLACK);
-      tft.setCursor(250, 90);
-      tft.println("OK!");
-      delay(500);
-
-      isOfflineMode = true;
-      saveOfflineModePref(true);
-      WiFi.disconnect(true);
-      WiFi.mode(WIFI_OFF);
-
-      currentState = STATE_CONNECTED;
-      tft.fillScreen(BLACK);
-      wifiLostDetected = false;
-
-      clearAndShowMessage(tft, "Podlacz jednorazowo WiFi do synchro. czasu");
-      delay(2000);
-
-      extern ScreenManager& getScreenManager();
-      getScreenManager().setCurrentScreen(SCREEN_LOCAL_SENSORS);
-      getScreenManager().resetScreenTimer();
-      forceScreenRefresh(tft);
-      return;
-    }
-
-    if (x >= 240 && x <= 315 && y >= 120 && y <= 150) {
-      Serial.println("REFRESH BUTTON PRESSED");
-
-      tft.fillRect(240, 120, 75, 30, GREEN);
-      tft.setTextColor(WHITE);
-      tft.setTextSize(1);
-      tft.setCursor(250, 130);
-      tft.println("SCANNING");
-      delay(500);
-
-      selectedNetworkIndex = -1;
-      scanNetworks();
-
-      if (networkCount > 0) {
-        drawNetworkList(tft);
-      } else {
-        drawStatusMessage(tft, "Brak sieci - Sprobuj ponownie");
-        delay(2000);
-        scanNetworks();
-        drawNetworkList(tft);
+    // --- PRAWE PRZYCISKI W MENU SKANOWANIA ---
+    if (x >= 240 && x <= 315) {
+      // 1. GÓRA (UP)
+      if (y >= 10 && y <= 45) {
+        if (networkScrollOffset > 0) {
+          networkScrollOffset--;
+          wifiTouchUI_drawNetworkList(tft);
+        }
+        return;
       }
-      return;
+      // 2. OFFLINE
+      if (y >= 60 && y <= 95) {
+        tft.fillRect(240, 60, 75, 30, YELLOW);
+        tft.setTextColor(BLACK);
+        tft.setTextDatum(MC_DATUM);
+        tft.drawString("OK!", 240 + 75/2, 60 + 15);
+        tft.setTextDatum(TL_DATUM);
+        delay(500);
+
+        isOfflineMode = true;
+        saveOfflineModePref(true);
+        WiFi.disconnect(true);
+        WiFi.mode(WIFI_OFF);
+
+        currentState = STATE_CONNECTED;
+        tft.fillScreen(BLACK);
+        wifiLostDetected = false;
+
+        clearAndShowMessage(tft, "Podlacz jednorazowo WiFi do synchro. czasu");
+        delay(2000);
+
+        extern ScreenManager& getScreenManager();
+        getScreenManager().setCurrentScreen(SCREEN_LOCAL_SENSORS);
+        getScreenManager().resetScreenTimer();
+        forceScreenRefresh(tft);
+        return;
+      }
+      // 3. ODSWIEZ
+      if (y >= 110 && y <= 145) {
+        tft.fillRect(240, 110, 75, 30, GREEN);
+        tft.setTextColor(WHITE);
+        tft.setTextDatum(MC_DATUM);
+        tft.drawString("SCANNING", 240 + 75/2, 110 + 15);
+        tft.setTextDatum(TL_DATUM);
+        delay(500);
+
+        selectedNetworkIndex = -1;
+        networkScrollOffset = 0; // Reset scrolla po odświeżeniu
+        scanNetworks();
+
+        if (networkCount > 0) {
+          drawNetworkList(tft);
+        } else {
+          drawStatusMessage(tft, "Brak sieci - Sprobuj ponownie");
+          delay(2000);
+          scanNetworks();
+          drawNetworkList(tft);
+        }
+        return;
+      }
+      // 4. DÓŁ (DOWN)
+      if (y >= 160 && y <= 195) {
+        if (networkScrollOffset + 6 < networkCount) {
+          networkScrollOffset++;
+          wifiTouchUI_drawNetworkList(tft);
+        }
+        return;
+      }
     }
 
-    if (x < 240 && y >= 25 && y <= 240) {
-      int selectedIndex = (y - 30) / 30;
+    // --- KLIKNIĘCIE W SIEĆ ---
+    if (x < 240 && y >= 25 && y <= 210) {
+      int displayIndex = (y - 30) / 30;
 
-      if (selectedIndex >= 0 && selectedIndex < min(networkCount, 7)) {
-        selectedNetworkIndex = selectedIndex;
-        currentSSID = networkNames[selectedIndex];
-        Serial.printf("NETWORK SELECTED: %s (index %d)\n", currentSSID.c_str(), selectedIndex);
+      if (displayIndex >= 0 && displayIndex < 6) {
+        int realIndex = displayIndex + networkScrollOffset;
+        
+        if (realIndex < networkCount) {
+          selectedNetworkIndex = realIndex;
+          currentSSID = networkNames[realIndex];
 
-        tft.fillRect(0, 30 + selectedIndex * 30 - 2, 240, 30, GREEN);
-        delay(300);
+          tft.fillRect(0, 30 + displayIndex * 30 - 2, 240, 30, GREEN);
+          delay(300);
 
-        if (networkSecure[selectedIndex]) {
-          currentState = STATE_ENTER_PASSWORD;
-          enteredPassword = "";
-          drawPasswordScreen();
-        } else {
-          connectToWiFi();
+          if (networkSecure[realIndex]) {
+            currentState = STATE_ENTER_PASSWORD;
+            enteredPassword = "";
+            drawPasswordScreen();
+          } else {
+            connectToWiFi();
+          }
         }
       }
     }
@@ -1250,10 +1236,8 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
   }
 
   if (currentState == STATE_CONFIG_MODE) {
-    Serial.printf("CONFIG MODE TOUCH: X=%d, Y=%d\n", x, y);
 
     if (x >= 220 && x <= 315 && y >= 4 && y <= 34) {
-      Serial.println("BTN: TOUCH CALIBRATION");
       tft.fillRect(220, 4, 95, 30, YELLOW);
       tft.setTextColor(BLACK);
       tft.setTextDatum(MC_DATUM);
@@ -1266,21 +1250,45 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
       return;
     }
 
-    if (y >= 35 && y <= 180) {
-      int selectedIndex = (y - 35) / 25;
-      if (selectedIndex >= 0 && selectedIndex < min(networkCount, 5)) {
-        selectedNetworkIndex = selectedIndex;
-        currentSSID = networkNames[selectedIndex];
+    // STRZAŁKI W TRYBIE KONFIGURACJI
+    if (x >= 270 && x <= 320) {
+      if (y >= 45 && y <= 90) { // UP
+        if (configNetworkScrollOffset > 0) {
+          configNetworkScrollOffset--;
+          drawConfigModeScreen();
+        }
+        return;
+      }
+      if (y >= 100 && y <= 150) { // DOWN
+        if (configNetworkScrollOffset + 5 < networkCount) {
+          configNetworkScrollOffset++;
+          drawConfigModeScreen();
+        }
+        return;
+      }
+    }
 
-        tft.fillRect(0, 35 + selectedIndex * 25, 320, 25, GREEN);
-        delay(300);
+    // KLIKANIE SIECI (ograniczone X by nie wejść na przyciski przewijania)
+    if (x < 270 && y >= 35 && y <= 160) {
+      int displayIndex = (y - 35) / 25;
+      
+      if (displayIndex >= 0 && displayIndex < 5) {
+        int realIndex = displayIndex + configNetworkScrollOffset;
+        
+        if (realIndex < networkCount) {
+          selectedNetworkIndex = realIndex;
+          currentSSID = networkNames[realIndex];
 
-        if (networkSecure[selectedIndex]) {
-          currentState = STATE_ENTER_PASSWORD;
-          enteredPassword = "";
-          drawPasswordScreen();
-        } else {
-          connectToWiFi();
+          tft.fillRect(0, 35 + displayIndex * 25, 270, 25, GREEN);
+          delay(300);
+
+          if (networkSecure[realIndex]) {
+            currentState = STATE_ENTER_PASSWORD;
+            enteredPassword = "";
+            drawPasswordScreen();
+          } else {
+            connectToWiFi();
+          }
         }
       }
       return;
@@ -1291,7 +1299,6 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
       int gap = 3;
 
       if (x >= 2 && x <= 2 + btnW) {
-        Serial.println("BTN: REFRESH");
         tft.fillRect(2, 190, btnW, 45, YELLOW);
         tft.setTextColor(BLACK);
         tft.setTextDatum(MC_DATUM);
@@ -1300,13 +1307,13 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
         delay(300);
 
         selectedNetworkIndex = -1;
+        configNetworkScrollOffset = 0; // Reset scrolla po skanowaniu
         scanNetworks();
         drawConfigModeScreen();
         return;
       }
 
       if (x >= 2 + btnW + gap && x <= 2 + 2 * btnW + gap) {
-        Serial.println("BTN: LOCATION");
         tft.fillRect(2 + btnW + gap, 190, btnW, 45, YELLOW);
         delay(300);
         enterLocationSelectionMode(tft);
@@ -1315,8 +1322,6 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
 
       if (x >= 2 + 2 * (btnW + gap) && x <= 2 + 3 * btnW + 2 * gap) {
         if (isOfflineMode) {
-          Serial.println("BTN: SWITCHING TO ONLINE");
-
           tft.fillRect(2 + 2 * (btnW + gap), 190, btnW, 45, GREEN);
           tft.setTextColor(BLACK);
           tft.setTextDatum(MC_DATUM);
@@ -1334,7 +1339,6 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
           p.end();
 
           if (savedSSID.length() > 0) {
-            Serial.printf("[ONLINE] Trying saved WiFi: '%s'\n", savedSSID.c_str());
             tft.fillScreen(BLACK);
             tft.setTextColor(WHITE);
             tft.setTextSize(2);
@@ -1348,15 +1352,11 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
             int wait = 0;
             while (WiFi.status() != WL_CONNECTED && wait < 30) {
               delay(500);
-              Serial.print(".");
               wait++;
             }
 
             if (WiFi.status() == WL_CONNECTED) {
-              Serial.println("\nUdalo sie polaczyc!");
-              Serial.println("[ONLINE] Connected using saved WiFi");
               onWiFiConnectedTasks();
-
               currentState = STATE_CONNECTED;
               tft.fillScreen(COLOR_BACKGROUND);
               wifiLostDetected = false;
@@ -1367,8 +1367,6 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
               return;
             }
 
-            Serial.println("\nBlad polaczenia - skanowanie...");
-            Serial.println("[ONLINE] Failed to connect saved WiFi -> scanning networks");
             currentState = STATE_SCAN_NETWORKS;
             scanNetworks();
             drawNetworkList(tft);
@@ -1380,16 +1378,11 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
             return;
           }
 
-          Serial.println("Brak zapisanej sieci, skanuje...");
-          Serial.println("[ONLINE] No saved WiFi -> scanning networks");
           currentState = STATE_SCAN_NETWORKS;
           scanNetworks();
           drawNetworkList(tft);
           return;
         }
-
-        // switch offline
-        Serial.println("BTN: SWITCHING TO OFFLINE (Config Mode)");
 
         tft.fillRect(2 + 2 * (btnW + gap), 190, btnW, 45, ORANGE);
         tft.setTextColor(BLACK);
@@ -1414,7 +1407,6 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
       }
 
       if (x >= 2 + 3 * (btnW + gap)) {
-        Serial.println("BTN: EXIT");
         tft.fillRect(2 + 3 * (btnW + gap), 190, btnW, 45, YELLOW);
         delay(100);
 
@@ -1439,7 +1431,6 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
           while (WiFi.status() != WL_CONNECTED && wait < 8) {
             delay(500);
             wait++;
-            Serial.print(".");
           }
         }
 
@@ -1452,7 +1443,6 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
           reconnectAttemptInProgress = false;
           backgroundReconnectActive = false;
 
-          // After exiting config mode, show loading UI for a short window
           extern bool isWeatherRefreshInProgress;
           extern unsigned long weatherRefreshStartMs;
           extern unsigned long weatherRefreshTimeoutMs;
@@ -1464,7 +1454,6 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
           getScreenManager().resetScreenTimer();
           getScreenManager().forceScreenRefresh(tft);
         } else {
-          Serial.println("Nie udalo sie wznowic polaczenia przy wyjsciu.");
           wifiLostDetected = true;
           wifiLostTime = millis();
           lastReconnectAttempt = millis();
