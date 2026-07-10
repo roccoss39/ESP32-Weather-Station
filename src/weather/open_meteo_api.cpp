@@ -17,6 +17,14 @@ const float* getOpenMeteoPressureHistory() {
 bool isOpenMeteoDataValid() {
     return dataValid;
 }
+
+// --- FUNKCJA ODTWARZAJĄCA Z PAMIĘCI RTC ---
+void setOpenMeteoPressureHistory(const float* data) {
+    for(int i = 0; i < 12; i++) {
+        pressureHistoryData[i] = data[i];
+    }
+    dataValid = true;
+}
 // ------------------------------
 
 void fetchOpenMeteoPressure() {
@@ -41,15 +49,14 @@ void fetchOpenMeteoPressure() {
 
     http.begin(client, url); 
     
-    // ZMIANA 1: Zmniejszono z 8000 na 4000 ms. 
-    // Zmuszamy HTTP do poddania się po 4s, co uchroni nas przed Watchdogiem (który reaguje po 5s).
+    // Krótki timeout (4s), by nie drażnić Watchdoga
     http.setTimeout(4000); 
     
-    yield(); // ZMIANA 2: Karmimy psa przed zawieszeniem się na pobieraniu
+    yield(); // Karmimy psa przed zawieszeniem się na pobieraniu
 
     int httpCode = http.GET();
 
-    yield(); // ZMIANA 3: Karmimy psa natychmiast po pobraniu!
+    yield(); // Karmimy psa natychmiast po pobraniu!
 
     if (httpCode == HTTP_CODE_OK) {
         String payload = http.getString(); 

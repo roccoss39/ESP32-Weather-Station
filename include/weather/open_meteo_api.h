@@ -10,4 +10,7 @@ void fetchOpenMeteoPressure();
 const float* getOpenMeteoPressureHistory();
 bool isOpenMeteoDataValid();
 
+// Dodana funkcja do przywracania danych wykresu z pamięci RTC
+void setOpenMeteoPressureHistory(const float* data);
+
 #endif // OPEN_METEO_API_H

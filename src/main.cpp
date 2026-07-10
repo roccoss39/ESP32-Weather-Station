@@ -51,6 +51,55 @@ bool isImageDownloadInProgress = false;
 // === FLAGA TRYBU OFFLINE (BEZ WIFI) ===
 bool isOfflineMode = false;
 
+// === RTC CACHE DLA SZYBKIEGO WYBUDZANIA ===
+struct RTC_Weather {
+    float temperature;
+    float feelsLike;
+    float pressure;
+    int humidity;
+    float windSpeed;
+    int windDeg;
+    int cloudiness; // ZMIANA Z clouds NA cloudiness
+    long sunrise;   // Dodano wschód słońca do cache
+    long sunset;    // Dodano zachód słońca do cache
+    char description[32];
+    char icon[8];
+};
+
+struct RTC_ForecastItem {
+    char time[8];
+    float temperature;
+    float windSpeed;
+    char icon[8];
+    char description[32];
+    int precipitationChance;
+};
+
+struct RTC_DailyForecast {
+    char dayName[8];
+    float tempMin;
+    float tempMax;
+    float windMin;
+    float windMax;
+    char icon[8];
+    int precipitationChance;
+};
+
+RTC_DATA_ATTR RTC_Weather rtcWeather;
+RTC_DATA_ATTR RTC_ForecastItem rtcForecastItems[5];
+RTC_DATA_ATTR int rtcForecastCount = 0;
+RTC_DATA_ATTR RTC_DailyForecast rtcWeeklyDays[5];
+RTC_DATA_ATTR int rtcWeeklyCount = 0;
+RTC_DATA_ATTR float rtcMeteoPressure[12];
+RTC_DATA_ATTR bool rtcMeteoValid = false;
+RTC_DATA_ATTR bool rtcHasValidWeather = false;
+RTC_DATA_ATTR time_t rtcLastWeatherFetchTime = 0;
+
+bool isQuickRtcWake = false; // Flaga globalna
+
+void saveWeatherToRTC();
+void restoreWeatherFromRTC();
+
 extern void checkWiFiConnection();
 extern void handleWiFiLoss();
 extern void handleBackgroundReconnect();
@@ -154,6 +203,22 @@ void setup() {
   
   Serial.println("=== ESP32 Weather Station ===");
   
+  // === QUICK RTC WAKE CHECK (Sprawdzenie czy mamy świeżą pogodę) ===
+  if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0 && !isOfflineMode) {
+      time_t now;
+      time(&now);
+      struct tm timeinfo;
+      getLocalTime(&timeinfo, 0);
+      bool hasValidTime = (timeinfo.tm_year > (2023 - 1900));
+
+      // Jeśli mamy poprawny czas i dane pogodowe nie starsze niż 30 minut (1800 sekund)
+      if (hasValidTime && rtcHasValidWeather && (now - rtcLastWeatherFetchTime) < 1800) {
+          isQuickRtcWake = true;
+          Serial.println("⚡ [QUICK WAKE] Znalazłem świeżą pogodę w RTC RAM (<30 min) i poprawny czas.");
+          Serial.println("⚡ [QUICK WAKE] Pomijam łączenie z WiFi i pobieranie z API. Błyskawiczny start!");
+      }
+  }
+
   switch(wakeup_reason) {
     case ESP_SLEEP_WAKEUP_EXT0:
       Serial.println("🔥 WAKE UP: PIR Motion Detected!");
@@ -242,68 +307,79 @@ void setup() {
   tft.setTextSize(FONT_SIZE_LARGE);
 
   tft.drawString("WEATHER STATION", tft.width() / 2, tft.height() / 2 - 20);
-  tft.drawString("Laczenie WiFi...", tft.width() / 2, tft.height() / 2 + 20);
   
-  // --- AUTO-CONNECT ---
-  Preferences prefs;
-  prefs.begin("wifi", true); 
-  String savedSSID = prefs.getString("ssid", "");
-  String savedPassword = prefs.getString("password", "");
-  prefs.end();
-  
-  String connectSSID = (savedSSID.length() > 0) ? savedSSID : WIFI_SSID;
-  String connectPassword = (savedSSID.length() > 0) ? savedPassword : WIFI_PASSWORD;
+  // ============================================================
+  // LOGIKA ŁĄCZENIA - WŁĄCZAMY WIFI TYLKO, GDY TRZEBA!
+  // ============================================================
+  if (!isQuickRtcWake) {
+      tft.drawString("Laczenie WiFi...", tft.width() / 2, tft.height() / 2 + 20);
+      
+      // --- AUTO-CONNECT ---
+      Preferences prefs;
+      prefs.begin("wifi", true); 
+      String savedSSID = prefs.getString("ssid", "");
+      String savedPassword = prefs.getString("password", "");
+      prefs.end();
+      
+      String connectSSID = (savedSSID.length() > 0) ? savedSSID : WIFI_SSID;
+      String connectPassword = (savedSSID.length() > 0) ? savedPassword : WIFI_PASSWORD;
 
-  if (savedSSID.length() > 0) Serial.println("AUTO-CONNECT to saved WiFi: " + connectSSID);
-  else Serial.println("Using default WiFi from secrets.h: " + connectSSID);
+      if (savedSSID.length() > 0) Serial.println("AUTO-CONNECT to saved WiFi: " + connectSSID);
+      else Serial.println("Using default WiFi from secrets.h: " + connectSSID);
 
-  WiFi.begin(connectSSID.c_str(), connectPassword.c_str());
-  int attempts = 0;
-  
-  // ZMIANA: Zwiększony limit z 10 do 30 (15 sekund) oraz dodany yield()
-  while (WiFi.status() != WL_CONNECTED && attempts < 30) { 
-    delay(500);
-    yield(); // <-- ZMIANA: Nakarmienie psa (Watchdoga)
-    Serial.print(".");
-    attempts++;
-  }
-  
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("\nWiFi connected!");
-    Serial.print("IP: ");
-    Serial.println(WiFi.localIP());
-
-    Serial.println("Configuring time from NTP server...");
-    configTzTime(TIMEZONE_INFO, NTP_SERVER);
-
-    Serial.print("Waiting for time synchronization...");
-    struct tm timeinfo;
-    int retry = 0;
-    const int retry_count = 5; 
-
-    while (!getLocalTime(&timeinfo, 5000) || timeinfo.tm_year < (2023 - 1900)) {
+      WiFi.begin(connectSSID.c_str(), connectPassword.c_str());
+      int attempts = 0;
+      
+      // ZMIANA: Zwiększony limit z 10 do 30 (15 sekund) oraz dodany yield()
+      while (WiFi.status() != WL_CONNECTED && attempts < 30) { 
+        delay(500);
+        yield(); // <-- ZMIANA: Nakarmienie psa (Watchdoga)
         Serial.print(".");
-        delay(1000);
-        retry++;
-        if (retry > retry_count) {
-            Serial.println("\nFailed to synchronize time!");
-            break; 
-        }
-    }
+        attempts++;
+      }
+      
+      if (WiFi.status() == WL_CONNECTED) {
+        Serial.println("\nWiFi connected!");
+        Serial.print("IP: ");
+        Serial.println(WiFi.localIP());
 
-    if (retry <= retry_count) {
-      Serial.println("\nTime synchronized successfully!");
-    }
+        Serial.println("Configuring time from NTP server...");
+        configTzTime(TIMEZONE_INFO, NTP_SERVER);
+
+        Serial.print("Waiting for time synchronization...");
+        struct tm timeinfo;
+        int retry = 0;
+        const int retry_count = 5; 
+
+        while (!getLocalTime(&timeinfo, 5000) || timeinfo.tm_year < (2023 - 1900)) {
+            Serial.print(".");
+            delay(1000);
+            retry++;
+            if (retry > retry_count) {
+                Serial.println("\nFailed to synchronize time!");
+                break; 
+            }
+        }
+
+        if (retry <= retry_count) {
+          Serial.println("\nTime synchronized successfully!");
+        }
+      } else {
+        Serial.println("\nWiFi failed - funkcje API niedostępne");
+        tft.fillScreen(COLOR_BACKGROUND);
+        tft.setTextColor(TFT_WHITE, COLOR_BACKGROUND);
+        tft.setTextSize(2);
+        tft.setTextDatum(MC_DATUM);
+        tft.drawString("Brak polaczenia WiFi", tft.width() / 2, tft.height() / 2 - 20);
+        tft.setTextSize(1);
+        tft.drawString("Sprawdz ustawienia sieci", tft.width() / 2, tft.height() / 2 + 10);
+        delay(3000);
+      }
   } else {
-    Serial.println("\nWiFi failed - funkcje API niedostępne");
-    tft.fillScreen(COLOR_BACKGROUND);
-    tft.setTextColor(TFT_WHITE, COLOR_BACKGROUND);
-    tft.setTextSize(2);
-    tft.setTextDatum(MC_DATUM);
-    tft.drawString("Brak polaczenia WiFi", tft.width() / 2, tft.height() / 2 - 20);
-    tft.setTextSize(1);
-    tft.drawString("Sprawdz ustawienia sieci", tft.width() / 2, tft.height() / 2 + 10);
-    delay(3000);
+      // === SZYBKIE WYBUDZENIE Z RTC ===
+      Serial.println("⚡ [QUICK WAKE] Odtwarzam dane z pamięci RTC...");
+      WiFi.mode(WIFI_OFF);
+      restoreWeatherFromRTC();
   }
   
   tft.fillScreen(COLOR_BACKGROUND); 
@@ -325,18 +401,24 @@ void setup() {
 
   locationManager.loadLocationFromPreferences();
 
-  if (!isOfflineMode) {
+  // Nie inicjalizujemy dotyku dla WiFi, jeśli jesteśmy w szybkim trybie wybudzenia
+  if (!isOfflineMode && !isQuickRtcWake) {
     initWiFiTouchInterface();
-  } else {
-    Serial.println("[OFFLINE] Boot in offline mode: skipping WiFi touch interface");
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_OFF);
+  } else if (isOfflineMode || isQuickRtcWake) {
+    Serial.println("[OFFLINE/RTC WAKE] Boot: skipping WiFi touch interface init");
+    if (isOfflineMode) {
+        WiFi.disconnect(true);
+        WiFi.mode(WIFI_OFF);
+    }
     exitWiFiConfigMode();
   }
 
   initNASAImageSystem();
   
-  if (WiFi.status() == WL_CONNECTED) {
+  // ============================================================
+  // POBIERANIE POGODY (TYLKO, GDY NIE MAMY CACHE'U)
+  // ============================================================
+  if (WiFi.status() == WL_CONNECTED && !isQuickRtcWake) {
     Serial.println("Pobieranie danych pogodowych...");
     
     tft.setTextColor(TFT_YELLOW, COLOR_BACKGROUND);
@@ -374,7 +456,10 @@ void setup() {
     
     if (weather.isValid && forecast.isValid) {
       Serial.println("Dane załadowane - uruchamiam ekrany");
+      saveWeatherToRTC(); // Zapisanie świeżej paczki do RTC
     }
+  } else if (isQuickRtcWake) {
+      Serial.println("Dane z RTC załadowane - uruchamiam ekrany");
   }
   
   getScreenManager().resetScreenTimer();
@@ -432,7 +517,8 @@ void loop() {
     }
   }
 
-  if (!isOfflineMode) {
+  // Wyłącz sprawdzanie zrywania WiFi, jeśli jesteśmy w szybkim trybie RTC
+  if (!isOfflineMode && !isQuickRtcWake) {
       static unsigned long lastWiFiSystemCheck = 0;
       if (millis() - lastWiFiSystemCheck > WIFI_STATUS_CHECK_INTERVAL) { 
         lastWiFiSystemCheck = millis();
@@ -477,11 +563,11 @@ void loop() {
     }
   }
 
-  if (!isWiFiLost() || isOfflineMode) {
+  if (!isWiFiLost() || isOfflineMode || isQuickRtcWake) {
     updateScreenManager();
   }
 
-  if (!isOfflineMode) {
+  if (!isOfflineMode && !isQuickRtcWake) {
       unsigned long weeklyInterval = weeklyErrorModeGlobal ? WEEKLY_UPDATE_ERROR : WEEKLY_UPDATE_INTERVAL;
       if (millis() - lastWeeklyUpdate >= weeklyInterval) {
         lastWeeklyUpdate = millis();
@@ -520,7 +606,7 @@ void loop() {
   static ScreenType previousScreen = SCREEN_IMAGE;
   static unsigned long lastDisplayUpdate = 0;
   
-  if (!isWiFiLost() || isOfflineMode) {
+  if (!isWiFiLost() || isOfflineMode || isQuickRtcWake) {
     ScreenType currentScreen = getScreenManager().getCurrentScreen();
     
     if (currentScreen != previousScreen) {
@@ -595,4 +681,109 @@ void checkAndShowGreeting(TFT_eSPI& tft) {
             }
         }
     }
+}
+
+// =========================================================================
+// FUNKCJE OBSŁUGI PAMIĘCI RTC RAM
+// =========================================================================
+void saveWeatherToRTC() {
+    if (!weather.isValid) return;
+
+    rtcWeather.temperature = weather.temperature;
+    rtcWeather.feelsLike = weather.feelsLike;
+    rtcWeather.pressure = weather.pressure;
+    rtcWeather.humidity = weather.humidity;
+    rtcWeather.windSpeed = weather.windSpeed;
+    rtcWeather.windDeg = weather.windDeg;
+    rtcWeather.cloudiness = weather.cloudiness;
+    rtcWeather.sunrise = weather.sunrise; // <-- ZAPIS WSCHODU SŁOŃCA
+    rtcWeather.sunset = weather.sunset;   // <-- ZAPIS ZACHODU SŁOŃCA
+    strncpy(rtcWeather.description, weather.description.c_str(), 31);
+    rtcWeather.description[31] = '\0';
+    strncpy(rtcWeather.icon, weather.icon.c_str(), 7);
+    rtcWeather.icon[7] = '\0';
+
+    rtcForecastCount = forecast.count;
+    for (int i = 0; i < forecast.count && i < 5; i++) {
+        strncpy(rtcForecastItems[i].time, forecast.items[i].time.c_str(), 7);
+        rtcForecastItems[i].time[7] = '\0';
+        rtcForecastItems[i].temperature = forecast.items[i].temperature;
+        rtcForecastItems[i].windSpeed = forecast.items[i].windSpeed;
+        strncpy(rtcForecastItems[i].icon, forecast.items[i].icon.c_str(), 7);
+        rtcForecastItems[i].icon[7] = '\0';
+        strncpy(rtcForecastItems[i].description, forecast.items[i].description.c_str(), 31);
+        rtcForecastItems[i].description[31] = '\0';
+        rtcForecastItems[i].precipitationChance = forecast.items[i].precipitationChance;
+    }
+
+    rtcWeeklyCount = weeklyForecast.count;
+    for (int i = 0; i < weeklyForecast.count && i < 5; i++) {
+        strncpy(rtcWeeklyDays[i].dayName, weeklyForecast.days[i].dayName.c_str(), 7);
+        rtcWeeklyDays[i].dayName[7] = '\0';
+        rtcWeeklyDays[i].tempMin = weeklyForecast.days[i].tempMin;
+        rtcWeeklyDays[i].tempMax = weeklyForecast.days[i].tempMax;
+        rtcWeeklyDays[i].windMin = weeklyForecast.days[i].windMin;
+        rtcWeeklyDays[i].windMax = weeklyForecast.days[i].windMax;
+        strncpy(rtcWeeklyDays[i].icon, weeklyForecast.days[i].icon.c_str(), 7);
+        rtcWeeklyDays[i].icon[7] = '\0';
+        rtcWeeklyDays[i].precipitationChance = weeklyForecast.days[i].precipitationChance;
+    }
+
+    rtcMeteoValid = isOpenMeteoDataValid();
+    if (rtcMeteoValid) {
+        const float* history = getOpenMeteoPressureHistory();
+        for (int i = 0; i < 12; i++) {
+            rtcMeteoPressure[i] = history[i];
+        }
+    }
+
+    time(&rtcLastWeatherFetchTime);
+    rtcHasValidWeather = true;
+
+    Serial.println("💾 [RTC Cache] Zapisano paczkę pogody do RTC RAM!");
+}
+
+void restoreWeatherFromRTC() {
+    weather.temperature = rtcWeather.temperature;
+    weather.feelsLike = rtcWeather.feelsLike;
+    weather.pressure = rtcWeather.pressure;
+    weather.humidity = rtcWeather.humidity;
+    weather.windSpeed = rtcWeather.windSpeed;
+    weather.windDeg = rtcWeather.windDeg;
+    weather.cloudiness = rtcWeather.cloudiness;
+    weather.sunrise = rtcWeather.sunrise; // <-- ODTWORZENIE WSCHODU SŁOŃCA
+    weather.sunset = rtcWeather.sunset;   // <-- ODTWORZENIE ZACHODU SŁOŃCA
+    weather.description = String(rtcWeather.description);
+    weather.icon = String(rtcWeather.icon);
+    weather.isValid = true;
+
+    forecast.count = rtcForecastCount;
+    for (int i = 0; i < rtcForecastCount && i < 5; i++) {
+        forecast.items[i].time = String(rtcForecastItems[i].time);
+        forecast.items[i].temperature = rtcForecastItems[i].temperature;
+        forecast.items[i].windSpeed = rtcForecastItems[i].windSpeed;
+        forecast.items[i].icon = String(rtcForecastItems[i].icon);
+        forecast.items[i].description = String(rtcForecastItems[i].description);
+        forecast.items[i].precipitationChance = rtcForecastItems[i].precipitationChance;
+    }
+    forecast.isValid = true;
+
+    weeklyForecast.count = rtcWeeklyCount;
+    for (int i = 0; i < rtcWeeklyCount && i < 5; i++) {
+        weeklyForecast.days[i].dayName = String(rtcWeeklyDays[i].dayName);
+        weeklyForecast.days[i].tempMin = rtcWeeklyDays[i].tempMin;
+        weeklyForecast.days[i].tempMax = rtcWeeklyDays[i].tempMax;
+        weeklyForecast.days[i].windMin = rtcWeeklyDays[i].windMin;
+        weeklyForecast.days[i].windMax = rtcWeeklyDays[i].windMax;
+        weeklyForecast.days[i].icon = String(rtcWeeklyDays[i].icon);
+        weeklyForecast.days[i].precipitationChance = rtcWeeklyDays[i].precipitationChance;
+    }
+    weeklyForecast.isValid = true;
+
+    if (rtcMeteoValid) {
+        extern void setOpenMeteoPressureHistory(const float* data);
+        setOpenMeteoPressureHistory(rtcMeteoPressure);
+    }
+
+    Serial.println("♻️ [RTC Cache] Pomyślnie odtworzono pogodę na ekranie!");
 }
