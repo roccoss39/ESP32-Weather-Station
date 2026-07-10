@@ -6,7 +6,7 @@
 #include <WiFi.h>
 
 static float pressureHistoryData[12] = {0};
-// Flaga na starcie jest false. Gdy raz pobierze dane, staje się na stałe true
+// Flaga na starcie jest false. Gdy raz pobierze dane, staje się na stałe true!
 static bool dataValid = false; 
 
 // --- IMPLEMENTACJA GETTERÓW ---
@@ -41,16 +41,24 @@ void fetchOpenMeteoPressure() {
 
     http.begin(client, url); 
     
-    // Timeout na 8 sekund, aby uniknąć restartów od Watchdoga przy słabym internecie (np. w nocy)
-    http.setTimeout(8000); 
+    // ZMIANA 1: Zmniejszono z 8000 na 4000 ms. 
+    // Zmuszamy HTTP do poddania się po 4s, co uchroni nas przed Watchdogiem (który reaguje po 5s).
+    http.setTimeout(4000); 
     
+    yield(); // ZMIANA 2: Karmimy psa przed zawieszeniem się na pobieraniu
+
     int httpCode = http.GET();
+
+    yield(); // ZMIANA 3: Karmimy psa natychmiast po pobraniu!
 
     if (httpCode == HTTP_CODE_OK) {
         String payload = http.getString(); 
+        yield(); // Kolejny oddech dla procesora
         
         JsonDocument doc; 
         DeserializationError error = deserializeJson(doc, payload);
+
+        yield(); // Oddech po parsowaniu JSONa
 
         if (error) {
             Serial.print("❌ [Open-Meteo] Błąd parsowania JSON. Zachowuję stary wykres. Błąd: ");

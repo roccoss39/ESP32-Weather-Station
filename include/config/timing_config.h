@@ -2,7 +2,7 @@
 #define TIMING_CONFIG_H
 
 // === MOTION & POWER TIMEOUTS ===
-#define SCREEN_AUTO_OFF_MS      70000  // Wygaszanie ekranu + sleep jesli hybrid mode = 0 
+#define SCREEN_AUTO_OFF_MS      7000//70000  // Wygaszanie ekranu + sleep jesli hybrid mode = 0 
 #define PIR_DEBOUNCE_TIME       500     // 500ms - stabilizacja PIR
 #define LED_FLASH_DURATION      200     // 200ms - mrugnięcie diodą
 #define MOTION_CONFIG_TIMEOUT   600000  // 10 min - timeout w menu config
