@@ -1352,6 +1352,7 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
             int wait = 0;
             while (WiFi.status() != WL_CONNECTED && wait < 30) {
               delay(500);
+              yield(); // ZMIANA: Karmimy psa w trakcie czekania!
               wait++;
             }
 
@@ -1428,8 +1429,10 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
           WiFi.begin(savedSSID.c_str(), savedPass.c_str());
 
           int wait = 0;
-          while (WiFi.status() != WL_CONNECTED && wait < 8) {
+          // ZMIANA: Wydłużamy czas oczekiwania z 4 (wait < 8) do 15 sekund (wait < 30)
+          while (WiFi.status() != WL_CONNECTED && wait < 30) {
             delay(500);
+            yield(); // ZMIANA: Karmimy psa w trakcie czekania!
             wait++;
           }
         }

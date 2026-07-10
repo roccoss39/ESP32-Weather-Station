@@ -9,7 +9,6 @@
 #include "managers/SystemManager.h"
 #include "managers/GithubUpdateManager.h"
 
-
 // --- KONFIGURACJA ---
 #include "config/secrets.h"
 #include "config/hardware_config.h"
@@ -37,7 +36,6 @@
 // --- SENSORY ---
 #include "sensors/motion_sensor.h"
 
-
 // --- WIFI TOUCH INTERFACE ---
 #include "wifi/wifi_touch_interface.h"
 
@@ -52,7 +50,6 @@ bool isImageDownloadInProgress = false;
 
 // === FLAGA TRYBU OFFLINE (BEZ WIFI) ===
 bool isOfflineMode = false;
-
 
 extern void checkWiFiConnection();
 extern void handleWiFiLoss();
@@ -90,20 +87,18 @@ void setup() {
   Serial.begin(115200);
   delay(DELAY_STABILIZATION); 
   
-// ============================================================
+  // ============================================================
   // 1. LOGIKA KALIBRACJI (OTA SAFE) - Z DEBUGOWANIEM
   // ============================================================
   {
       Serial.println("\n--- DEBUG START: KALIBRACJA ---");
       Preferences prefs;
-      // Używamy tej samej nazwy przestrzeni co zawsze
       bool success = prefs.begin("touch_cal", false); 
       
       if (!success) {
           Serial.println("❌ BŁĄD KRYTYCZNY: Nie udało się otworzyć pamięci Preferences!");
       }
 
-      // Sprawdzamy czy klucz istnieje
       bool hasKey = prefs.isKey("cal_done");
       Serial.print("❓ Czy klucz 'cal_done' istnieje w pamieci? -> ");
       Serial.println(hasKey ? "TAK" : "NIE");
@@ -198,6 +193,7 @@ void setup() {
           int retries = 0;
           while (WiFi.status() != WL_CONNECTED && retries < 40) {
               delay(500);
+              yield(); // <-- ZMIANA: Nakarmienie psa podczas łączenia nocnego
               Serial.print(".");
               retries++;
               sysManager.loop(); 
@@ -263,8 +259,11 @@ void setup() {
 
   WiFi.begin(connectSSID.c_str(), connectPassword.c_str());
   int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 10) { 
+  
+  // ZMIANA: Zwiększony limit z 10 do 30 (15 sekund) oraz dodany yield()
+  while (WiFi.status() != WL_CONNECTED && attempts < 30) { 
     delay(500);
+    yield(); // <-- ZMIANA: Nakarmienie psa (Watchdoga)
     Serial.print(".");
     attempts++;
   }
@@ -309,7 +308,6 @@ void setup() {
   
   tft.fillScreen(COLOR_BACKGROUND); 
 
-  
   if (isOfflineMode) {
     extern ScreenManager& getScreenManager();
     getScreenManager().setCurrentScreen(SCREEN_LOCAL_SENSORS);
@@ -434,7 +432,6 @@ void loop() {
     }
   }
 
-  
   if (!isOfflineMode) {
       static unsigned long lastWiFiSystemCheck = 0;
       if (millis() - lastWiFiSystemCheck > WIFI_STATUS_CHECK_INTERVAL) { 
@@ -519,8 +516,6 @@ void loop() {
       }
   } 
 
-
-
   // --- ODŚWIEŻANIE ZAWARTOŚCI EKRANU ---
   static ScreenType previousScreen = SCREEN_IMAGE;
   static unsigned long lastDisplayUpdate = 0;
@@ -538,13 +533,10 @@ void loop() {
       // 1. Ekran Pogody (Tylko czas)
       if (currentScreen == SCREEN_CURRENT_WEATHER && !isWiFiConfigActive()) {
          displayTime(tft);
-     }
-      // 2. Ekran Sensorów (SHT31/DHT22) - POPRAWIONE
-      // Obsługuje zarówno tryb Offline jak i Online
+      }
+      // 2. Ekran Sensorów (SHT31/DHT22)
       else if (currentScreen == SCREEN_LOCAL_SENSORS) {
           displayLocalSensors(tft, true); // true = tylko odśwież liczby (bez migania)
-          //if (isOfflineMode)
-          //displayTime(tft);
       }
 
       lastDisplayUpdate = millis();
