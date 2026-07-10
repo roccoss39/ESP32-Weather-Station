@@ -23,7 +23,8 @@ public:
         Serial.println("🔍 Sprawdzanie dostępności nowej wersji (version.txt)...");
 
         // Definicja URL do pliku wersji (musi być RAW)
-        String versionUrl = "https://raw.githubusercontent.com/roccoss39/ESP32-Weather-Station/main/version.txt";
+        // ZMIANA: Dodajemy ?t=millis() aby ominąć narzucony przez GitHuba 5-minutowy cache CDN!
+        String versionUrl = "https://raw.githubusercontent.com/roccoss39/ESP32-Weather-Station/main/version.txt?t=" + String(millis());
 
         WiFiClientSecure client;
         client.setInsecure(); // Ignorujemy certyfikaty (wymagane dla GitHub)
@@ -47,7 +48,7 @@ public:
                 Serial.printf("☁️ Wersja na GitHub: %.2f\n", remoteVersion);
                 Serial.printf("🏠 Obecna wersja:   %.2f\n", FIRMWARE_VERSION); 
 
-                // ZMIANA: Dodajemy mały margines błędu (0.001) dla ułamków zmiennoprzecinkowych,
+                // Dodajemy mały margines błędu (0.001) dla ułamków zmiennoprzecinkowych,
                 // aby 1.20000004 nie było uznawane za większe od 1.19999999
                 if (remoteVersion > (FIRMWARE_VERSION + 0.001)) {
                     Serial.println("🚀 ZNALEZIONO NOWĄ WERSJĘ! Uruchamiam aktualizację...");
