@@ -4,10 +4,11 @@
 #include "weather/forecast_data.h"
 #include "display/display_utils.h"
 
+// Zakomentowano dla normalnego działania (dodaj odkomentuj #define aby przetestować maksymalne wartości)
+// #define ENABLE_WEEKLY_MOCK_TEST 1
 
 extern WeeklyForecastData weeklyForecast;
 extern LocationManager locationManager;
-
 
 extern void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconCode);
 
@@ -17,6 +18,10 @@ extern void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, Strin
 
 void displayWeeklyForecast(TFT_eSPI& tft) {
   Serial.println("📱 Ekran wyczyszczony - rysowanie: WEEKLY");
+  
+  // Zawsze upewniamy się, że zaczynamy od domyślnej czcionki
+  tft.setFreeFont(NULL);
+  tft.setTextFont(1);
   
   // Sprawdzenie danych
   extern bool isWeatherRefreshInProgress;
@@ -38,29 +43,65 @@ void displayWeeklyForecast(TFT_eSPI& tft) {
     return;
   }
   
+  // === STAŁE POZYCJE (KOTWICE) KOLUMN ===
+  const int colTempX = 145;  // Środek kolumny Temperatury (przesunięte w prawo od ikon)
+  const int colWindX = 225;  // Środek kolumny Wiatru
+  const int colRainX = 315;  // Prawa krawędź kolumny Opadów
+  // =====================================
+
+  // === NAGŁÓWKI KOLUMN ===
+  tft.setFreeFont(NULL);
+  tft.setTextFont(1);
   tft.setTextSize(1);
-  tft.setTextDatum(TL_DATUM);
+  tft.setTextColor(TFT_SILVER); // Srebrny, dyskretny kolor dla opisów
+
+  tft.setTextDatum(TC_DATUM); // Wyrównanie do środka 
+  tft.drawString("[Temp.]", colTempX, 3); 
+  tft.drawString("[Wiatr km/h]", colWindX, 3);
+
+  tft.setTextDatum(TR_DATUM); // Wyrównanie do prawej
+  tft.drawString("[Opady]", colRainX, 3);
   
+  tft.setTextDatum(TL_DATUM); // Reset do domyślnego wyrównania
+  // =======================
+
   uint8_t availableHeight = 200; 
-  uint8_t startY = 15;
+  uint8_t startY = 17; 
   uint8_t rowHeight = weeklyForecast.count > 0 ? (availableHeight / weeklyForecast.count) : 35;
   
   uint8_t textOffset = (rowHeight - 16) / 2; 
   if (textOffset < 0) textOffset = 0;
   
   for(int i = 0; i < weeklyForecast.count && i < 5; i++) {
-    DailyForecast& day = weeklyForecast.days[i];
+    
+    DailyForecast day = weeklyForecast.days[i]; 
+
+#ifdef ENABLE_WEEKLY_MOCK_TEST
+    // --- TRYB MOCK: Wymuszamy najszersze możliwe wartości dla poszczególnych dni ---
+    switch (i) {
+      case 0: day.tempMin = -22.0; day.tempMax = -10.0; day.windMin = 85.0;  day.windMax = 99.0;  day.precipitationChance = 100; break;
+      case 1: day.tempMin = -99.0; day.tempMax = -15.0; day.windMin = 90.0;  day.windMax = 105.0; day.precipitationChance = 100; break;
+      case 2: day.tempMin = -12.0; day.tempMax = -5.0;  day.windMin = 100.0; day.windMax = 120.0; day.precipitationChance = 99;  break;
+      case 3: day.tempMin = -30.0; day.tempMax = 0.0;   day.windMin = 75.0;  day.windMax = 99.0;  day.precipitationChance = 100; break;
+      case 4: day.tempMin = -45.0; day.tempMax = -20.0; day.windMin = 99.0;  day.windMax = 115.0; day.precipitationChance = 100; break;
+    }
+#endif
+
     int rawY = startY + (i * rowHeight);
-    int y = rawY + textOffset; 
+    int y = rawY + textOffset + 4; // +4 dla wyrównania FreeFonts w pionie
+    
+    // USTAWIENIE GŁÓWNEJ CZCIONKI WEKTOROWEJ
+    tft.setFreeFont(&FreeSans12pt7b);
+    tft.setTextSize(1); 
     
     // 1. Dzień
     tft.setTextColor(TFT_WHITE);
-    tft.setTextSize(2);
-    tft.setTextDatum(TL_DATUM);
-    tft.drawString(day.dayName, 10, y);
+    tft.setTextDatum(TL_DATUM); 
+    String shortDay = day.dayName.substring(0, 3); 
+    tft.drawString(shortDay, 5, y);
     
-    // 2. Ikona
-    uint8_t iconX = 55;
+    // 2. Ikona (Przesunięta lekko w prawo na X=60, aby tekst w nią nie wchodził)
+    uint8_t iconX = 60;
     int iconY = rawY - (rowHeight / 4) + textOffset;
     
     String condition = "unknown";
@@ -76,98 +117,69 @@ void displayWeeklyForecast(TFT_eSPI& tft) {
     
     drawWeatherIcon(tft, iconX, iconY, condition, day.icon);
     
-    // 3. Temperatury Min/Max - dynamiczne pozycjonowanie bez spacji
-    tft.setTextSize(2);
-    tft.setTextDatum(TL_DATUM);
+    // 3. Temperatury Min/Max - DYNAMICZNE ŚRODKOWANIE POD NAGŁÓWKIEM
+    tft.setFreeFont(&FreeSans12pt7b);
     
-    uint8_t tempX = 120;  // Start position
-    
-    // Min temp
     String minStr = String((int)round(day.tempMin));
-    tft.setTextColor(TFT_DARKGREY);
-    tft.drawString(minStr, tempX, y);
-    tempX += tft.textWidth(minStr);  // Przesuń za tekst
-    
-    // Separator
-    tft.setTextColor(TFT_WHITE);
-    tft.drawString("/", tempX, y);
-    tempX += tft.textWidth("/");  // Przesuń za separator
-    
-    // Max temp
     String maxStr = String((int)round(day.tempMax));
+    
+    // Obliczamy całkowitą szerokość bloku tekstu
+    int tempTotalWidth = tft.textWidth(minStr) + tft.textWidth("/") + tft.textWidth(maxStr);
+    
+    // Zaczynamy rysować od środka kolumny minus połowa szerokości tekstu
+    int tempStartX = colTempX - (tempTotalWidth / 2);  
+    
+    tft.setTextColor(TFT_DARKGREY);
+    tft.drawString(minStr, tempStartX, y);
+    tempStartX += tft.textWidth(minStr);  
+    
     tft.setTextColor(TFT_WHITE);
-    tft.drawString(maxStr, tempX, y);
-    tempX += tft.textWidth(maxStr);  // Oblicz koniec temperatur
+    tft.drawString("/", tempStartX, y);
+    tempStartX += tft.textWidth("/");  
     
-    // 4. Skalowanie czcionki dla Wiatru/Opadów (uproszczone - bez warunku minusów)
-    int8_t tMinInt = (int8_t)round(day.tempMin);
-    int8_t tMaxInt = (int8_t)round(day.tempMax);
+    tft.drawString(maxStr, tempStartX, y);  
     
-    uint8_t wideValuesCount = (abs(tMinInt) >= 10) + 
-                          (abs(tMaxInt) >= 10) + 
-                          (day.windMin >= 10) + 
-                          (day.windMax >= 10) + 
-                          (day.precipitationChance >= 10);
-
-    // Jeśli 4 lub więcej wartości jest szerokich -> użyj małej czcionki
-    bool useSmallFont = (wideValuesCount >= 4);
-
-    uint8_t dataTextSize = useSmallFont ? 1 : 2;
-    uint8_t yOffsetData = useSmallFont ? 5 : 0;
-    uint8_t unitCorrection = useSmallFont ? 0 : 5; 
-
-    // 5. Wiatr - dynamiczna pozycja PO temperaturach (z marginesem)
-    tft.setTextSize(dataTextSize);
-    int currentX = tempX + 10;  // Start 10px po końcu temperatur (dynamicznie!)
-
-    int windY = y;
-    if (useSmallFont)
-    windY = y + yOffsetData + unitCorrection;
-
-    tft.setTextColor(TFT_DARKGREY); 
-    String minWind = String((int)round(day.windMin));
-    tft.drawString(minWind, currentX, windY);
-    currentX += tft.textWidth(minWind); 
-
-    tft.setTextColor(TFT_WHITE);
-    String sep = "-"; 
-    tft.drawString(sep, currentX, windY);
-    currentX += tft.textWidth(sep);
-
-    String maxWind = String((int)round(day.windMax));
-    tft.drawString(maxWind, currentX, windY);
-    currentX += tft.textWidth(maxWind);
-
-    tft.setTextSize(1);
-    tft.setTextColor(TFT_SILVER);
+    // 4. Wiatr - DYNAMICZNE ŚRODKOWANIE POD NAGŁÓWKIEM
+    String minWindStr = String((int)round(day.windMin));
+    String maxWindStr = String((int)round(day.windMax));
     
-    tft.drawString("km/h", currentX + 2, y + yOffsetData + unitCorrection);
+    int windTotalWidth = tft.textWidth(minWindStr) + tft.textWidth("-") + tft.textWidth(maxWindStr);
+    int windStartX = colWindX - (windTotalWidth / 2);
     
-    // 6. Opady - ZAWSZE normalna czcionka (size 2)
-    tft.setTextColor(0x001F);
-    tft.setTextDatum(TR_DATUM);
-    if ((day.precipitationChance) >= 100)
-    tft.setTextSize(1); 
-    else   
-    tft.setTextSize(2); 
+    // Własne, delikatne kolory dla wiatru
+    uint16_t colorWindMin = tft.color565(150, 190, 220); // Delikatny niebieskawo-szary
+    uint16_t colorWindMax = tft.color565(210, 235, 255); // Bardzo jasny błękit
 
-    tft.drawString(String(day.precipitationChance) + "%", 315, y );
+    tft.setTextColor(colorWindMin); 
+    tft.drawString(minWindStr, windStartX, y);
+    windStartX += tft.textWidth(minWindStr); 
+
+    // Separator dla wiatru - na ciemnoszaro by nie odwracał uwagi od wartości
+    tft.setTextColor(TFT_DARKGREY);
+    tft.drawString("-", windStartX, y);
+    windStartX += tft.textWidth("-");
+
+    tft.setTextColor(colorWindMax);
+    tft.drawString(maxWindStr, windStartX, y);
+
+    // 5. Opady (Równanie do prawej krawędzi kolumny, ta sama wysokość Y)
+    tft.setTextColor(0x001F); // Ciemny niebieski
+    tft.setTextDatum(TR_DATUM); 
+    tft.drawString(String(day.precipitationChance) + "%", colRainX, y); 
     tft.setTextDatum(TL_DATUM); 
   }
   
   // === FOOTER Z LOKALIZACJĄ ===
-  tft.setTextColor(TFT_DARKGREY);
-  tft.setTextSize(2);
-  tft.setTextDatum(TC_DATUM); // Punkt odniesienia: Środek Góry tekstu
-  
-  // Czyścimy dół ekranu (od Y=218 do końca)
   tft.fillRect(0, 218, 320, 40, COLOR_BACKGROUND);
+  tft.setFreeFont(&FreeSans12pt7b); 
+  tft.setTextSize(1);
+  tft.setTextColor(TFT_DARKGREY);
+  tft.setTextDatum(TC_DATUM); // Top-Center
   
   if (locationManager.isLocationSet()) {
     WeatherLocation loc = locationManager.getCurrentLocation();
     String locationText;
     
-    // Budowanie nazwy (obsługa custom GPS: cityName może być puste)
     const bool hasCity = loc.cityName.length() > 0;
     const bool hasDisplay = loc.displayName.length() > 0;
 
@@ -181,15 +193,17 @@ void displayWeeklyForecast(TFT_eSPI& tft) {
         locationText = "";
     }
 
-    // Zabezpieczenie długości
-    int maxWidth = 310;
-    if (tft.textWidth(locationText) > maxWidth) 
-      tft.setTextSize(1);
+    // Zabezpieczenie długości - przy bardzo długich nazwach zmniejszamy na 9pt
+    if (tft.textWidth(locationText) > 310) {
+      tft.setFreeFont(&FreeSans9pt7b);
+    }
     
-    // Rysowanie
-    tft.drawString(locationText, 160, 220); 
+    tft.drawString(locationText, 160, 222); 
     
   } else {
-    tft.drawString("Brak lokalizacji", 160, 220);
+    tft.drawString("Brak lokalizacji", 160, 222);
   }
+
+  tft.setFreeFont(NULL);
+  tft.setTextFont(1);
 }

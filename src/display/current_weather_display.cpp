@@ -68,6 +68,19 @@ uint16_t getHumidityColor(float humidity) {
     else return TFT_WHITE;
 }
 
+// --- NOWA FUNKCJA KONWERTUJĄCA STOPNIE NA KIERUNEK ---
+String getWindDirectionName(int deg) {
+    if (deg >= 337 || deg < 23)  return "Polnoc";
+    if (deg >= 23  && deg < 68)  return "Pn-Wsch";
+    if (deg >= 68  && deg < 113) return "Wschod";
+    if (deg >= 113 && deg < 158) return "Pd-Wsch";
+    if (deg >= 158 && deg < 203) return "Poludnie";
+    if (deg >= 203 && deg < 248) return "Pd-Zach";
+    if (deg >= 248 && deg < 293) return "Zachod";
+    if (deg >= 293 && deg < 337) return "Pn-Zach";
+    return "";
+}
+
 // ================================================================
 // FUNKCJA RYSOWANIA STRZAŁKI (Wersja MINI - 5x5 px)
 // ================================================================
@@ -278,6 +291,11 @@ void displayCurrentWeather(TFT_eSPI& tft) {
     tft.setTextColor(LABEL_COLOR, TEXT_BG);
     tft.setTextSize(1);
     tft.drawString("WIATR", rightX + 5, y2 + 5);
+
+    // --- DODANO: Wyświetlenie kierunku wiatru pod napisem "WIATR" ---
+    tft.setTextColor(TFT_SILVER, TEXT_BG);
+    String windDir = getWindDirectionName(weather.windDeg);
+    tft.drawString(windDir, rightX + 5, y2 + 18);
 
     float windKmh = weather.windSpeed * 3.6;
     tft.setTextDatum(TR_DATUM);

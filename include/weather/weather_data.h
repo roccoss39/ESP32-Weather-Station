@@ -10,6 +10,7 @@ struct WeatherData {
   String description = "";
   float humidity = 0;
   float windSpeed = 0;
+  int windDeg = 0;
   float pressure = 0;         // Ciśnienie w hPa
   String icon = "";
   unsigned long sunrise = 0;  // Wschód słońca (timestamp Unix)

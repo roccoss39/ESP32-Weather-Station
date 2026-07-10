@@ -7,7 +7,7 @@
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
 #include <time.h>
-
+#include "config/debug_config.h"
 
 // Definicje globalnych zmiennych
 ForecastData forecast;
@@ -50,8 +50,12 @@ bool getForecast() {
       Serial.println();
     #endif
     
+    yield(); // Nakarm psa przed ciężkim parsowaniem JSON
+    
     JsonDocument doc; // Nowa wersja ArduinoJson
     if (deserializeJson(doc, payload) == DeserializationError::Ok) {
+      
+      yield(); // Nakarm psa po parsowaniu
       
       // Wyczyść poprzednie dane
       forecast.count = 0;
@@ -61,6 +65,8 @@ bool getForecast() {
       
       // Weź pierwsze 5 prognoz
       for (int i = 0; i < 5 && i < list.size(); i++) {
+        yield(); // Nakarm psa w każdej iteracji pętli
+        
         JsonObject item = list[i];
         
         // Wyciągnij timestamp i przekonwertuj na godzinę
@@ -113,6 +119,7 @@ bool getForecast() {
 
 bool generateWeeklyForecast() {
   Serial.println("🗓️ WYWOŁANIE generateWeeklyForecast() - START");
+  yield(); // Natychmiast karmimy psa na starcie
   
   if (WiFi.status() != WL_CONNECTED) {
     return false;
@@ -125,18 +132,24 @@ bool generateWeeklyForecast() {
   http.setTimeout(10000);
   int httpCode = http.GET();
   
+  yield(); // Karmimy psa po oczekiwaniu na odpowiedź serwera
+  
   if (httpCode != HTTP_CODE_OK) {
     http.end();
     return false;
   }
   
   String payload = http.getString();
+  yield(); // Karmimy psa po przepisaniu gigantycznego stringa do pamięci
+  
   JsonDocument doc;
   
   if (deserializeJson(doc, payload) != DeserializationError::Ok) {
     http.end();
     return false;
   }
+  
+  yield(); // Najważniejsze karmienie! Parsowanie tak długiego JSONA mocno obciąża procesor
   
   JsonArray list = doc["list"];
   
@@ -165,6 +178,8 @@ bool generateWeeklyForecast() {
   
   // 1. ZBIERANIE DANYCH (Grupowanie)
   for (int i = 0; i < list.size(); i++) {
+    yield(); // Karmimy psa W KAŻDEJ ITERACJI długiej pętli (40 obiegów!)
+    
     JsonObject item = list[i];
     
     long timestamp = item["dt"];
@@ -205,17 +220,11 @@ bool generateWeeklyForecast() {
       }
       
       // === LOGIKA DLA "DZIŚ" (Index 0) - DOMIESZANIE AKTUALNEJ POGODY ===
-      // WAŻNE: Wykonuje się TYLKO jeśli weather.isValid jest true.
-      // Przy zmianie miasta ustawimy weather.isValid na false, więc to się NIE wykona dla starego miasta.
       if (currentGroupIdx == 0 && weather.isValid) {
            float currentTemp = weather.temperature;
            
            if (currentTemp < group.tempMin) group.tempMin = currentTemp;
            if (currentTemp > group.tempMax) group.tempMax = currentTemp;
-           
-           // Opcjonalnie wiatr
-           // float currentWind = weather.windSpeed * 3.6;
-           // if (currentWind > group.windMax) group.windMax = currentWind;
       }
       // =================================================================
 
@@ -239,8 +248,12 @@ bool generateWeeklyForecast() {
     }
   }
   
+  yield(); // Oddech po pierwszej dużej pętli
+  
   // 2. FILTROWANIE I PRZEPISYWANIE
   for (int i = 0; i < tempGroupsCount; i++) {
+    yield(); // Karmimy psa również w pętli przepisującej
+    
     if (weeklyForecast.count >= 5) break; 
     
     // === TWOJA NOWA LOGIKA FILTROWANIA ===
@@ -287,5 +300,9 @@ bool generateWeeklyForecast() {
   weeklyForecast.lastUpdate = millis();
   
   http.end();
+  
+  yield(); // Oddech na sam koniec
+  Serial.println("🗓️ WYWOŁANIE generateWeeklyForecast() - ZAKOŃCZONO SUKCESEM!");
+  
   return true;
 }

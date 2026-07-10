@@ -23,7 +23,6 @@ public:
         Serial.println("🔍 Sprawdzanie dostępności nowej wersji (version.txt)...");
 
         // Definicja URL do pliku wersji (musi być RAW)
-        // Upewnij się, że ten plik istnieje na GitHubie
         String versionUrl = "https://raw.githubusercontent.com/roccoss39/ESP32-Weather-Station/main/version.txt";
 
         WiFiClientSecure client;
@@ -46,9 +45,11 @@ public:
                 
                 // Wypisz wersje dla debugowania
                 Serial.printf("☁️ Wersja na GitHub: %.2f\n", remoteVersion);
-                Serial.printf("🏠 Obecna wersja:   %.2f\n", FIRMWARE_VERSION); // FIRMWARE_VERSION musi być w hardware_config.h
+                Serial.printf("🏠 Obecna wersja:   %.2f\n", FIRMWARE_VERSION); 
 
-                if (remoteVersion > FIRMWARE_VERSION) {
+                // ZMIANA: Dodajemy mały margines błędu (0.001) dla ułamków zmiennoprzecinkowych,
+                // aby 1.20000004 nie było uznawane za większe od 1.19999999
+                if (remoteVersion > (FIRMWARE_VERSION + 0.001)) {
                     Serial.println("🚀 ZNALEZIONO NOWĄ WERSJĘ! Uruchamiam aktualizację...");
                     http.end(); 
                     
@@ -70,7 +71,7 @@ public:
     }
 
 private:
-    // Funkcja wykonująca właściwą aktualizację OTA (stary kod przeniesiony tutaj)
+    // Funkcja wykonująca właściwą aktualizację OTA
     void performUpdate() {
         Serial.println("🔄 Rozpoczynam pobieranie firmware.bin z GitHub...");
         
@@ -92,7 +93,6 @@ private:
         httpUpdate.onError(update_error);
 
         // === PRÓBA AKTUALIZACJI ===
-        // GITHUB_FIRMWARE_URL musi być zdefiniowane w hardware_config.h
         t_httpUpdate_return ret = httpUpdate.update(client, GITHUB_FIRMWARE_URL);
 
         switch (ret) {
@@ -133,7 +133,6 @@ private:
         Serial.printf("❌ Błąd OTA: %d\n", err);
     }
     
-    // Helper do pobrania pinu LED (jeśli nie masz tej funkcji globalnie, możesz ją usunąć lub zdefiniować)
     uint8_t getStatusLedPin() {
         #ifdef LED_STATUS_PIN
             return LED_STATUS_PIN;

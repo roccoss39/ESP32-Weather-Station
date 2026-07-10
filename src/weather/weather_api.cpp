@@ -55,6 +55,7 @@ bool getWeather() {
       // Używaj angielskiego description (szczegółowy opis)
       weather.description = doc["weather"][0]["description"].as<String>();  // "light rain", "clear sky", etc.
       weather.windSpeed = doc["wind"]["speed"];
+      weather.windDeg = doc["wind"]["deg"].as<int>(); 
       
       // Dodaj kod ikony z API
       if (doc["weather"][0]["icon"]) {

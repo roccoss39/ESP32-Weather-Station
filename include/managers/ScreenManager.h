@@ -6,7 +6,7 @@
 #include "config/timing_config.h" 
 
 #define TEST_MODE 0
-#define TEST_SCREEN SCREEN_PRESSURE
+#define TEST_SCREEN SCREEN_CURRENT_WEATHER
 
 extern bool isOfflineMode;
 
