@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include <TFT_eSPI.h>
+#include <WiFi.h>
 #include "config/timing_config.h"
 #include "config/hardware_config.h" 
 #include "managers/SystemManager.h" 
@@ -32,7 +33,6 @@ private:
 
     void enterDeepSleep() {
         // --- ABSOLUTNA BLOKADA BEZPIECZEŃSTWA ---
-        // Stacja NIGDY nie wejdzie w tryb DeepSleep jeśli jesteś w menu WiFi/GPS.
         if (isWiFiConfigActive()) {
             Serial.println("⛔ [MotionManager] Zablokowano wejście w Deep Sleep, bo użytkownik jest w menu konfiguracyjnym!");
             return;
@@ -41,6 +41,34 @@ private:
         Serial.println("💤 DEEP SLEEP START...");
         Serial.flush();
         
+        // =========================================================================
+        // TARCZA OCHRONNA: ŁAGODNE WYGASZANIE SYSTEMU
+        // Zapobiega skokom napięcia (Brownout/Spike), które fałszywie wyzwalają PIR
+        // =========================================================================
+        if (WiFi.status() == WL_CONNECTED || WiFi.getMode() != WIFI_OFF) {
+            WiFi.disconnect(true);
+            WiFi.mode(WIFI_OFF);
+            delay(500); // Dajemy 0.5s na rozładowanie kondensatorów i stabilizację
+        }
+
+        // =========================================================================
+        // BLOKADA FAŁSZYWYCH WYBUDZEŃ (PIR STUCK HIGH PROTECTION)
+        // Jeśli zaśniemy, gdy PIR jest wciąż wysoki, stacja obudzi się natychmiast!
+        // =========================================================================
+        pinMode(PIR_PIN, INPUT);
+        int patience = 0;
+        // Czekamy, aż czujnik całkowicie opadnie do zera (MAX 10 sekund)
+        while(digitalRead(PIR_PIN) == HIGH && patience < 100) { 
+            delay(100);
+            yield();
+            patience++;
+        }
+        
+        if (patience > 0) {
+            Serial.printf("🛡️ PIR ustabilizowany po %d ms. Gotowy do snu.\n", patience * 100);
+        }
+
+        // Dopiero teraz można bezpiecznie uzbroić wybudzanie na pinie!
         esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
 
         struct tm timeinfo;
@@ -114,7 +142,6 @@ public:
         ledFlashStartTime = currentTime;
     }
 
-    // Dodano drugi domyślny parametr, aby kod nie wywalał błędu, jeśli nie zostanie podany
     void updateDisplayPowerState(TFT_eSPI& tft, bool isConfigModeActiveFlag = false) {
         
         if (ledFlashActive && (millis() - ledFlashStartTime) > LED_FLASH_DURATION) {
@@ -133,15 +160,11 @@ public:
             lastMotionTime = millis();
         }
 
-        // --- DYNAMICZNY TIMEOUT ---
-        // Łączymy zmienną z pętli głównej isConfigModeActiveFlag
-        // Z globalnym statusem czy użytkownik jest w jakimkolwiek menu isWiFiConfigActive()
         unsigned long timeout;
         if (isConfigModeActiveFlag || isWiFiConfigActive()) {
-            // Nadpisujemy błąd z timera 18 sekund na pełne 3 minuty
             timeout = 180000; 
         } else {
-            timeout = SCREEN_AUTO_OFF_MS; // Standardowe 70s
+            timeout = SCREEN_AUTO_OFF_MS; 
         }
 
         #if USE_HYBRID_SLEEP == 1
@@ -155,8 +178,6 @@ public:
         #endif
 
         if (currentDisplayState == DISPLAY_ACTIVE && (millis() - lastMotionTime > timeout)) {
-            // Jeśli minęły 3 minuty na ekranie konfiguracyjnym, to funkcja usypiająca
-            // powinna wyjść z menu config, ale nie wprowadzić urządzenia w Deep Sleep.
             sleepDisplay(tft);
         }
     }
@@ -176,13 +197,10 @@ public:
     }
 
     void sleepDisplay(TFT_eSPI& tft) {
-        // --- BEZPIECZEŃSTWO W MENU CONFIG ---
-        // Zanim cokolwiek wygasimy, upewnijmy się, że jeśli byliśmy w menu, to trzeba z niego wyjść!
         if (isWiFiConfigActive()) {
             Serial.println("⚙️ [MotionManager] Wygaszenie ekranu w trakcie trybu Config - powrót do normalnego stanu.");
             extern void exitWiFiConfigMode();
             exitWiFiConfigMode(); 
-            // Ponieważ wychodzimy z configu, wyłączamy ekran normalnie
         }
 
         currentDisplayState = DISPLAY_SLEEPING;
@@ -199,7 +217,6 @@ public:
                 Serial.println("☁️ DZIEŃ: Light Sleep (CPU on, Screen off)");
             }
         #else
-            // Nawet dla Full Sleep nie pozwalamy wchodzić w sen jeśli jakimś cudem flaga się nie skasowała.
             if (!isWiFiConfigActive()) {
                 Serial.println("💤 FULL SLEEP MODE: Going to Deep Sleep.");
                 enterDeepSleep();

@@ -51,7 +51,7 @@ bool isImageDownloadInProgress = false;
 // === FLAGA TRYBU OFFLINE (BEZ WIFI) ===
 bool isOfflineMode = false;
 
-// === RTC CACHE DLA SZYBKIEGO WYBUDZANIA ===
+// === RTC CACHE DLA POGODY ===
 struct RTC_Weather {
     float temperature;
     float feelsLike;
@@ -59,9 +59,9 @@ struct RTC_Weather {
     int humidity;
     float windSpeed;
     int windDeg;
-    int cloudiness; // ZMIANA Z clouds NA cloudiness
-    long sunrise;   // Dodano wschód słońca do cache
-    long sunset;    // Dodano zachód słońca do cache
+    int cloudiness; 
+    long sunrise;   
+    long sunset;    
     char description[32];
     char icon[8];
 };
@@ -95,7 +95,8 @@ RTC_DATA_ATTR bool rtcMeteoValid = false;
 RTC_DATA_ATTR bool rtcHasValidWeather = false;
 RTC_DATA_ATTR time_t rtcLastWeatherFetchTime = 0;
 
-bool isQuickRtcWake = false; // Flaga globalna
+// Flaga oznaczająca czy pomijamy pobieranie z API (ale WiFi jest aktywne np. do pobierania NASA)
+bool useCachedWeather = false; 
 
 void saveWeatherToRTC();
 void restoreWeatherFromRTC();
@@ -203,7 +204,7 @@ void setup() {
   
   Serial.println("=== ESP32 Weather Station ===");
   
-  // === QUICK RTC WAKE CHECK (Sprawdzenie czy mamy świeżą pogodę) ===
+  // === SPRAWDZENIE CZY MAMY ŚWIEŻĄ POGODĘ W RTC ===
   if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0 && !isOfflineMode) {
       time_t now;
       time(&now);
@@ -213,9 +214,9 @@ void setup() {
 
       // Jeśli mamy poprawny czas i dane pogodowe nie starsze niż 30 minut (1800 sekund)
       if (hasValidTime && rtcHasValidWeather && (now - rtcLastWeatherFetchTime) < 1800) {
-          isQuickRtcWake = true;
-          Serial.println("⚡ [QUICK WAKE] Znalazłem świeżą pogodę w RTC RAM (<30 min) i poprawny czas.");
-          Serial.println("⚡ [QUICK WAKE] Pomijam łączenie z WiFi i pobieranie z API. Błyskawiczny start!");
+          useCachedWeather = true;
+          Serial.println("⚡ [RTC CACHE] Znalazłem świeżą pogodę (<30 min) i poprawny czas.");
+          Serial.println("⚡ [RTC CACHE] Pomijam API pogodowe, ale włączam WiFi dla obrazków NASA.");
       }
   }
 
@@ -224,11 +225,17 @@ void setup() {
       Serial.println("🔥 WAKE UP: PIR Motion Detected!");
       break;
 
-    case ESP_SLEEP_WAKEUP_TIMER:
+    case ESP_SLEEP_WAKEUP_TIMER: { // <-- ZMIANA: Dodano klamrę rozpoczynającą zasięg
       Serial.println("⏰ WAKE UP: NOCNA AKTUALIZACJA (03:00)");
 
       if (isOfflineMode) {
         Serial.println("[OFFLINE] Skipping nightly GitHub update (offline mode)");
+        
+        // --- ZABEZPIECZENIE PIR PRZED UŚPIENIEM OFFLINE ---
+        pinMode(PIR_PIN, INPUT);
+        while(digitalRead(PIR_PIN) == HIGH) { delay(50); yield(); }
+        // --------------------------------------------------
+        
         esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
         esp_deep_sleep_start();
       }
@@ -254,11 +261,12 @@ void setup() {
           Serial.println(ssid);
           
           WiFi.begin(ssid.c_str(), pass.c_str());
+          WiFi.setSleep(false); // <-- Wyłączenie trybu uśpienia dla WiFi podczas nocnej aktualizacji
           
           int retries = 0;
           while (WiFi.status() != WL_CONNECTED && retries < 40) {
               delay(500);
-              yield(); // <-- ZMIANA: Nakarmienie psa podczas łączenia nocnego
+              yield(); 
               Serial.print(".");
               retries++;
               sysManager.loop(); 
@@ -275,9 +283,20 @@ void setup() {
       
       Serial.println("💤 Wracam spać do rana...");
       Serial.flush();
+      
+      // --- ZABEZPIECZENIE PIR PRZED UŚPIENIEM PO AKTUALIZACJI ---
+      WiFi.disconnect(true);
+      WiFi.mode(WIFI_OFF);
+      delay(500); // Stabilizacja prądu
+      pinMode(PIR_PIN, INPUT);
+      int patience = 0;
+      while(digitalRead(PIR_PIN) == HIGH && patience < 100) { delay(100); yield(); patience++; }
+      // ----------------------------------------------------------
+      
       esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1); 
       esp_deep_sleep_start(); 
       break;
+    } // <-- ZMIANA: Dodano klamrę kończącą zasięg dla case ESP_SLEEP_WAKEUP_TIMER
 
     case ESP_SLEEP_WAKEUP_UNDEFINED:
     default:
@@ -309,9 +328,9 @@ void setup() {
   tft.drawString("WEATHER STATION", tft.width() / 2, tft.height() / 2 - 20);
   
   // ============================================================
-  // LOGIKA ŁĄCZENIA - WŁĄCZAMY WIFI TYLKO, GDY TRZEBA!
+  // LOGIKA ŁĄCZENIA - ZAWSZE WŁĄCZAMY WIFI (CHYBA, ŻE OFFLINE)
   // ============================================================
-  if (!isQuickRtcWake) {
+  if (!isOfflineMode) {
       tft.drawString("Laczenie WiFi...", tft.width() / 2, tft.height() / 2 + 20);
       
       // --- AUTO-CONNECT ---
@@ -328,12 +347,13 @@ void setup() {
       else Serial.println("Using default WiFi from secrets.h: " + connectSSID);
 
       WiFi.begin(connectSSID.c_str(), connectPassword.c_str());
+      WiFi.setSleep(false); // <-- KLUCZOWE: Stabilizuje DNS dla obrazków NASA pobieranych w tle
+      
       int attempts = 0;
       
-      // ZMIANA: Zwiększony limit z 10 do 30 (15 sekund) oraz dodany yield()
       while (WiFi.status() != WL_CONNECTED && attempts < 30) { 
         delay(500);
-        yield(); // <-- ZMIANA: Nakarmienie psa (Watchdoga)
+        yield(); 
         Serial.print(".");
         attempts++;
       }
@@ -349,11 +369,13 @@ void setup() {
         Serial.print("Waiting for time synchronization...");
         struct tm timeinfo;
         int retry = 0;
-        const int retry_count = 5; 
+        const int retry_count = 10; 
 
-        while (!getLocalTime(&timeinfo, 5000) || timeinfo.tm_year < (2023 - 1900)) {
+        // ZMIANA: Skracamy blokadę do 500ms i karmimy Watchdoga (yield)
+        while (!getLocalTime(&timeinfo, 500) || timeinfo.tm_year < (2023 - 1900)) {
             Serial.print(".");
-            delay(1000);
+            delay(500);
+            yield(); 
             retry++;
             if (retry > retry_count) {
                 Serial.println("\nFailed to synchronize time!");
@@ -375,11 +397,6 @@ void setup() {
         tft.drawString("Sprawdz ustawienia sieci", tft.width() / 2, tft.height() / 2 + 10);
         delay(3000);
       }
-  } else {
-      // === SZYBKIE WYBUDZENIE Z RTC ===
-      Serial.println("⚡ [QUICK WAKE] Odtwarzam dane z pamięci RTC...");
-      WiFi.mode(WIFI_OFF);
-      restoreWeatherFromRTC();
   }
   
   tft.fillScreen(COLOR_BACKGROUND); 
@@ -401,25 +418,23 @@ void setup() {
 
   locationManager.loadLocationFromPreferences();
 
-  // Nie inicjalizujemy dotyku dla WiFi, jeśli jesteśmy w szybkim trybie wybudzenia
-  if (!isOfflineMode && !isQuickRtcWake) {
+  // Inicjalizacja Touch Interface (tylko w trybie Online)
+  if (!isOfflineMode) {
     initWiFiTouchInterface();
-  } else if (isOfflineMode || isQuickRtcWake) {
-    Serial.println("[OFFLINE/RTC WAKE] Boot: skipping WiFi touch interface init");
-    if (isOfflineMode) {
-        WiFi.disconnect(true);
-        WiFi.mode(WIFI_OFF);
-    }
+  } else {
+    Serial.println("[OFFLINE] Boot: skipping WiFi touch interface init");
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
     exitWiFiConfigMode();
   }
 
   initNASAImageSystem();
   
   // ============================================================
-  // POBIERANIE POGODY (TYLKO, GDY NIE MAMY CACHE'U)
+  // POBIERANIE POGODY LUB PRZYWRACANIE Z CACHE
   // ============================================================
-  if (WiFi.status() == WL_CONNECTED && !isQuickRtcWake) {
-    Serial.println("Pobieranie danych pogodowych...");
+  if (WiFi.status() == WL_CONNECTED && !useCachedWeather) {
+    Serial.println("Pobieranie danych pogodowych z API...");
     
     tft.setTextColor(TFT_YELLOW, COLOR_BACKGROUND);
     tft.setTextSize(2);
@@ -458,8 +473,9 @@ void setup() {
       Serial.println("Dane załadowane - uruchamiam ekrany");
       saveWeatherToRTC(); // Zapisanie świeżej paczki do RTC
     }
-  } else if (isQuickRtcWake) {
-      Serial.println("Dane z RTC załadowane - uruchamiam ekrany");
+  } else if (useCachedWeather || rtcHasValidWeather) {
+      Serial.println("⚡ Odtwarzam pogode z pamięci RTC...");
+      restoreWeatherFromRTC();
   }
   
   getScreenManager().resetScreenTimer();
@@ -517,8 +533,8 @@ void loop() {
     }
   }
 
-  // Wyłącz sprawdzanie zrywania WiFi, jeśli jesteśmy w szybkim trybie RTC
-  if (!isOfflineMode && !isQuickRtcWake) {
+  // Zawsze weryfikujemy połączenie, ponieważ WiFi musi być aktywne dla obrazków
+  if (!isOfflineMode) {
       static unsigned long lastWiFiSystemCheck = 0;
       if (millis() - lastWiFiSystemCheck > WIFI_STATUS_CHECK_INTERVAL) { 
         lastWiFiSystemCheck = millis();
@@ -563,11 +579,11 @@ void loop() {
     }
   }
 
-  if (!isWiFiLost() || isOfflineMode || isQuickRtcWake) {
+  if (!isWiFiLost() || isOfflineMode) {
     updateScreenManager();
   }
 
-  if (!isOfflineMode && !isQuickRtcWake) {
+  if (!isOfflineMode) {
       unsigned long weeklyInterval = weeklyErrorModeGlobal ? WEEKLY_UPDATE_ERROR : WEEKLY_UPDATE_INTERVAL;
       if (millis() - lastWeeklyUpdate >= weeklyInterval) {
         lastWeeklyUpdate = millis();
@@ -606,7 +622,7 @@ void loop() {
   static ScreenType previousScreen = SCREEN_IMAGE;
   static unsigned long lastDisplayUpdate = 0;
   
-  if (!isWiFiLost() || isOfflineMode || isQuickRtcWake) {
+  if (!isWiFiLost() || isOfflineMode) {
     ScreenType currentScreen = getScreenManager().getCurrentScreen();
     
     if (currentScreen != previousScreen) {
@@ -696,8 +712,8 @@ void saveWeatherToRTC() {
     rtcWeather.windSpeed = weather.windSpeed;
     rtcWeather.windDeg = weather.windDeg;
     rtcWeather.cloudiness = weather.cloudiness;
-    rtcWeather.sunrise = weather.sunrise; // <-- ZAPIS WSCHODU SŁOŃCA
-    rtcWeather.sunset = weather.sunset;   // <-- ZAPIS ZACHODU SŁOŃCA
+    rtcWeather.sunrise = weather.sunrise; 
+    rtcWeather.sunset = weather.sunset;   
     strncpy(rtcWeather.description, weather.description.c_str(), 31);
     rtcWeather.description[31] = '\0';
     strncpy(rtcWeather.icon, weather.icon.c_str(), 7);
@@ -751,8 +767,8 @@ void restoreWeatherFromRTC() {
     weather.windSpeed = rtcWeather.windSpeed;
     weather.windDeg = rtcWeather.windDeg;
     weather.cloudiness = rtcWeather.cloudiness;
-    weather.sunrise = rtcWeather.sunrise; // <-- ODTWORZENIE WSCHODU SŁOŃCA
-    weather.sunset = rtcWeather.sunset;   // <-- ODTWORZENIE ZACHODU SŁOŃCA
+    weather.sunrise = rtcWeather.sunrise; 
+    weather.sunset = rtcWeather.sunset;   
     weather.description = String(rtcWeather.description);
     weather.icon = String(rtcWeather.icon);
     weather.isValid = true;
