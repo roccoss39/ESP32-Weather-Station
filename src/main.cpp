@@ -225,7 +225,7 @@ void setup() {
       Serial.println("🔥 WAKE UP: PIR Motion Detected!");
       break;
 
-    case ESP_SLEEP_WAKEUP_TIMER: { // <-- ZMIANA: Dodano klamrę rozpoczynającą zasięg
+    case ESP_SLEEP_WAKEUP_TIMER: { 
       Serial.println("⏰ WAKE UP: NOCNA AKTUALIZACJA (03:00)");
 
       if (isOfflineMode) {
@@ -261,7 +261,7 @@ void setup() {
           Serial.println(ssid);
           
           WiFi.begin(ssid.c_str(), pass.c_str());
-          WiFi.setSleep(false); // <-- Wyłączenie trybu uśpienia dla WiFi podczas nocnej aktualizacji
+          WiFi.setSleep(false); 
           
           int retries = 0;
           while (WiFi.status() != WL_CONNECTED && retries < 40) {
@@ -296,7 +296,7 @@ void setup() {
       esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1); 
       esp_deep_sleep_start(); 
       break;
-    } // <-- ZMIANA: Dodano klamrę kończącą zasięg dla case ESP_SLEEP_WAKEUP_TIMER
+    } 
 
     case ESP_SLEEP_WAKEUP_UNDEFINED:
     default:
@@ -347,7 +347,7 @@ void setup() {
       else Serial.println("Using default WiFi from secrets.h: " + connectSSID);
 
       WiFi.begin(connectSSID.c_str(), connectPassword.c_str());
-      WiFi.setSleep(false); // <-- KLUCZOWE: Stabilizuje DNS dla obrazków NASA pobieranych w tle
+      WiFi.setSleep(false); 
       
       int attempts = 0;
       
@@ -371,7 +371,6 @@ void setup() {
         int retry = 0;
         const int retry_count = 10; 
 
-        // ZMIANA: Skracamy blokadę do 500ms i karmimy Watchdoga (yield)
         while (!getLocalTime(&timeinfo, 500) || timeinfo.tm_year < (2023 - 1900)) {
             Serial.print(".");
             delay(500);
@@ -409,7 +408,6 @@ void setup() {
   
   initMotionSensor();
 
-  // TYLKO SHT31 / DHT (Bez BME280)
   #ifdef USE_SHT31
     initSHT31(); 
   #else
@@ -431,10 +429,36 @@ void setup() {
   initNASAImageSystem();
   
   // ============================================================
+  // AWARYJNY BEZPIECZNIK CZASU NTP (po późnym połączeniu)
+  // ============================================================
+  if (WiFi.status() == WL_CONNECTED && !isOfflineMode) {
+      struct tm timeinfo;
+      if (!getLocalTime(&timeinfo, 10) || timeinfo.tm_year < (2023 - 1900)) {
+          Serial.println("\nAwaryjna synchronizacja czasu NTP...");
+          configTzTime(TIMEZONE_INFO, NTP_SERVER);
+          int retry = 0;
+          while (!getLocalTime(&timeinfo, 500) || timeinfo.tm_year < (2023 - 1900)) {
+              Serial.print(".");
+              delay(500);
+              yield(); 
+              retry++;
+              if (retry > 10) break; 
+          }
+          if (retry <= 10) {
+              Serial.println("\nTime synchronized successfully (Emergency)!");
+          } else {
+              Serial.println("\nEmergency time sync failed!");
+          }
+      }
+  }
+
+  // ============================================================
   // POBIERANIE POGODY LUB PRZYWRACANIE Z CACHE
   // ============================================================
   if (WiFi.status() == WL_CONNECTED && !useCachedWeather) {
     Serial.println("Pobieranie danych pogodowych z API...");
+    
+    tft.fillScreen(COLOR_BACKGROUND); // <-- DODANO: Czyste tło przed komunikatem ładowania
     
     tft.setTextColor(TFT_YELLOW, COLOR_BACKGROUND);
     tft.setTextSize(2);
@@ -471,7 +495,7 @@ void setup() {
     
     if (weather.isValid && forecast.isValid) {
       Serial.println("Dane załadowane - uruchamiam ekrany");
-      saveWeatherToRTC(); // Zapisanie świeżej paczki do RTC
+      saveWeatherToRTC(); 
     }
   } else if (useCachedWeather || rtcHasValidWeather) {
       Serial.println("⚡ Odtwarzam pogode z pamięci RTC...");
@@ -483,7 +507,7 @@ void setup() {
   
   checkAndShowGreeting(tft);
 
-  sysManager.restoreCorrectBrightness(); // Aktualizacja jasności z poprawnym czasem
+  sysManager.restoreCorrectBrightness(); 
 
   Serial.println("=== STACJA POGODOWA GOTOWA ===");
 }
@@ -533,7 +557,6 @@ void loop() {
     }
   }
 
-  // Zawsze weryfikujemy połączenie, ponieważ WiFi musi być aktywne dla obrazków
   if (!isOfflineMode) {
       static unsigned long lastWiFiSystemCheck = 0;
       if (millis() - lastWiFiSystemCheck > WIFI_STATUS_CHECK_INTERVAL) { 
@@ -669,18 +692,15 @@ void onWiFiConnectedTasks() {
 
 void checkAndShowGreeting(TFT_eSPI& tft) {
     extern bool isOfflineMode;
-    if (isOfflineMode) return; // W trybie offline nie znamy czasu, ignorujemy
+    if (isOfflineMode) return; 
 
     struct tm timeinfo;
-    // Sprawdzamy, czy czas jest zsynchronizowany (rok > 2023)
     if (getLocalTime(&timeinfo, 0) && timeinfo.tm_year > (2023 - 1900)) {
         
-        // Jeśli jest między 5:00 a 11:00 rano
         if (timeinfo.tm_hour >= 5 && timeinfo.tm_hour < 24) {
             
-            // Jeśli dzisiaj się jeszcze nie witaliśmy (tm_yday to dzień roku 0-365)
             if (lastGreetingDay != timeinfo.tm_yday) {
-                lastGreetingDay = timeinfo.tm_yday; // Zapisz, że powitanie zaliczone
+                lastGreetingDay = timeinfo.tm_yday; 
                 
                 Serial.println("☀️ Wyświetlam powitanie: Dzien dobry!");
                 tft.fillScreen(TFT_BLACK);
@@ -689,9 +709,8 @@ void checkAndShowGreeting(TFT_eSPI& tft) {
                 tft.setTextSize(3);
                 tft.drawString("Dzien dobry!", tft.width() / 2, tft.height() / 2);
                 
-                delay(3000); // Wyświetlaj przez 3 sekundy
+                delay(3000); 
                 
-                // Wymuś odświeżenie całego ekranu, żeby powrócić do normalnego interfejsu
                 extern void forceScreenRefresh(TFT_eSPI& tft);
                 forceScreenRefresh(tft);
             }

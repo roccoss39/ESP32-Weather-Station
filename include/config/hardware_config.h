@@ -14,8 +14,8 @@
 #define GITHUB_FIRMWARE_URL "https://raw.githubusercontent.com/roccoss39/ESP32-Weather-Station/main/firmware.bin"
 
 // === SCHEDULED UPDATES (GODZINY AKTUALIZACJI) ===
-#define FIRMWARE_UPDATE_HOUR    3   // Godzina (Format 0-23)
-#define FIRMWARE_UPDATE_MINUTE  00    // Minuta (Format 0-59)
+#define FIRMWARE_UPDATE_HOUR    03  // Godzina (Format 0-23)
+#define FIRMWARE_UPDATE_MINUTE  15 // Minuta (Format 0-59)
 #define FIRMWARE_UPDATE_JITTER  300 
 
 // SET IN SECRETS.H
