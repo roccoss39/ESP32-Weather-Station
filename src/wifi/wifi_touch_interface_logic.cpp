@@ -16,7 +16,6 @@
 #define DEBUG_LONG_PRESS 1
 #endif
 
-
 extern bool isNtpSyncPending;
 extern bool isLocationSavePending;
 extern bool weatherErrorModeGlobal;  
@@ -24,26 +23,28 @@ extern bool forecastErrorModeGlobal;
 extern bool weeklyErrorModeGlobal;
 extern bool isOfflineMode;
 
+// DODANO: Wykorzystujemy tę flagę, by "oślepić" czujnik PIR podczas gdy modem Wi-Fi obciąża zasilanie!
+extern bool isImageDownloadInProgress; 
 
 // Colors
 #define BLACK   0x0000
 #define BLUE    0x001F
 #define RED     0xF800
 #define GREEN   0x07E0
-#define DARK_GREEN 0x0340  // Professional dark green for connected screen
-#define ORANGE 0xFD20  // Professional orange for WiFi lost screen
-#define DARK_BLUE 0x001F  // Professional dark blue for WiFi lost screen
+#define DARK_GREEN 0x0340  
+#define ORANGE 0xFD20  
+#define DARK_BLUE 0x001F  
 #define CYAN    0x07FF
 #define MAGENTA 0xF81F
 #define YELLOW  0xFFE0
 #define WHITE   0xFFFF
 #define GRAY    0x8410
 #define DARKGRAY 0x4208
-#define COLOR_BACKGROUND 0x0000  // Same as BLACK for clearing screen
+#define COLOR_BACKGROUND 0x0000  
 
 // TFT instance - extern, defined in main.cpp
-extern TFT_eSPI tft; // global TFT instance
-// preferences is part of shared state (see wifi_touch_interface_internal.h)
+extern TFT_eSPI tft; 
+
 Preferences preferences;
 static bool wifiPrefsInitialized = false;
 static void ensureWiFiPrefs() {
@@ -53,7 +54,6 @@ static void ensureWiFiPrefs() {
   }
 }
 
-
 extern void onWiFiConnectedTasks();
 
 // WiFi management
@@ -62,12 +62,11 @@ String defaultPassword = "YourDefaultPassword";
 String currentSSID = "";
 String currentPassword = "";
 
-// Use WiFiState from header - remove duplicate enum
 WiFiState currentState = STATE_CONNECTING;
 int selectedNetworkIndex = -1;
 String enteredPassword = "";
 bool capsLock = false;
-bool specialMode = false;  // For special characters keyboard
+bool specialMode = false;  
 
 // Long press detection
 unsigned long touchStartTime = 0;
@@ -96,98 +95,81 @@ bool networkSecure[20];
 // Password visibility toggle
 bool showPassword = false;
 
-// Location selection variables - NOWY UPROSZCZONY SYSTEM
+// Location selection variables
 LocationMenuState currentMenuState = MENU_MAIN;
 int currentLocationIndex = 0;
-int selectedCityIndex = 0; // 0=Szczecin, 1=Poznan, 2=Zlocieniec, 3=Wlasny GPS
+int selectedCityIndex = 0; 
 
-// Opcje głównego menu (4 opcje)
 const char* mainMenuOptions[] = {"Szczecin", "Poznan", "Zlocieniec", "Wlasny GPS"};
 
-
-// Custom coordinates variables (Szczecin Centrum - rzeczywiste współrzędne)
 String customLatitude = "53.4289";
 String customLongitude = "14.5530";
-bool editingLatitude = true; // true=lat, false=lon
+bool editingLatitude = true; 
 int coordinatesCursorPos = 0;
 
 // Touch functions
-// Old touch function declarations removed - using tft.getTouch() instead
 void handleTouchInput(int16_t x, int16_t y);
 void handleKeyboardTouch(int16_t x, int16_t y);
 
 void initWiFiTouchInterface() {
   Serial.println("=== Initializing WiFi Touch Interface ===");
   
-  // Initialize preferences
   preferences.begin("wifi", false);
-  
-  // Initialize backlight
-  // pinMode(TFT_BL, OUTPUT);
-  // digitalWrite(TFT_BL, HIGH);
-  
   Serial.println("Hardware initialized");
   
-  // Load saved credentials (but don't auto-connect if already connected)
   defaultSSID = preferences.getString("ssid", "YourWiFi");
   defaultPassword = preferences.getString("password", "password");
   
-  // FIXED: Check if WiFi is already connected from main.cpp
   if (WiFi.status() == WL_CONNECTED) {
     Serial.println("WiFi already connected from main.cpp");
     Serial.printf("Current network: %s\n", WiFi.SSID().c_str());
     
-    // Update saved credentials to match current connection
     String currentSSID = WiFi.SSID();
     if (currentSSID != defaultSSID && currentSSID.length() > 0) {
       Serial.println("Updating saved WiFi credentials to match current connection");
       preferences.putString("ssid", currentSSID);
-      // Note: We can't get the current password, but that's ok
     }
     
     currentState = STATE_CONNECTED;
-    // DON'T draw connected screen automatically - let normal screens show
   } else {
-    // Only try to connect if WiFi is not already connected
     Serial.println("No WiFi connection, trying saved credentials...");
     wifiTouchUI_drawStatusMessage(tft, "Laczenie z WiFi...");
     
-    // Try saved WiFi credentials
+    // BLOKADA CZUJNIKA PIR NA CZAS INTENSYWNEJ PRACY MODEMU WIFI
+    isImageDownloadInProgress = true; 
+    
     WiFi.begin(defaultSSID.c_str(), defaultPassword.c_str());
     
     int timeout = 0;
     while (WiFi.status() != WL_CONNECTED && timeout < 20) {
       delay(500);
-      yield(); // <--- KLUCZOWE: Karmienie Watchdoga
+      yield(); // <--- KLUCZOWE: Karmienie Watchdoga w trakcie Twojego odliczania!
       Serial.print(".");
       timeout++;
       wifiTouchUI_drawStatusMessage(tft, "Laczenie... " + String(timeout) + "/20");
     }
     
+    isImageDownloadInProgress = false; // Zdejmujemy blokadę z czujnika
+    
     if (WiFi.status() == WL_CONNECTED) {
       currentState = STATE_CONNECTED;
-      // DON'T draw connected screen automatically - let normal screens show
       
-      // RESET screen rotation timer to show full 60s cycle before sleep
       extern ScreenManager& getScreenManager();
       getScreenManager().resetScreenTimer();
       Serial.println("Connected to saved WiFi! Screen rotation timer reset for 60s cycle.");
-      Serial.println("Connected to saved WiFi!");
     } else {
       Serial.println("Saved WiFi failed, scanning networks...");
 
-      // --- POPRAWKA SLEEP MODE - AKTYWUJ BACKGROUND RECONNECT ---
       backgroundReconnectActive = true; 
-      lastReconnectAttempt = millis();  // Zresetuj timer, aby pierwsza próba była za 19s
+      lastReconnectAttempt = millis();  
       Serial.println("Background reconnect activated after sleep mode failure");
       
       currentState = STATE_SCAN_NETWORKS;
       
-      yield(); // <--- KLUCZOWE: Karmienie przed blokującym skanowaniem
+      yield(); // Karmienie przed blokującym skanowaniem
       scanNetworks();
       drawNetworkList(tft);
 
-      // Żółty pasek na samym dole ekranu - FIXED for landscape 320x240
       tft.fillRect(10, 210, 300, 25, YELLOW);
       tft.setTextColor(BLACK);
       tft.setTextSize(1);
@@ -200,57 +182,39 @@ void initWiFiTouchInterface() {
 void handleWiFiTouchLoop(TFT_eSPI& tft) {
   uint16_t x, y;
   
-  // Check WiFi connection status every 2 seconds
   checkWiFiConnection();
-  
-  // Handle WiFi loss (60 second timeout)
   handleWiFiLoss();
-  
-  // Handle background reconnect when in scan mode
   handleBackgroundReconnect();
-  
-  // Handle config mode timeout
   handleConfigModeTimeout();
   
-  // Only handle long press detection when NOT in config mode
   if (currentState != STATE_CONFIG_MODE) {
     handleLongPress(tft);
   } else {
-    // Reset touch state when in config mode to avoid conflicts
     touchActive = false;
     longPressDetected = false;
   }
   
-  // Use built-in calibrated TFT_eSPI touch function
-  // Use built-in calibrated TFT_eSPI touch function
   if (tft.getTouch(&x, &y)) {
 
     // === GHOST TOUCH PROTECTION ===
     extern MotionSensorManager& getMotionSensorManager();
     if (getMotionSensorManager().isGhostTouchProtectionActive()) {
         Serial.println("👻 Ghost Touch Detected & Ignored (Voltage spike)");
-        return; // IGNORUJ TEN DOTYK!
+        return; 
     }
     
-    // Dopóki dotykasz ekranu, resetuj timer zmiany slajdów!
     extern ScreenManager& getScreenManager();
     getScreenManager().resetScreenTimer();
-
   
-    // Ręcznie zresetuj 10-sekundowy timer bezczynności,
-    // ponieważ właśnie wykryliśmy PRAWDZIWĄ aktywność (dotyk).
-    extern MotionSensorManager& getMotionSensorManager();
-    getMotionSensorManager().handleMotionInterrupt(); // Ta funkcja resetuje timer
-  
+    getMotionSensorManager().handleMotionInterrupt(); 
 
     Serial.printf("Calibrated Touch: X=%d, Y=%d\n", x, y);
     handleTouchInput((int16_t)x, (int16_t)y);
-    delay(150); // Debounce
+    delay(150); 
   }
 }
 
 bool checkWiFiLongPress(TFT_eSPI& tft) {
-  // Check for long press to enter WiFi config
   handleLongPress(tft);
   
   if (longPressDetected) {
@@ -265,9 +229,6 @@ void enterWiFiConfigMode(TFT_eSPI& tft) {
 }
 
 bool isWiFiConfigActive() {
-  // Treat only real UI/config screens as "active".
-  // STATE_CONNECTING is a background state and must not block normal station screens,
-  // otherwise booting offline (or a transient connect attempt) can leave a black screen.
   return (currentState == STATE_CONFIG_MODE ||
           currentState == STATE_SCAN_NETWORKS ||
           currentState == STATE_ENTER_PASSWORD ||
@@ -277,24 +238,25 @@ bool isWiFiConfigActive() {
 
 void exitWiFiConfigMode() {
   currentState = STATE_CONNECTED;
-  
-  // Execute deferred location save 
 }
  
 void scanNetworks() {
   drawStatusMessage(tft, "Szukam sieci...");
   
-  // === POPRAWKA OCHRONNA (Anty-Watchdog/Anty-Crash) ===
+  // === BLOKADA PIR I POPRAWKA OCHRONNA (Anty-Watchdog) ===
+  isImageDownloadInProgress = true; // Zabezpieczamy PIR przed skokiem napięcia
   WiFi.disconnect(true, true); 
   delay(200);
-  yield(); // <--- KARMIMY PSA PRZED TRYBEM STA
+  yield(); 
   WiFi.mode(WIFI_STA);
   delay(200);
-  yield(); // <--- KARMIMY PSA PRZED SKANOWANIEM
+  yield(); 
   // ====================================================
 
   networkCount = WiFi.scanNetworks();
   Serial.printf("Found %d networks\n", networkCount);
+  
+  isImageDownloadInProgress = false; // Zdejmujemy tarczę z PIR po skanowaniu
   
   if (networkCount == 0) {
     drawStatusMessage(tft, "No networks found");
@@ -302,7 +264,6 @@ void scanNetworks() {
     return;
   }
   
-  // Store network info
   for (int i = 0; i < networkCount && i < 20; i++) {
     networkNames[i] = WiFi.SSID(i);
     networkRSSI[i] = WiFi.RSSI(i);
@@ -311,255 +272,36 @@ void scanNetworks() {
   }
 }
 
-#if 0 // moved to wifi_touch_interface_ui.cpp
-void drawNetworkList(TFT_eSPI& tft) {
-  // 1. Wyczyść ekran
-  tft.fillScreen(BLACK);
-  
-
-  tft.setTextDatum(TL_DATUM);     // Wyrównanie: Lewy-Górny Róg (Kluczowe!)
-  tft.setTextColor(WHITE, BLACK); // Biały tekst na czarnym tle
-  tft.setTextSize(1);             // Rozmiar standardowy
-  tft.setFreeFont(NULL);          // Reset czcionki do domyślnej
-  // =====================================================================
-
-  tft.setCursor(10, 10);
-  tft.println("Wybierz siec WiFi:");
-  
-  int yPos = 30;
-  int maxNetworks = min(networkCount, 7);
-  
-  for (int i = 0; i < maxNetworks; i++) {
-    // Podświetlenie wybranej
-    if (i == selectedNetworkIndex) {
-      tft.fillRect(0, yPos - 2, 240, 30, BLUE);
-    }
-    
-    tft.setTextColor(WHITE);
-    // Ustawienie kursora jest ważne przy TL_DATUM
-    tft.setCursor(10, yPos + 5);
-    
-    // Kłódka
-    if (networkSecure[i]) {
-      tft.print("[*] ");
-    } else {
-      tft.print("[ ] ");
-    }
-    
-    // Nazwa sieci
-    String displayName = networkNames[i];
-    if (displayName.length() > 25) {
-      displayName = displayName.substring(0, 25) + "...";
-    }
-    tft.print(displayName);
-    
-    // Sygnał (wyrównanie ręczne kursorem)
-    tft.setCursor(200, yPos + 5);
-    tft.print(networkRSSI[i]);
-    
-    yPos += 30;
-  }
-  
-  // === PRAWA KOLUMNA PRZYCISKÓW ===
-  
-  // 1. Przycisk OFFLINE (Y=80)
-  tft.fillRect(240, 80, 75, 30, ORANGE);
-  tft.setTextColor(BLACK); // Czarny tekst na pomarańczowym
-  
-  // Dla przycisków używamy MC_DATUM (środek), ale potem musimy wrócić do TL_DATUM!
-  tft.setTextDatum(MC_DATUM); 
-  tft.drawString("OFFLINE", 240 + 75/2, 80 + 30/2);
-
-  // 2. Przycisk ODSWIEZ (Y=120)
-  tft.fillRect(240, 120, 75, 30, BLUE); 
-  tft.setTextColor(WHITE);
-  tft.drawString("ODSWIEZ", 240 + 75/2, 120 + 30/2);
-  
-  // === WAŻNE: Przywróć ustawienia domyślne na koniec ===
-  tft.setTextDatum(TL_DATUM); 
-}
-
-void drawPasswordScreen() {
-  tft.fillScreen(BLACK);
-  tft.setTextColor(WHITE);
-  tft.setTextSize(1);
-  tft.setCursor(10, 10);
-  tft.println("Wpisz haslo dla:");
-  tft.setCursor(10, 25);
-  tft.println(networkNames[selectedNetworkIndex]);
-  
-  // Password field - RESTORED ORIGINAL
-  tft.drawRect(10, 50, 220, 25, WHITE);
-  tft.fillRect(11, 51, 218, 23, BLACK);
-  tft.setCursor(15, 58);
-  
-  // Show password with asterisks OR plain text based on toggle
-  String displayPassword = "";
-  if (showPassword) {
-    displayPassword = enteredPassword; // Show actual password
-  } else {
-    for (int i = 0; i < enteredPassword.length(); i++) {
-      displayPassword += "*"; // Show asterisks
-    }
-  }
-  tft.print(displayPassword);
-  
-  // Show/Hide password toggle button
-  tft.fillRect(240, 50, 75, 25, showPassword ? GREEN : GRAY);
-  tft.setTextColor(WHITE);
-  tft.setTextSize(1);
-  tft.setCursor(250, 58);
-  if (showPassword) {
-    tft.print("UKRYJ");
-  } else {
-    tft.print("POKAZ");
-  }
-  
-  drawKeyboard();
-}
-
-void drawKeyboard() {
-  String keys[4][12];
-  
-  if (specialMode) {
-    // Special characters layout
-    String specialKeys[4][12] = {
-      {"!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+"},
-      {"{", "}", "|", "\\", ":", "\"", "<", ">", "?", "~", "`", "="},
-      {"[", "]", ";", "'", ",", ".", "/", "-", "€", "£", "¥", "§"},
-      {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "±", "×"}
-    };
-    for (int i = 0; i < 4; i++) {
-      for (int j = 0; j < 12; j++) {
-        keys[i][j] = specialKeys[i][j];
-      }
-    }
-  } else {
-    // QWERTY keyboard layout
-    String normalKeys[4][12] = {
-      {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "@", "#"},
-      {"q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "!", "?"},
-      {"a", "s", "d", "f", "g", "h", "j", "k", "l", ".", "_", "-"},
-      {"z", "x", "c", "v", "b", "n", "m", ",", ";", ":", "&", "*"}
-    };
-    for (int i = 0; i < 4; i++) {
-      for (int j = 0; j < 12; j++) {
-        keys[i][j] = normalKeys[i][j];
-      }
-    }
-  }
-  
-  int keyWidth = 25;  // Wider keys
-  int keyHeight = 28; // Shorter to fit more
-  int startY = 85;
-  
-  for (int row = 0; row < 4; row++) {
-    for (int col = 0; col < 12; col++) {
-      if (keys[row][col] != "") {
-        int x = col * (keyWidth + 1) + 2;  // Tighter spacing
-        int y = row * (keyHeight + 1) + startY;
-        
-        // Draw key background
-        tft.fillRect(x, y, keyWidth, keyHeight, DARKGRAY);
-        tft.drawRect(x, y, keyWidth, keyHeight, WHITE);
-        
-        // Key label
-        String keyLabel = keys[row][col];
-        if (!specialMode && capsLock && keyLabel.length() == 1 && keyLabel[0] >= 'a' && keyLabel[0] <= 'z') {
-          keyLabel.toUpperCase();
-        }
-        
-        tft.setTextColor(WHITE);
-        tft.setTextSize(1);
-        tft.setCursor(x + 8, y + 12);
-        tft.print(keyLabel);
-      }
-    }
-  }
-  
-  // Special keys row
-  int specialY = startY + 4 * (keyHeight + 1);
-  
-  // Caps Lock / Special button
-  if (specialMode) {
-    tft.fillRect(2, specialY, 35, keyHeight, MAGENTA);
-    tft.drawRect(2, specialY, 35, keyHeight, WHITE);
-    tft.setTextColor(WHITE);
-    tft.setCursor(8, specialY + 10);
-    tft.print("ABC");
-  } else {
-    tft.fillRect(2, specialY, 35, keyHeight, capsLock ? BLUE : DARKGRAY);
-    tft.drawRect(2, specialY, 35, keyHeight, WHITE);
-    tft.setTextColor(WHITE);
-    tft.setCursor(10, specialY + 10);
-    tft.print("CAPS");
-  }
-  
-  // Special characters button
-  tft.fillRect(40, specialY, 35, keyHeight, specialMode ? CYAN : DARKGRAY);
-  tft.drawRect(40, specialY, 35, keyHeight, WHITE);
-  tft.setTextColor(WHITE);
-  tft.setCursor(48, specialY + 10);
-  tft.print("!@#");
-  
-  // Space bar
-  tft.fillRect(80, specialY, 60, keyHeight, DARKGRAY);
-  tft.drawRect(80, specialY, 60, keyHeight, WHITE);
-  tft.setCursor(100, specialY + 10);
-  tft.print("SPACE");
-  
-  // Delete
-  tft.fillRect(145, specialY, 35, keyHeight, DARKGRAY);
-  tft.drawRect(145, specialY, 35, keyHeight, WHITE);
-  tft.setCursor(155, specialY + 10);
-  tft.print("DEL");
-  
-  // Connect button - RESTORED WORKING COORDINATES
-  tft.fillRect(185, specialY, 50, keyHeight, GREEN);
-  tft.drawRect(185, specialY, 50, keyHeight, WHITE);
-  tft.setCursor(195, specialY + 10);
-  tft.print("CONN");
-  
-  // Back button - RESTORED WORKING COORDINATES  
-  tft.fillRect(240, specialY, 75, keyHeight, RED);
-  tft.drawRect(240, specialY, 75, keyHeight, WHITE);
-  tft.setTextColor(WHITE);
-  tft.setCursor(255, specialY + 10);
-  tft.print("COFNIJ");
-}
-
-#endif
-
 void connectToWiFi() {
   drawStatusMessage(tft, "Laczenie z " + currentSSID + "...");
   Serial.println("Connecting to: " + currentSSID);
   
+  isImageDownloadInProgress = true; // Blokada PIR
   currentPassword = enteredPassword;
   WiFi.begin(currentSSID.c_str(), currentPassword.c_str());
   
   int timeout = 0;
   while (WiFi.status() != WL_CONNECTED && timeout < 30) {
     delay(500);
-    yield(); // <--- KLUCZOWE: Karmienie Watchdoga
+    yield(); // Ochrona Watchdoga
     Serial.print(".");
     timeout++;
     drawStatusMessage(tft, "Laczenie... " + String(timeout) + "/30");
   }
   
+  isImageDownloadInProgress = false; // Odblokowanie PIR
+  
   if (WiFi.status() == WL_CONNECTED) {
-    // Save successful credentials
     ensureWiFiPrefs();
     preferences.putString("ssid", currentSSID);
     preferences.putString("password", currentPassword);
 
-    // If we managed to connect, we are no longer in offline mode
     if (isOfflineMode) {
       isOfflineMode = false;
       saveOfflineModePref(false);
       Serial.println("[WiFi] connected -> leaving OFFLINE mode");
     }
     
-    // RESET screen rotation timer for full 60s cycle before sleep
     extern ScreenManager& getScreenManager();
     getScreenManager().resetScreenTimer();
     
@@ -569,7 +311,6 @@ void connectToWiFi() {
     drawConnectedScreen(tft);
     Serial.println("\nConnected successfully! Screen timer reset for 60s cycle.");
 
-    // Show CONNECTED screen briefly, then return to normal station screens
     delay(1000);
     tft.fillScreen(COLOR_BACKGROUND);
     extern void forceScreenRefresh(TFT_eSPI& tft);
@@ -591,18 +332,13 @@ void connectToWiFi() {
   }
 }
 
-// Upewnij się, że masz dostęp do forceScreenRefresh
 extern void forceScreenRefresh(TFT_eSPI& tft);
 
 void handleLongPress(TFT_eSPI& tft) {
-  // === BLOKADA BEZPIECZEŃSTWA  ===
-  // Jeśli NIE jesteśmy na ekranie głównym (czyli np. wpisujemy hasło, skanujemy sieci),
-  // to natychmiast przerywamy działanie tej funkcji.
   if (currentState != STATE_CONNECTED) {
-      touchActive = false; // Resetujemy flagę dotyku dla bezpieczeństwa
+      touchActive = false; 
       return; 
   }
-  // ========================================================
 
   uint16_t x, y;
   bool currentTouch = tft.getTouch(&x, &y);
@@ -612,18 +348,16 @@ void handleLongPress(TFT_eSPI& tft) {
   static unsigned long lastLostLogMs = 0;
 #endif
 
-  // Tolerate brief touch dropouts from the resistive touch controller
   static unsigned long lastTouchSeenMs = 0;
   const unsigned long TOUCH_GLITCH_TOLERANCE_MS = 120;
   const unsigned long TAP_REFRESH_MAX_MS = 700;
   
-  // 1. Jeśli trzymasz palec, resetujemy timer wygaszania
   if (currentTouch) {
     lastTouchSeenMs = millis();
     extern ScreenManager& getScreenManager();
     getScreenManager().resetScreenTimer();
   }
-  // 2. POCZĄTEK DOTYKU
+  
   if (currentTouch && !touchActive) {
     touchStartTime = millis();
     touchActive = true;
@@ -633,10 +367,7 @@ void handleLongPress(TFT_eSPI& tft) {
     lastProgressLogMs = 0;
 #endif
   }
-  
-  // 3. KONIEC DOTYKU (PUSZCZENIE PALCA) lub chwilowa utrata dotyku
   else if (!currentTouch && touchActive) {
-    // brief glitches from getTouch() should not cancel long-press
     if ((millis() - lastTouchSeenMs) < TOUCH_GLITCH_TOLERANCE_MS) {
       return;
     }
@@ -644,7 +375,6 @@ void handleLongPress(TFT_eSPI& tft) {
     unsigned long elapsed = millis() - touchStartTime;
 
 #if DEBUG_LONG_PRESS
-    // If this happens before the threshold, long-press can be cancelled by a brief false from getTouch().
     unsigned long now = millis();
     if (elapsed < WIFI_LONG_PRESS_TIME && (now - lastLostLogMs) > 150) {
       lastLostLogMs = now;
@@ -652,26 +382,16 @@ void handleLongPress(TFT_eSPI& tft) {
     }
 #endif
     
-    // Odśwież ekran TYLKO jeśli był to krótki dotyk (pasek się pojawił)
-    // ORAZ (to zapewnia blokada na górze) jesteśmy w STATE_CONNECTED
     if (elapsed >= 200 && elapsed < WIFI_LONG_PRESS_TIME) {
-      // Only treat as a "tap" if it was short. If user was attempting long-press,
-      // avoid heavy refresh that can worsen touch stability.
       if (elapsed <= TAP_REFRESH_MAX_MS) {
         Serial.println("Touch released on Main Screen - Refreshing...");
         forceScreenRefresh(tft);
-      } else {
-#if DEBUG_LONG_PRESS
-        Serial.printf("[LP] skip forceScreenRefresh (elapsed=%lu ms)\n", elapsed);
-#endif
       }
     }
     
     touchActive = false;
     longPressDetected = false;
   }
-  
-  // 4. TRZYMANIE PALCA (Rysowanie paska postępu)
   else if (currentTouch && touchActive && !longPressDetected) {
     
     if (millis() - touchStartTime >= WIFI_LONG_PRESS_TIME) { 
@@ -680,14 +400,11 @@ void handleLongPress(TFT_eSPI& tft) {
       Serial.printf("[LP] TRIGGER elapsed=%lu ms state=%d\n", millis() - touchStartTime, currentState);
 #endif
       Serial.println("LONG PRESS - Config Mode!");
-      // Tutaj nic nie robimy, main.cpp przejmie sterowanie
     }
     else {
       unsigned long elapsed = millis() - touchStartTime;
       
-      // Rysuj pasek po 200ms
       if (elapsed >= 200 && elapsed < WIFI_LONG_PRESS_TIME) {
-        
         int progress = map(elapsed, 200, WIFI_LONG_PRESS_TIME, 0, 100);
         if (progress < 0) progress = 0;
         if (progress > 100) progress = 100;
@@ -699,7 +416,6 @@ void handleLongPress(TFT_eSPI& tft) {
         }
 #endif
         
-        // Rysujemy pasek
         tft.fillRect(10, 10, 300, 20, BLACK);
         tft.drawRect(10, 10, 300, 20, WHITE);
         
@@ -720,20 +436,16 @@ void handleConfigModeTimeout() {
   if (currentState == STATE_CONFIG_MODE) {
     unsigned long elapsed = millis() - configModeStartTime;
 
-    if (elapsed >= WIFI_CONFIG_MODE_TIMEOUT) { // 120 seconds = 2 minutes
+    if (elapsed >= WIFI_CONFIG_MODE_TIMEOUT) { 
       Serial.println("Config mode timeout - returning to normal operation");
       currentState = STATE_CONNECTED;
-
-      // Clear screen and let main.cpp take over
       tft.fillScreen(COLOR_BACKGROUND);
     } else {
-      // Update countdown display
       static unsigned long lastUpdate = 0;
-      if (millis() - lastUpdate > 1000) { // Update every second
+      if (millis() - lastUpdate > 1000) { 
         lastUpdate = millis();
         int remaining = (WIFI_CONFIG_MODE_TIMEOUT - elapsed) / 1000;
 
-        // Keep countdown inside WYJSCIE button to avoid a second "button-like" element.
         tft.fillRect(240, 222, 72, 12, DARKGRAY);
         tft.setTextColor(YELLOW, DARKGRAY);
         tft.setTextSize(1);
@@ -746,163 +458,74 @@ void handleConfigModeTimeout() {
 
 void enterConfigMode() {
   Serial.println("Entering CONFIG MODE for 120 seconds");
-  
   currentState = STATE_CONFIG_MODE;
   configModeStartTime = millis();
-  
-  // Disconnect from current WiFi
   WiFi.disconnect();
-  
-  // Scan networks
   scanNetworks();
   drawConfigModeScreen();
 }
 
-#if 0 // moved to wifi_touch_interface_ui.cpp
-void drawConfigModeScreen() {
-  tft.fillScreen(BLACK);
-  tft.setTextColor(CYAN);
-  tft.setTextSize(2);
-  tft.setCursor(10, 5);
-  tft.println("TRYB KONFIGURACJI");
-  
-  // Rysowanie listy sieci (skrócona lista, bo doszedł przycisk)
-  int yPos = 35;
-  int maxNetworks = min(networkCount, 5); // Zmniejszamy do 5, żeby nie zasłaniać przycisków
-  
-  for (int i = 0; i < maxNetworks; i++) {
-    tft.setTextColor(WHITE);
-    tft.setCursor(10, yPos + 5);
-    
-    // Kłódka
-    if (networkSecure[i]) tft.print("[*] ");
-    else tft.print("[ ] ");
-    
-    // Nazwa
-    String displayName = networkNames[i];
-    if (displayName.length() > 25) displayName = displayName.substring(0, 25) + "...";
-    tft.print(displayName);
-    
-    // Sygnał
-    tft.setCursor(270, yPos + 5);
-    tft.print(networkRSSI[i]);
-    
-    yPos += 25;
-  }
-  
-  // RYSOWANIE DOLNYCH PRZYCISKÓW
-  int btnY = 190;
-  int btnH = 45;
-  int btnW = 75;
-  int gap = 3;
-  
-  tft.setTextSize(1);
-  tft.setTextDatum(MC_DATUM);
-  
-  // 1. REFRESH
-  tft.fillRect(2, btnY, btnW, btnH, BLUE);
-  tft.setTextColor(WHITE);
-  tft.drawString("ODSWIEZ", 2 + btnW/2, btnY + btnH/2);
-  
-  // 2. LOCATION
-  tft.fillRect(2 + btnW + gap, btnY, btnW, btnH, MAGENTA);
-  tft.setTextColor(WHITE);
-  tft.drawString("MIASTO", 2 + btnW + gap + btnW/2, btnY + btnH/2);
-  
-  // 3. OFFLINE / ONLINE (PRZEŁĄCZNIK)
-  extern bool isOfflineMode; // Pobierz flagę globalną
-  
-  if (isOfflineMode) {
-      // Jeśli jesteśmy Offline -> Pokaż przycisk "ONLINE" (Zielony)
-      tft.fillRect(2 + 2*(btnW + gap), btnY, btnW, btnH, GREEN);
-      tft.setTextColor(BLACK); // Czarny tekst dla kontrastu
-      tft.drawString("ONLINE", 2 + 2*(btnW + gap) + btnW/2, btnY + btnH/2);
-  } else {
-      // Jeśli jesteśmy Online -> Pokaż przycisk "OFFLINE" (Pomarańczowy)
-      tft.fillRect(2 + 2*(btnW + gap), btnY, btnW, btnH, ORANGE);
-      tft.setTextColor(BLACK);
-      tft.drawString("OFFLINE", 2 + 2*(btnW + gap) + btnW/2, btnY + btnH/2);
-  }
-  
-  // 4. EXIT
-  tft.fillRect(2 + 3*(btnW + gap), btnY, btnW, btnH, DARKGRAY);
-  tft.setTextColor(WHITE);
-  tft.drawString("WYJSCIE", 2 + 3*(btnW + gap) + btnW/2, btnY + btnH/2);
-  
-  tft.setTextDatum(TL_DATUM); // Reset ustawień
-}
-
-#endif
-
-// Function to check if WiFi is lost (for main.cpp screen rotation pause)
 bool isWiFiLost() {
   return wifiLostDetected || (currentState == STATE_SCAN_NETWORKS && backgroundReconnectActive);
 }
 
 void handleBackgroundReconnect() {
-  // Wyjdź, jeśli nie powinniśmy teraz nic robić
   if (!backgroundReconnectActive || currentState != STATE_SCAN_NETWORKS) {
     return;
   }
 
-  // --- CZĘŚĆ 1: Sprawdź, czy próba połączenia jest W TRAKCIE ---
   if (reconnectAttemptInProgress) {
-    
-    // 1.1: Sprawdź, czy się udało
     if (WiFi.status() == WL_CONNECTED) {
       Serial.println("Background reconnect SUCCESS! Exiting scan mode.");
+      
+      isImageDownloadInProgress = false; // Zdejmujemy tarczę PIR
+      
       backgroundReconnectActive = false;
       reconnectAttemptInProgress = false;
       currentState = STATE_CONNECTED;
       wifiLostDetected = false;
       wifiLostTime = 0;
       
-      // RESETUJ timer ekranu po udanym połączeniu
       extern ScreenManager& getScreenManager();
       getScreenManager().resetScreenTimer();
       
       onWiFiConnectedTasks();
       
-      // Nie rysuj connected screen - pozwól normalnym ekranom
       Serial.println("Reconnected! Resuming normal operation.");
       return;
     }
     
-    // 1.2: Sprawdź, czy próba nie trwa zbyt długo (10 sekund timeout)
     if (millis() - reconnectStartTime > WIFI_CONNECTION_TIMEOUT) { 
       Serial.println("Background reconnect attempt timed out, will retry in 19s...");
-      reconnectAttemptInProgress = false; // Zezwól na nową próbę
-      lastReconnectAttempt = millis(); // Ustaw timer na NASTĘPNĄ próbę za 19s
-      WiFi.disconnect(); // Jawnie zatrzymaj nieudaną próbę
+      
+      isImageDownloadInProgress = false; // Zdejmujemy tarczę PIR po nieudanej próbie
+      
+      reconnectAttemptInProgress = false; 
+      lastReconnectAttempt = millis(); 
+      WiFi.disconnect(); 
     }
     
-    // Jeśli próba nadal trwa, po prostu wyjdź i pozwól pętli działać
     return;
   }
 
-  
-  // === SPRAWDŹ CZY NIE TRWA POBIERANIE OBRAZKA ===
-  extern bool isImageDownloadInProgress;
   if (isImageDownloadInProgress) {
     Serial.println("⏸️ WiFi auto-reconnect SKIPPED - image download in progress");
-    return; // Pomiń auto-reconnect podczas pobierania
+    return; 
   }
   
   if (millis() - lastReconnectAttempt >= WIFI_RECONNECT_INTERVAL) {
-    
     String savedSSID = preferences.getString("ssid", "");
     String savedPassword = preferences.getString("password", "");
     
     if (savedSSID.length() > 0) {
       Serial.printf("Background auto-reconnect to: %s (scan mode)\n", savedSSID.c_str());
       
-      reconnectAttemptInProgress = true; // Ustaw flagę "próbuję"
-      reconnectStartTime = millis();     // Uruchom stoper dla timeoutu
+      isImageDownloadInProgress = true; // ZABEZPIECZAMY PIR NA CZAS PRACY MODEMU WIFI!
+      reconnectAttemptInProgress = true; 
+      reconnectStartTime = millis();     
       
-      // Ta funkcja jest nieblokująca!
       WiFi.begin(savedSSID.c_str(), savedPassword.c_str()); 
       
-      // Żółty pasek na samym dole ekranu - FIXED for landscape 320x240
       tft.fillRect(10, 210, 300, 25, YELLOW);
       tft.setTextColor(BLACK);
       tft.setTextSize(1);
@@ -915,20 +538,18 @@ void handleBackgroundReconnect() {
     }
   }
 
-  // Aktualizuj licznik (tylko jeśli NIE próbujemy się teraz łączyć) ---
   if (!reconnectAttemptInProgress) {
     static unsigned long lastUpdateTime = 0;
-    if (millis() - lastUpdateTime > WIFI_UI_UPDATE_INTERVAL) { // Aktualizuj co 5 sekund
+    if (millis() - lastUpdateTime > WIFI_UI_UPDATE_INTERVAL) { 
       lastUpdateTime = millis();
       unsigned long elapsed = millis() - lastReconnectAttempt;
       int nextAttempt = (WIFI_RECONNECT_INTERVAL - elapsed) / 1000;
       
       if (nextAttempt > 0 && nextAttempt <= 19) {
-      
-        tft.fillRect(240, 155, 75, 30, BLUE); 
+        tft.fillRect(240, 193, 75, 15, BLUE); 
         tft.setTextColor(WHITE);
         tft.setTextSize(1);
-        tft.setCursor(250, 165); // Wyśrodkuj tekst
+        tft.setCursor(248, 197); 
         tft.printf("Next: %ds", nextAttempt);
       }
     }
@@ -940,7 +561,6 @@ bool wifiTouch_isConnected() {
 }
 
 void checkWiFiConnection() {
-  // Check WiFi status every 2 seconds
   if (millis() - lastWiFiCheck > WIFI_STATUS_CHECK_INTERVAL) {
     lastWiFiCheck = millis();
     
@@ -948,7 +568,6 @@ void checkWiFiConnection() {
     
     if (currentState == STATE_CONNECTED) {
       if (!isConnected && wifiWasConnected) {
-        // WiFi just lost
         if (!wifiLostDetected) {
           wifiLostDetected = true;
           wifiLostTime = millis();
@@ -959,7 +578,6 @@ void checkWiFiConnection() {
           }
         }
       } else if (isConnected && wifiLostDetected) {
-        // WiFi reconnected
         wifiLostDetected = false;
         Serial.println("WiFi RECONNECTED! Canceling auto-reconnect.");
         if (!touchActive) {
@@ -969,94 +587,80 @@ void checkWiFiConnection() {
     }
     
     wifiWasConnected = isConnected;
-    
-    // Debug WiFi status
-    // if (currentState == STATE_CONNECTED) {
-    //   Serial.printf("WiFi status: %s, RSSI: %d dBm\n", 
-    //                 isConnected ? "CONNECTED" : "DISCONNECTED", 
-    //                 isConnected ? WiFi.RSSI() : 0);
-    // }
   }
 }
 
 void handleWiFiLoss() {
-  
   if (!wifiLostDetected || currentState != STATE_CONNECTED) {
     return;
   }
 
   unsigned long elapsed = millis() - wifiLostTime;
 
-  // Sprawdź, czy próba połączenia jest W TRAKCIE ---
   if (reconnectAttemptInProgress) {
-    
-    // 1.1: Sprawdź, czy się udało
     if (WiFi.status() == WL_CONNECTED) {
       Serial.println("Auto-reconnect SUCCESS!");
+      
+      isImageDownloadInProgress = false; // Zdejmujemy tarczę PIR
+      
       wifiLostDetected = false;
       reconnectAttemptInProgress = false;
-      drawConnectedScreen(tft); // Narysuj ekran "CONNECTED" bez banera "LOST"
+      drawConnectedScreen(tft); 
       
-      // RESETUJ timer ekranu po udanym połączeniu
       extern ScreenManager& getScreenManager();
       getScreenManager().resetScreenTimer();
       return;
     }
     
-    // 1.2: Sprawdź, czy próba nie trwa zbyt długo (10 sekund timeout)
     if (millis() - reconnectStartTime > WIFI_CONNECTION_TIMEOUT) { 
       Serial.println("Auto-reconnect attempt timed out, will retry in 19s...");
-      reconnectAttemptInProgress = false; // Zezwól na nową próbę
-      lastReconnectAttempt = millis();    // Ustaw timer na NASTĘPNĄ próbę za 19s
-      WiFi.disconnect();                  // Jawnie zatrzymaj nieudaną próbę
+      
+      isImageDownloadInProgress = false; // Zdejmujemy tarczę PIR
+      
+      reconnectAttemptInProgress = false; 
+      lastReconnectAttempt = millis();    
+      WiFi.disconnect();                  
     }
-    
-    // Jeśli próba nadal trwa (i nie ma timeoutu), po prostu wyjdź i pozwól pętli działać
     return;
   }
 
-  // Sprawdź, czy czas rozpocząć NOWĄ próbę (co 19s) ---
-  // (Tylko jeśli nie minęło jeszcze 60 sekund)
-  // === SPRAWDŹ CZY NIE TRWA POBIERANIE OBRAZKA ===
-  extern bool isImageDownloadInProgress;
   if (isImageDownloadInProgress) {
     Serial.println("⏸️ WiFi loss reconnect SKIPPED - image download in progress");
-    return; // Pomiń reconnect podczas pobierania
+    return; 
   }
   
   if (elapsed < WIFI_LOSS_TIMEOUT && millis() - lastReconnectAttempt >= WIFI_RECONNECT_INTERVAL) {
-    
     String savedSSID = preferences.getString("ssid", "");
     String savedPassword = preferences.getString("password", "");
     
     if (savedSSID.length() > 0) {
       Serial.printf("Auto-reconnect attempt to: %s (grace period)\n", savedSSID.c_str());
       
-      reconnectAttemptInProgress = true; // Ustaw flagę "próbuję"
-      reconnectStartTime = millis();     // Uruchom stoper dla timeoutu
+      isImageDownloadInProgress = true;  // ZABEZPIECZAMY PIR
+      reconnectAttemptInProgress = true; 
+      reconnectStartTime = millis();     
       
-      // Ta funkcja jest nieblokująca!
       WiFi.begin(savedSSID.c_str(), savedPassword.c_str()); 
-      
     } else {
       Serial.println("No saved WiFi credentials, resetting timer");
       lastReconnectAttempt = millis();
     }
   }
 
-  // --- CZĘŚĆ 3: Sprawdź, czy minął 60-sekundowy "okres łaski" ---
   if (elapsed >= WIFI_LOSS_TIMEOUT) {
     Serial.printf("%d seconds elapsed. Grace period over. Starting network scan...\n", WIFI_LOSS_TIMEOUT/1000);
 
-    // Zanim przejdziemy dalej, sprawdź ostatni raz, czy próba w toku się nie powiodła
     if (reconnectAttemptInProgress) {
        unsigned long finalWaitStart = millis();
        while(millis() - finalWaitStart < 3000 && WiFi.status() != WL_CONNECTED) { 
-         delay(100); // Małe blokujące opóźnienie jest OK *tylko* w momencie przejścia
+         delay(100); 
        }
        
        if (WiFi.status() == WL_CONNECTED) {
           Serial.println("FINAL auto-reconnect SUCCESS!");
+          
+          isImageDownloadInProgress = false; // Sukces, zdejmujemy tarczę
+          
           wifiLostDetected = false;
           reconnectAttemptInProgress = false;
           drawConnectedScreen(tft);
@@ -1064,28 +668,27 @@ void handleWiFiLoss() {
        }
     }
     
-    // OSTATECZNA PORAŻKA: Przejdź do trybu skanowania
+    isImageDownloadInProgress = false; // Upewniamy się, że zdejmujemy przed skanowaniem (skanowanie założy własną)
+    
     Serial.println("All reconnect attempts failed. Starting network scan...");
     wifiLostDetected = false;
     reconnectAttemptInProgress = false;
-    backgroundReconnectActive = true; // Aktywuj logikę dla ekranu skanowania
-    lastReconnectAttempt = millis();  // Zresetuj timer dla logiki skanowania
+    backgroundReconnectActive = true; 
+    lastReconnectAttempt = millis();  
     currentState = STATE_SCAN_NETWORKS;
     
     WiFi.disconnect();
       
-      scanNetworks();
-      drawNetworkList(tft);
+    scanNetworks();
+    drawNetworkList(tft);
       
-      // Żółty pasek na samym dole ekranu - FIXED for landscape 320x240
-      tft.fillRect(10, 210, 300, 25, YELLOW);
-      tft.setTextColor(BLACK);
-      tft.setTextSize(1);
-      tft.setCursor(15, 220);
-      tft.println("Brak WiFi - Polacz co 19s lub wybierz siec");
+    tft.fillRect(10, 210, 300, 25, YELLOW);
+    tft.setTextColor(BLACK);
+    tft.setTextSize(1);
+    tft.setCursor(15, 220);
+    tft.println("Brak WiFi - Polacz co 19s lub wybierz siec");
       
   } else {
-    // --- CZĘŚĆ 4: Aktualizuj licznik na ekranie "CONNECTED" ---
     static unsigned long lastCountdownUpdate = 0;
     if (millis() - lastCountdownUpdate > 1000) {
       lastCountdownUpdate = millis();
@@ -1096,819 +699,19 @@ void handleWiFiLoss() {
   }
 }
 
-#if 0 // moved to wifi_touch_interface_ui.cpp
-void handleTouchInput(int16_t x, int16_t y) {
-  Serial.printf("HandleTouch: State=%d, X=%d, Y=%d\n", currentState, x, y);
-  
-if (currentState == STATE_SCAN_NETWORKS) {
-    // Visual feedback
-    tft.fillCircle(x, y, 5, YELLOW);
-    delay(100);
-
-    // === 1. NAJPIERW SPRAWDZAMY PRZYCISKI PO PRAWEJ STRONIE ===
-  
-    if (x >= 240 && x <= 315 && y >= 80 && y <= 110) {
-       Serial.println("BTN: OFFLINE MODE (Scan Screen)");
-       
-       // Wizualny efekt kliknięcia
-       tft.fillRect(240, 80, 75, 30, YELLOW);
-       tft.setTextColor(BLACK);
-       tft.setCursor(250, 90);
-       tft.println("OK!");
-       delay(500);
-
-       // Ustawienie flag
-       extern bool isOfflineMode;
-       isOfflineMode = true;
-       
-       WiFi.disconnect(true);
-       WiFi.mode(WIFI_OFF);
-       
-       // Przełączenie stanu maszyny stanów
-       currentState = STATE_CONNECTED;
-       tft.fillScreen(BLACK); 
-       
-       extern bool wifiLostDetected;
-       wifiLostDetected = false;
-       
-      
-       // Bez tego ekran byłby czarny przez kilka sekund (do timeoutu timera)
-       extern ScreenManager& getScreenManager();
-       extern void forceScreenRefresh(TFT_eSPI& tft);
-
-       clearAndShowMessage(tft, "Podlacz jednorazowo WiFi do synchro. czasu");
-       delay(2000);
-     
-
-       getScreenManager().setCurrentScreen(SCREEN_LOCAL_SENSORS); // Ustaw start na sensory
-       getScreenManager().resetScreenTimer();
-       forceScreenRefresh(tft); 
-       // ====================================================
-
-       return; 
-    }
-    
-    // PRZYCISK: ODSWIEZ (Y: 120-150)
-    else if (x >= 240 && x <= 315 && y >= 120 && y <= 150) {
-      Serial.println("REFRESH BUTTON PRESSED");
-      
-      tft.fillRect(240, 120, 75, 30, GREEN);
-      tft.setTextColor(WHITE);
-      tft.setTextSize(1);
-      tft.setCursor(250, 130);
-      tft.println("SCANNING");
-      delay(500);
-      
-      selectedNetworkIndex = -1;
-      scanNetworks();
-      
-      if (networkCount > 0) {
-        drawNetworkList(tft);
-      } else {
-        drawStatusMessage(tft, "Brak sieci - Sprobuj ponownie");
-        delay(2000);
-        scanNetworks();
-        drawNetworkList(tft);
-      }
-      return; 
-    }
-
-    // === 2. LISTA SIECI (LEWA STRONA) ===
-    // Warunek x < 240 GWARANTUJE, że nie klikniemy sieci klikając przyciski
-    else if (x < 240 && y >= 25 && y <= 240) {  
-      int selectedIndex = (y - 30) / 30;
-      
-      if (selectedIndex >= 0 && selectedIndex < min(networkCount, 7)) {
-        selectedNetworkIndex = selectedIndex;
-        currentSSID = networkNames[selectedIndex];
-        Serial.printf("NETWORK SELECTED: %s (index %d)\n", currentSSID.c_str(), selectedIndex);
-        
-        // Feedback
-        tft.fillRect(0, 30 + selectedIndex * 30 - 2, 240, 30, GREEN);
-        delay(300);
-        
-        if (networkSecure[selectedIndex]) {
-          currentState = STATE_ENTER_PASSWORD;
-          enteredPassword = "";
-          drawPasswordScreen();
-        } else {
-          connectToWiFi();
-        }
-      }
-    }
-  }
-  
-  else if (currentState == STATE_ENTER_PASSWORD) {
-    handleKeyboardTouch(x, y);
-  }
-  
-  else if (currentState == STATE_CONNECTED) {
-    // Disconnect button - RESTORED ORIGINAL
-    if (y >= 280 && y <= 310) {
-      WiFi.disconnect();
-      currentState = STATE_SCAN_NETWORKS;
-      scanNetworks();
-      drawNetworkList(tft);
-    }
-  }
-  
-  else if (currentState == STATE_FAILED) {
-    // Any touch to retry
-    currentState = STATE_SCAN_NETWORKS;
-    drawNetworkList(tft);
-  }
-  
-  else if (currentState == STATE_SELECT_LOCATION) {
-    handleLocationTouch(x, y, tft);
-  }
-  
-  else if (currentState == STATE_ENTER_COORDINATES) {
-    handleCoordinatesTouch(x, y, tft);
-  }
-  
-  else if (currentState == STATE_CONFIG_MODE) {
-    Serial.printf("CONFIG MODE TOUCH: X=%d, Y=%d\n", x, y);
-    
-    // Lista sieci (Y: 35 - 180)
-    if (y >= 35 && y <= 180) { 
-      int selectedIndex = (y - 35) / 25; 
-      if (selectedIndex >= 0 && selectedIndex < min(networkCount, 5)) {
-        selectedNetworkIndex = selectedIndex;
-        currentSSID = networkNames[selectedIndex];
-        
-        // Feedback
-        tft.fillRect(0, 35 + selectedIndex * 25, 320, 25, GREEN);
-        delay(300);
-        
-        if (networkSecure[selectedIndex]) {
-          currentState = STATE_ENTER_PASSWORD;
-          enteredPassword = "";
-          drawPasswordScreen();
-        } else {
-          connectToWiFi();
-        }
-      }
-    }
-    
-    // === OBSŁUGA DOLNYCH PRZYCISKÓW (Y > 190) ===
-    else if (y >= 190 && y <= 240) {
-        
-        int btnW = 75; // Musi pasować do drawConfigModeScreen
-        int gap = 3;
-        
-        // 1. REFRESH (X: 2 - 77)
-        if (x >= 2 && x <= 2 + btnW) {
-             Serial.println("BTN: REFRESH");
-             tft.fillRect(2, 190, btnW, 45, YELLOW); // Feedback
-             tft.setTextColor(BLACK);
-             tft.setTextDatum(MC_DATUM);
-             tft.drawString("SCAN...", 2 + btnW/2, 190 + 22);
-             tft.setTextDatum(TL_DATUM);
-             delay(300);
-             
-             selectedNetworkIndex = -1;
-             scanNetworks();
-             drawConfigModeScreen();
-        }
-        
-        // 2. LOCATION (X: 80 - 155)
-        else if (x >= 2 + btnW + gap && x <= 2 + 2*btnW + gap) {
-             Serial.println("BTN: LOCATION");
-             tft.fillRect(2 + btnW + gap, 190, btnW, 45, YELLOW);
-             delay(300);
-             enterLocationSelectionMode(tft);
-        }
-        
-        // 3. OFFLINE / ONLINE (X: 158 - 233)
-        else if (x >= 2 + 2*(btnW + gap) && x <= 2 + 3*btnW + 2*gap) {
-             extern bool isOfflineMode;
-             
-             if (isOfflineMode) {
-                 // === AKCJA: WŁĄCZ TRYB ONLINE (Z NAPRAWĄ) ===
-                 Serial.println("BTN: SWITCHING TO ONLINE");
-                 
-                 // 1. Feedback na przycisku
-                 tft.fillRect(2 + 2*(btnW + gap), 190, btnW, 45, GREEN);
-                 tft.setTextColor(BLACK);
-                 tft.setTextDatum(MC_DATUM);
-                 tft.drawString("WIFI ON", 2 + 2*(btnW + gap) + btnW/2, 190 + 22);
-                 delay(200);
-
-                 // 2. Zmieniamy flagę i włączamy radio
-                 isOfflineMode = false;
-                 WiFi.mode(WIFI_STA);
-                 
-                 // 3. Sprawdzamy zapisane dane
-                 String savedSSID = preferences.getString("ssid", "");
-                 String savedPass = preferences.getString("password", "");
-                 
-                 if (savedSSID.length() > 0) {
-                     // === FIX: POKAŻ EKRAN ŁĄCZENIA I CZEKAJ ===
-                     tft.fillScreen(BLACK);
-                     tft.setTextColor(WHITE);
-                     tft.setTextSize(2);
-                     tft.setTextDatum(MC_DATUM);
-                     tft.drawString("Wznawianie WiFi...", tft.width()/2, tft.height()/2 - 20);
-                     tft.setTextSize(1);
-                     tft.drawString(savedSSID, tft.width()/2, tft.height()/2 + 10);
-
-                     WiFi.begin(savedSSID.c_str(), savedPass.c_str());
-                     
-                     // Czekamy aktywnie do 15 sekund (30 prób po 500ms)
-                     int wait = 0;
-                     while (WiFi.status() != WL_CONNECTED && wait < 30) {
-                         delay(500);
-                         Serial.print(".");
-                         wait++;
-                     }
-                     
-                     if (WiFi.status() == WL_CONNECTED) {
-                         // SUKCES!
-                         Serial.println("\nUdalo sie polaczyc!");
-                         onWiFiConnectedTasks(); // Pobierz czas NTP i dane
-                         
-                         currentState = STATE_CONNECTED;
-                         tft.fillScreen(BLACK);
-                         
-                         // Reset błędów
-                         extern bool wifiLostDetected;
-                         wifiLostDetected = false;
-                         
-                         extern ScreenManager& getScreenManager();
-                         getScreenManager().resetScreenTimer();
-                         return; // Wyjdź, jest OK
-                     } else {
-                         // PORAŻKA - Idź do listy sieci
-                         Serial.println("\nBlad polaczenia - skanowanie...");
-                         currentState = STATE_SCAN_NETWORKS;
-                         scanNetworks();
-                         drawNetworkList(tft);
-                         
-                         // Pasek informacyjny
-                         tft.fillRect(10, 210, 300, 25, RED);
-                         tft.setTextColor(WHITE);
-                         tft.setCursor(20, 220);
-                         tft.print("Blad polaczenia - wybierz siec");
-                         return; // Wyjdź, zostań w liście sieci
-                     }
-                 } else {
-                     // Brak zapisanej sieci -> Wymuś skanowanie
-                     Serial.println("Brak zapisanej sieci, skanuje...");
-                     currentState = STATE_SCAN_NETWORKS; // Zmień stan na listę (nie config)
-                     scanNetworks();
-                     drawNetworkList(tft);
-                     return;
-                 }
-
-             } else {
-                 // WŁĄCZ OFFLINE
-                 Serial.println("BTN: SWITCHING TO OFFLINE (Config Mode)");
-                 
-                 tft.fillRect(2 + 2*(btnW + gap), 190, btnW, 45, ORANGE);
-                 tft.setTextColor(BLACK);
-                 tft.setTextDatum(MC_DATUM);
-                 tft.drawString("OFF..", 2 + 2*(btnW + gap) + btnW/2, 190 + 22);
-                 delay(500);
-
-                 extern bool isOfflineMode;
-                 isOfflineMode = true;
-                 WiFi.disconnect(true);
-                 WiFi.mode(WIFI_OFF);
-                 
-                 currentState = STATE_CONNECTED;
-                 tft.fillScreen(BLACK);
-                 
-                 extern bool wifiLostDetected;
-                 wifiLostDetected = false; 
-                 
-                 extern ScreenManager& getScreenManager();
-                 getScreenManager().resetScreenTimer();
-                 
-                 // === TO JEST KLUCZOWA POPRAWKA ===
-                 extern void forceScreenRefresh(TFT_eSPI& tft);
-                 getScreenManager().setCurrentScreen(SCREEN_LOCAL_SENSORS);
-                 forceScreenRefresh(tft); // <--- Rysuj NATYCHMIAST
-                 // =================================
-             }
-        }
-        
-// 4. EXIT (X: 236 - 311)
-        else if (x >= 2 + 3*(btnW + gap)) {
-             Serial.println("BTN: EXIT");
-             // 1. Feedback wizualny
-             tft.fillRect(2 + 3*(btnW + gap), 190, btnW, 45, YELLOW);
-             delay(100);
-
-             // 2. Pobierz zapisane dane logowania
-             String savedSSID = preferences.getString("ssid", "");
-             String savedPass = preferences.getString("password", "");
-
-             // 3. Jeśli mamy dane, próbujemy się połączyć PRZED zmianą stanu
-             if (savedSSID.length() > 0) {
-                 // Pokaż ekran łączenia zamiast błędu
-                 tft.fillScreen(BLACK);
-                 tft.setTextColor(WHITE);
-                 tft.setTextSize(2);
-                 tft.setTextDatum(MC_DATUM);
-                 tft.drawString("Wznawianie...", tft.width()/2, tft.height()/2 - 20);
-                 tft.setTextSize(1);
-                 tft.drawString(savedSSID, tft.width()/2, tft.height()/2 + 10);
-                 
-                 // Rozpocznij łączenie
-                 WiFi.begin(savedSSID.c_str(), savedPass.c_str());
-                 
-                 // Krótkie oczekiwanie (max 4 sekundy), żeby uniknąć czerwonego paska "Lost WiFi"
-                 // Jeśli połączy się szybciej, pętla przerwie
-                 int wait = 0;
-                 while (WiFi.status() != WL_CONNECTED && wait < 8) { // 8 * 500ms = 4s
-                     delay(500);
-                     wait++;
-                     Serial.print(".");
-                 }
-             }
-
-             // 4. Powrót do normalnego stanu
-             currentState = STATE_CONNECTED; 
-             tft.fillScreen(BLACK);
-             
-             // 5. Sprawdzenie rezultatu
-             if (WiFi.status() == WL_CONNECTED) {
-                 // Jest OK - resetujemy flagi błędów
-                 wifiLostDetected = false;
-                 wifiLostTime = 0;
-                 reconnectAttemptInProgress = false;
-                 backgroundReconnectActive = false;
-                 
-                 extern ScreenManager& getScreenManager();
-                 getScreenManager().resetScreenTimer();
-                 
-                 // Wymuś odświeżenie ekranu (np. pogody)
-                 getScreenManager().forceScreenRefresh(tft);
-             } else {
-                 // Nadal brak połączenia - dopiero teraz uznajemy to za "Lost WiFi"
-                 Serial.println("Nie udalo sie wznowic polaczenia przy wyjsciu.");
-                 wifiLostDetected = true;
-                 wifiLostTime = millis();
-                 // Ustawiamy timer tak, by auto-reconnect spróbował ponownie za chwilę
-                 lastReconnectAttempt = millis(); 
-                 wifiWasConnected = true;
-             }
-        }
-    }
-  }
-}
-
-#endif
-
-#if 0 // moved to wifi_touch_interface_ui.cpp
-void handleKeyboardTouch(int16_t x, int16_t y) {
-  int keyWidth = 25;
-  int keyHeight = 28;
-  int startY = 85;
-  
-  // Check SHOW/HIDE password button
-  if (y >= 50 && y <= 75 && x >= 240 && x <= 315) {
-    showPassword = !showPassword;
-    Serial.printf("Password visibility toggled: %s\n", showPassword ? "POKAZ" : "UKRYJ");
-    
-    // Visual feedback
-    tft.fillRect(240, 50, 75, 25, YELLOW);
-    tft.setTextColor(BLACK);
-    tft.setCursor(255, 58);
-    tft.print("TOGGLE");
-    delay(200);
-    
-    drawPasswordScreen();
-    return;
-  }
-  
-  // Check main keyboard area
-  if (y >= startY && y <= startY + 4 * (keyHeight + 1)) {
-    int row = (y - startY) / (keyHeight + 1);
-    int col = (x - 2) / (keyWidth + 1);
-    
-    if (row >= 0 && row < 4 && col >= 0 && col < 12) {
-      String keys[4][12];
-      
-      if (specialMode) {
-        String specialKeys[4][12] = {
-          {"!", "@", "#", "$", "%", "^", "&", "*", "(", ")", "_", "+"},
-          {"{", "}", "|", "\\", ":", "\"", "<", ">", "?", "~", "`", "="},
-          {"[", "]", ";", "'", ",", ".", "/", "-", "€", "£", "¥", "§"},
-          {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "±", "×"}
-        };
-        for (int i = 0; i < 4; i++) {
-          for (int j = 0; j < 12; j++) {
-            keys[i][j] = specialKeys[i][j];
-          }
-        }
-      } else {
-        String normalKeys[4][12] = {
-          {"1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "@", "#"},
-          {"q", "w", "e", "r", "t", "y", "u", "i", "o", "p", "!", "?"},
-          {"a", "s", "d", "f", "g", "h", "j", "k", "l", ".", "_", "-"},
-          {"z", "x", "c", "v", "b", "n", "m", ",", ";", ":", "&", "*"}
-        };
-        for (int i = 0; i < 4; i++) {
-          for (int j = 0; j < 12; j++) {
-            keys[i][j] = normalKeys[i][j];
-          }
-        }
-      }
-      
-      String key = keys[row][col];
-      if (key != "") {
-        if (!specialMode && capsLock && key.length() == 1 && key[0] >= 'a' && key[0] <= 'z') {
-          key.toUpperCase();
-        }
-        enteredPassword += key;
-        Serial.printf("Added character: %s\n", key.c_str());
-        drawPasswordScreen();
-      }
-    }
-  }
-  
-  // Special keys
-  else if (y >= startY + 4 * (keyHeight + 1) && y <= startY + 5 * (keyHeight + 1)) {
-    if (x >= 2 && x <= 37) { // Caps Lock / ABC toggle
-      if (specialMode) {
-        specialMode = false;
-        Serial.println("Switched to ABC mode");
-      } else {
-        capsLock = !capsLock;
-        Serial.println("CAPS LOCK toggled");
-      }
-      drawPasswordScreen();
-    }
-    else if (x >= 40 && x <= 75) { // Special characters toggle
-      specialMode = !specialMode;
-      Serial.printf("Special mode: %s\n", specialMode ? "ON" : "OFF");
-      drawPasswordScreen();
-    }
-    else if (x >= 80 && x <= 140) { // Space
-      enteredPassword += " ";
-      Serial.println("SPACE added");
-      drawPasswordScreen();
-    }
-    else if (x >= 145 && x <= 180) { // Delete
-      if (enteredPassword.length() > 0) {
-        enteredPassword.remove(enteredPassword.length() - 1);
-        Serial.println("CHARACTER deleted");
-        drawPasswordScreen();
-      }
-    }
-    else if (x >= 185 && x <= 235) { // Connect - RESTORED WORKING  
-      Serial.println("CONNECT button pressed");
-      connectToWiFi();
-    }
-    else if (x >= 240 && x <= 315) { // Back button - RESTORED WORKING
-      Serial.println("BACK to network list");
-      currentState = STATE_SCAN_NETWORKS;
-      scanNetworks();
-      drawNetworkList(tft);
-    }
-  }
-}
-
-// === LOCATION SELECTION IMPLEMENTATION ===
-
-#endif
-
 void enterLocationSelectionMode(TFT_eSPI& tft) {
   Serial.println("Entering LOCATION SELECTION MODE");
   currentState = STATE_SELECT_LOCATION;
-  currentMenuState = MENU_MAIN; // Start with main menu
+  currentMenuState = MENU_MAIN; 
   currentLocationIndex = 0;
   selectedCityIndex = 0;
   drawLocationScreen(tft);
 }
 
-#if 0 // moved to wifi_touch_interface_ui.cpp
-void drawLocationScreen(TFT_eSPI& tft) {
-  tft.fillScreen(BLACK);
-  tft.setTextColor(CYAN);
-  tft.setTextSize(2);
-  tft.setCursor(10, 5);
-  
-  if (currentMenuState == MENU_MAIN) {
-    tft.println("WYBIERZ MIASTO");
-  } else {
-    tft.printf("DZIELNICE: %s", mainMenuOptions[selectedCityIndex]);
-  }
-  
-  // Określ źródło danych
-  const WeatherLocation* cityList = nullptr;
-  int cityCount = 0;
-  
-  if (currentMenuState == MENU_MAIN) {
-    // Główne menu - 4 opcje
-    cityCount = 4; // Szczecin, Poznan, Zlocieniec, Wlasny GPS
-  } else if (currentMenuState == MENU_DISTRICTS) {
-    // Lista dzielnic dla wybranego miasta
-    if (selectedCityIndex == 0) {
-      cityList = SZCZECIN_DISTRICTS;
-      cityCount = SZCZECIN_DISTRICTS_COUNT;
-    } else if (selectedCityIndex == 1) {
-      cityList = POZNAN_DISTRICTS;  
-      cityCount = POZNAN_DISTRICTS_COUNT;
-    } else if (selectedCityIndex == 2) {
-      cityList = ZLOCIENIEC_AREAS;
-      cityCount = ZLOCIENIEC_AREAS_COUNT;
-    }
-  }
-  
-  // Display current location
-  WeatherLocation currentLoc = locationManager.getCurrentLocation();
-  tft.setTextColor(YELLOW);
-  tft.setTextSize(1);
-  tft.setCursor(10, 35);
-  tft.printf("Aktualna: %s", currentLoc.displayName);
-  
-  // Lista elementów z przewijaniem
-  tft.setTextColor(WHITE);
-  int yPos = 60;
-  int maxVisibleItems = 5; // Maksymalnie 5 elementów na ekranie
-  
-  // Oblicz offset dla przewijania
-  int scrollOffset = 0;
-  if (currentLocationIndex >= maxVisibleItems) {
-    scrollOffset = currentLocationIndex - maxVisibleItems + 1;
-  }
-  
-  for (int i = 0; i < min(cityCount, maxVisibleItems); i++) {
-    int itemIndex = i + scrollOffset;
-    if (itemIndex >= cityCount) break;
-    
-    bool isSelected = (itemIndex == currentLocationIndex);
-    uint16_t bgColor = isSelected ? BLUE : BLACK;
-    
-    tft.fillRect(10, yPos - 2, 300, 22, bgColor);
-    tft.setTextColor(WHITE);
-    tft.setCursor(15, yPos + 2);
-    
-    if (currentMenuState == MENU_MAIN) {
-      // Wyświetlanie głównego menu miast
-      if (isSelected) tft.print("→ ");
-      else tft.print("  ");
-      tft.printf("%s", mainMenuOptions[itemIndex]);
-      
-    } else if (currentMenuState == MENU_DISTRICTS) {
-      // Wyświetlanie dzielnic wybranego miasta
-      
-     
-      // Sprawdzamy, czy nazwa wyświetlana (Dzielnica) jest identyczna
-      bool isCurrent = (String(cityList[itemIndex].displayName) == String(currentLoc.displayName));
-      // -------------------------------------------------------
-      
-      if (isCurrent) {
-        tft.fillRect(10, yPos - 2, 300, 22, GREEN);
-        tft.print("● ");
-      } else if (isSelected) {
-        tft.print("→ ");
-      } else {
-        tft.print("  ");
-      }
-      
-      tft.printf("%s", cityList[itemIndex].displayName);
-      
-      // Współrzędne GPS
-      tft.setCursor(200, yPos + 2);
-      tft.printf("%.4f,%.4f", cityList[itemIndex].latitude, cityList[itemIndex].longitude);
-    }
-    
-    yPos += 25;
-  }
-  
-  // Navigation buttons
-  tft.fillRect(10, 210, 50, 25, DARKGRAY);
-  tft.setTextColor(WHITE);
-  tft.setCursor(25, 218);
-  tft.print("UP");
-  
-  tft.fillRect(70, 210, 50, 25, DARKGRAY);
-  tft.setCursor(80, 218);
-  tft.print("DOWN");
-  
-  // Action buttons
-  tft.fillRect(130, 210, 60, 25, GREEN);
-  tft.setCursor(145, 218);
-  tft.print("WYBIERZ");
-  
-  tft.fillRect(200, 210, 50, 25, RED);
-  tft.setCursor(213, 218);
-  tft.print("POWROT");
-  
-  tft.fillRect(260, 210, 55, 25, ORANGE);
-  tft.setCursor(270, 218);
-  tft.print("ZAPISZ");
-  
-  // Wskazówka przewijania
-  if (cityCount > 5) {
-    tft.setTextColor(DARKGRAY);
-    tft.setTextSize(1);
-    tft.setCursor(10, 185);
-    if (currentMenuState == MENU_MAIN) {
-      tft.printf("(4 opcje - uzyj UP/DOWN)");
-    } else {
-      tft.printf("(%d dzielnic - uzyj UP/DOWN)", cityCount);
-    }
-  }
-  
-  // Custom coordinates button
-  tft.fillRect(10, 240, 100, 25, PURPLE);
-  tft.setCursor(25, 248);
-  tft.print("CUSTOM GPS");
-}
-
-void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
-  Serial.printf("Location Touch: X=%d, Y=%d\n", x, y);
-  
-  // Category selection (kliknięcie na listę)
-  if (y >= 60 && y <= 185) {
-    int clickedIndex = (y - 60) / 25;
-    
-    int scrollOffset = 0;
-    if (currentLocationIndex >= 5) {
-      scrollOffset = currentLocationIndex - 5 + 1;
-    }
-    
-    int realIndex = clickedIndex + scrollOffset;
-    
-    if (currentMenuState == MENU_MAIN) {
-      if (realIndex >= 0 && realIndex < 4) {
-        currentLocationIndex = realIndex;
-        selectedCityIndex = realIndex;
-        
-        if (realIndex == 3) {
-          enterCoordinatesMode(tft);
-          return;
-        } else {
-          currentMenuState = MENU_DISTRICTS;
-          currentLocationIndex = 0; 
-          Serial.printf("Wybrano miasto: %s\n", mainMenuOptions[selectedCityIndex]);
-        }
-        drawLocationScreen(tft);
-        return;
-      }
-    } 
-    else if (currentMenuState == MENU_DISTRICTS) {
-       int maxItems = 0;
-       if (selectedCityIndex == 0) maxItems = SZCZECIN_DISTRICTS_COUNT;
-       else if (selectedCityIndex == 1) maxItems = POZNAN_DISTRICTS_COUNT;
-       else if (selectedCityIndex == 2) maxItems = ZLOCIENIEC_AREAS_COUNT;
-
-       if (realIndex >= 0 && realIndex < maxItems) {
-          currentLocationIndex = realIndex;
-          drawLocationScreen(tft);
-          return;
-       }
-    }
-  }
-  
-  // City selection shortcut (kliknięcie w nagłówek)
-  if (y >= 90 && y <= 210) { // To wygląda na stary fragment logiki, ale zostawiam jak było
-    int cityIndex = (y - 90) / 25;
-    int maxCities = min((int)SZCZECIN_DISTRICTS_COUNT, 5);
-    
-    if (cityIndex >= 0 && cityIndex < maxCities) {
-      currentLocationIndex = cityIndex;
-      drawLocationScreen(tft);
-      return;
-    }
-  }
-  
-  // Navigation buttons
-  if (y >= 210 && y <= 235) {
-    // UP button
-    if (x >= 10 && x <= 60) {
-      if (currentLocationIndex > 0) {
-        currentLocationIndex--;
-        drawLocationScreen(tft);
-      }
-    }
-    // DOWN button
-    else if (x >= 70 && x <= 120) {
-      int maxItems = 0;
-      if (currentMenuState == MENU_MAIN) maxItems = 4;
-      else if (currentMenuState == MENU_DISTRICTS) {
-        if (selectedCityIndex == 0) maxItems = SZCZECIN_DISTRICTS_COUNT;
-        else if (selectedCityIndex == 1) maxItems = POZNAN_DISTRICTS_COUNT;
-        else if (selectedCityIndex == 2) maxItems = ZLOCIENIEC_AREAS_COUNT;
-      }
-      
-      if (currentLocationIndex < maxItems - 1) {
-        currentLocationIndex++;
-        drawLocationScreen(tft);
-      }
-    }
-    // SELECT button (TUTAJ JEST KLUCZOWA ZMIANA)
-    else if (x >= 130 && x <= 190) {
-      if (currentMenuState == MENU_MAIN) {
-        if (currentLocationIndex == 3) {
-          enterCoordinatesMode(tft);
-          return;
-        } else {
-          selectedCityIndex = currentLocationIndex;
-          currentMenuState = MENU_DISTRICTS;
-          currentLocationIndex = 0;
-          drawLocationScreen(tft);
-          return;
-        }
-      } else if (currentMenuState == MENU_DISTRICTS) {
-        const WeatherLocation* cityList = nullptr;
-        if (selectedCityIndex == 0) cityList = SZCZECIN_DISTRICTS;
-        else if (selectedCityIndex == 1) cityList = POZNAN_DISTRICTS;
-        else if (selectedCityIndex == 2) cityList = ZLOCIENIEC_AREAS;
-        
-        if (cityList) {
-          WeatherLocation selectedLocation = cityList[currentLocationIndex];
-          locationManager.setLocation(selectedLocation);
-          isLocationSavePending = true;
-          Serial.printf("Location set to: %s\n", selectedLocation.displayName);
-          
-       
-          // To usuwa "duchy" starego miasta
-          weather.isValid = false;
-          weeklyForecast.isValid = false;
-          forecast.isValid = false;
-          // =====================================
-          
-          // Visual feedback
-          tft.fillRect(130, 210, 60, 25, YELLOW);
-          tft.setTextColor(BLACK);
-          tft.setCursor(145, 218);
-          tft.print("SET!");
-          delay(100);
-          tft.setTextColor(WHITE);
-          tft.setCursor(140, 218);
-          tft.print("SAFE");
-       
-          // Wymuszenie odświeżenia
-          extern bool weatherErrorModeGlobal;
-          extern bool forecastErrorModeGlobal;
-          extern bool weeklyErrorModeGlobal;
-          weatherErrorModeGlobal = true; 
-          forecastErrorModeGlobal = true;
-          weeklyErrorModeGlobal = true;
-
-          extern unsigned long lastWeatherCheckGlobal;
-          extern unsigned long lastForecastCheckGlobal;
-          lastWeatherCheckGlobal = millis() - 20000; 
-          lastForecastCheckGlobal = millis() - 20000;
-
-          extern unsigned long lastWeeklyUpdate;
-          lastWeeklyUpdate = millis() - 15000000;
-
-          Serial.println("⏰ FORCING immediate weather refresh in main loop...");
-          delay(150);
-          drawLocationScreen(tft);
-        }
-      }
-    }
-    // BACK button
-    else if (x >= 200 && x <= 250) {
-      if (currentMenuState == MENU_DISTRICTS) {
-        currentMenuState = MENU_MAIN;
-        currentLocationIndex = selectedCityIndex;
-        drawLocationScreen(tft);
-        return;
-      } else {
-        currentState = STATE_CONFIG_MODE;
-        drawConfigModeScreen();
-        return;
-      }
-    }
-    // SAVE button
-    else if (x >= 260 && x <= 315) {
-      tft.fillRect(260, 210, 55, 25, YELLOW);
-      tft.setTextColor(BLACK);
-      tft.setCursor(270, 218);
-      tft.print("ZAPISANO");
-      delay(100);
-      
-      currentState = STATE_CONFIG_MODE;
-      drawConfigModeScreen();
-    }
-  }
-  
-  // Custom GPS coordinates button
-  if (y >= 240 && y <= 265 && x >= 10 && x <= 110) {
-    tft.fillRect(10, 240, 100, 25, YELLOW);
-    tft.setTextColor(BLACK);
-    tft.setCursor(25, 248);
-    tft.print("OPENING");
-    delay(100);
-    enterCoordinatesMode(tft);
-  }
-}
-
-#endif
-
 void enterCoordinatesMode(TFT_eSPI& tft) {
   Serial.println("Entering CUSTOM COORDINATES MODE");
   currentState = STATE_ENTER_COORDINATES;
   
-  // Initialize with current location coordinates
   WeatherLocation currentLoc = locationManager.getCurrentLocation();
   customLatitude = String(currentLoc.latitude, 4);
   customLongitude = String(currentLoc.longitude, 4);
@@ -1917,355 +720,3 @@ void enterCoordinatesMode(TFT_eSPI& tft) {
   
   drawCoordinatesScreen(tft);
 }
-
-#if 0 // moved to wifi_touch_interface_ui.cpp
-void drawCoordinatesScreen(TFT_eSPI& tft) {
-  tft.fillScreen(BLACK);
-  tft.setTextColor(WHITE);
-  tft.setTextSize(2);
-  tft.setCursor(10, 5);
-  tft.println("WLASNE WSPOLRZEDNE");
-  
-  // Instructions
-  tft.setTextColor(YELLOW);
-  tft.setTextSize(1);
-  tft.setCursor(10, 35);
-  tft.println("Wpisz wspolrzedne GPS (dok. 4 miejsca po przecinku):");
-  
-  // Current location
-  WeatherLocation currentLoc = locationManager.getCurrentLocation();
-  tft.setTextColor(GRAY);
-  tft.setCursor(10, 50);
-  tft.printf("Current: %.4f, %.4f", currentLoc.latitude, currentLoc.longitude);
-  
-  // Latitude input field
-  uint16_t latColor = editingLatitude ? CYAN : WHITE;
-  tft.setTextColor(latColor);
-  tft.setTextSize(1);
-  tft.setCursor(10, 80);
-  tft.print("Szer. geogr. (N/S): ");
-  
-  // Latitude input box
-  tft.fillRect(130, 75, 100, 20, editingLatitude ? BLUE : DARKGRAY);
-  tft.setTextColor(WHITE);
-  tft.setCursor(135, 80);
-  tft.print(customLatitude);
-  
-  // Cursor Lat
-  if (editingLatitude && (millis() / 500) % 2) {
-    int cursorX = 135 + coordinatesCursorPos * 6;
-    tft.drawLine(cursorX, 95, cursorX + 5, 95, WHITE);
-  }
-  
-  // Longitude input field
-  uint16_t lonColor = !editingLatitude ? CYAN : WHITE;
-  tft.setTextColor(lonColor);
-  tft.setCursor(10, 110);
-  tft.print("Dlug. geogr. (E/W): ");
-  
-  // Longitude input box
-  tft.fillRect(130, 105, 100, 20, !editingLatitude ? BLUE : DARKGRAY);
-  tft.setTextColor(WHITE);
-  tft.setCursor(135, 110);
-  tft.print(customLongitude);
-  
-  // Cursor Lon
-  if (!editingLatitude && (millis() / 500) % 2) {
-    int cursorX = 135 + coordinatesCursorPos * 6;
-    tft.drawLine(cursorX, 125, cursorX + 5, 125, WHITE);
-  }
-  
-  // Switch field button
-  tft.fillRect(250, 80, 60, 45, PURPLE);
-  tft.setTextColor(WHITE);
-  tft.setCursor(255, 95);
-  tft.print(editingLatitude ? "DO DLG" : "DO SZR");
-  
-  // KLAWIATURA NUMERYCZNA (LEWA STRONA) ===
-  // Zaczynamy od X=5, Klawisze węższe (28px)
-  int keyW = 28; 
-  int keyH = 25;
-  int gap = 4;   // Odstęp między klawiszami
-  int startX = 5;
-
-  // Row 1: 1 2 3
-  int row1[3] = {1, 2, 3};
-  for (int i = 0; i < 3; i++) {
-    int x = startX + i * (keyW + gap);
-    int y = 140;
-    tft.fillRect(x, y, keyW, keyH, DARKGRAY);
-    tft.setTextColor(WHITE);
-    tft.setCursor(x + 10, y + 8);
-    tft.print(row1[i]);
-  }
-  
-  // Row 2: 4 5 6 0
-  int row2[4] = {4, 5, 6, 0};
-  for (int i = 0; i < 4; i++) {
-    int x = startX + i * (keyW + gap);
-    int y = 170;
-    tft.fillRect(x, y, keyW, keyH, DARKGRAY);
-    tft.setTextColor(WHITE);
-    tft.setCursor(x + 10, y + 8);
-    tft.print(row2[i]);
-  }
-  
-  // Row 3: 7 8 9
-  int row3[3] = {7, 8, 9};
-  for (int i = 0; i < 3; i++) {
-    int x = startX + i * (keyW + gap);
-    int y = 200;
-    tft.fillRect(x, y, keyW, keyH, DARKGRAY);
-    tft.setTextColor(WHITE);
-    tft.setCursor(x + 10, y + 8);
-    tft.print(row3[i]);
-  }
-  
-  // Special buttons: . and -
-  // Dot button (obok 9)
-  int dotX = startX + 3 * (keyW + gap);
-  tft.fillRect(dotX, 200, keyW, keyH, DARKGRAY);
-  tft.setTextColor(WHITE);
-  tft.setCursor(dotX + 10, 208);
-  tft.print(".");
-  
-  // Minus button (obok .)
-  int minusX = startX + 4 * (keyW + gap);
-  tft.fillRect(minusX, 200, keyW, keyH, DARKGRAY);
-  tft.setCursor(minusX + 10, 208);
-  tft.print("-");
-  
-  // === PRZYCISKI FUNKCYJNE (PRAWA STRONA - ODSUNIĘTE) ===
-  // Zaczynamy od X=175 (bezpieczny odstęp od klawiatury która kończy się na ~160)
-  int funcX = 175;
-  int funcW = 65; 
-  int backX = 245; // Druga kolumna przycisków
-  int backW = 70;
-
-  // Row 1 (Y=140): WYCZYSC
-  tft.fillRect(backX, 140, backW, 25, RED);
-  tft.setTextColor(WHITE);
-  tft.setCursor(backX + 10, 148);
-  tft.print("WYCZYSC");
-  
-  // Row 2 (Y=170): WYJSCIE | COFNIJ
-  tft.fillRect(funcX, 170, funcW, 25, GRAY);
-  tft.setCursor(funcX + 10, 178);
-  tft.print("WYJSCIE");
-  
-  tft.fillRect(backX, 170, backW, 25, ORANGE);
-  tft.setCursor(backX + 15, 178);
-  tft.print("COFNIJ");
-  
-  // Row 3 (Y=200): TEST | USTAW
-  tft.fillRect(funcX, 200, funcW, 25, YELLOW);
-  tft.setTextColor(BLACK); // Czarny tekst na żółtym
-  tft.setCursor(funcX + 20, 208);
-  tft.print("TEST");
-  
-  tft.fillRect(backX, 200, backW, 25, GREEN);
-  tft.setTextColor(WHITE);
-  tft.setCursor(backX + 20, 208);
-  tft.print("USTAW");
-  
-  // Help text
-  tft.setTextColor(GREEN);
-  tft.setTextSize(1);
-  tft.setCursor(10, 230);
-  tft.print("Format np. 53.4242");
-}
-
-void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
-  Serial.printf("🎯 Coordinates Touch: X=%d, Y=%d\n", x, y);
-  
-  // Field selection
-  if (y >= 75 && y <= 95 && x >= 130 && x <= 230) {
-    editingLatitude = true;
-    coordinatesCursorPos = customLatitude.length();
-    drawCoordinatesScreen(tft);
-    return;
-  }
-  
-  if (y >= 105 && y <= 125 && x >= 130 && x <= 230) {
-    editingLatitude = false;
-    coordinatesCursorPos = customLongitude.length();
-    drawCoordinatesScreen(tft);
-    return;
-  }
-  
-  // Switch button
-  if (y >= 80 && y <= 125 && x >= 250 && x <= 310) {
-    editingLatitude = !editingLatitude;
-    String& currentField = editingLatitude ? customLatitude : customLongitude;
-    coordinatesCursorPos = currentField.length();
-    drawCoordinatesScreen(tft);
-    return;
-  }
-  
-  // === OBSŁUGA KLAWIATURY (NOWE WSPÓŁRZĘDNE) ===
-  String& currentField = editingLatitude ? customLatitude : customLongitude;
-  
-  // Definicje wymiarów (muszą pasować do drawCoordinatesScreen)
-  int keyW = 28; 
-  int gap = 4;
-  int startX = 5;
-  
-  // Funkcja pomocnicza do sprawdzania kolumn
-  auto getCol = [&](int tx) -> int {
-    if (tx < startX) return -1;
-    return (tx - startX) / (keyW + gap);
-  };
-
-  // Row 1: 1 2 3 (y=140-165)
-  if (y >= 140 && y <= 165) {
-    int col = getCol(x);
-    if (col >= 0 && col <= 2 && x <= startX + col*(keyW+gap) + keyW) {
-       currentField += String(col + 1); // 0->1, 1->2, 2->3
-       coordinatesCursorPos = currentField.length();
-       drawCoordinatesScreen(tft);
-       return;
-    }
-    // Clear button (Row 1 Right side)
-    if (x >= 245 && x <= 315) {
-       currentField = "";
-       coordinatesCursorPos = 0;
-       drawCoordinatesScreen(tft);
-       return;
-    }
-  }
-  
-  // Row 2: 4 5 6 0 (y=170-195)
-  else if (y >= 170 && y <= 195) {
-    int col = getCol(x);
-    if (col >= 0 && col <= 3 && x <= startX + col*(keyW+gap) + keyW) {
-      if (col == 3) currentField += "0";
-      else currentField += String(col + 4); // 0->4, 1->5, 2->6
-      
-      coordinatesCursorPos = currentField.length();
-      drawCoordinatesScreen(tft);
-      return;
-    }
-    // EXIT button (175 - 240)
-    if (x >= 175 && x <= 240) {
-       Serial.println("🚪 EXIT button pressed");
-       tft.fillRect(175, 170, 65, 25, YELLOW); // Feedback
-       delay(200);
-       
-       currentState = STATE_SELECT_LOCATION;
-       currentMenuState = MENU_MAIN;
-       currentLocationIndex = 0;
-       tft.fillScreen(BLACK);
-       drawLocationScreen(tft);
-       return;
-    }
-    // BACKSPACE (245 - 315)
-    if (x >= 245 && x <= 315) {
-       if (currentField.length() > 0) {
-         currentField.remove(currentField.length() - 1);
-         coordinatesCursorPos = currentField.length();
-         drawCoordinatesScreen(tft);
-       }
-       return;
-    }
-  }
-  
-  // Row 3: 7 8 9 . - (y=200-225)
-  else if (y >= 200 && y <= 225) {
-    int col = getCol(x);
-    if (col >= 0 && col <= 4 && x <= startX + col*(keyW+gap) + keyW) {
-      if (col <= 2) currentField += String(col + 7); // 7,8,9
-      else if (col == 3 && currentField.indexOf('.') == -1) currentField += ".";
-      else if (col == 4 && currentField.length() == 0) currentField += "-";
-      
-      coordinatesCursorPos = currentField.length();
-      drawCoordinatesScreen(tft);
-      return;
-    }
-    
-    // TEST button (175 - 240)
-    if (x >= 175 && x <= 240) {
-       float lat = customLatitude.toFloat();
-       float lon = customLongitude.toFloat();
-       // Visual feedback
-       tft.fillRect(175, 200, 65, 25, CYAN);
-       tft.setTextColor(WHITE);
-       tft.setCursor(185, 208);
-       if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) tft.print("OK");
-       else tft.print("ERR");
-       delay(500);
-       drawCoordinatesScreen(tft);
-       return;
-    }
-    
-    // SET button (245 - 315)
-    if (x >= 245 && x <= 315) {
-       float lat = customLatitude.toFloat();
-       float lon = customLongitude.toFloat();
-       
-       if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
-          tft.fillRect(245, 200, 70, 25, RED);
-          delay(500);
-          drawCoordinatesScreen(tft);
-          return;
-       }
-       
-       // Success feedback
-       tft.fillRect(245, 200, 70, 25, WHITE);
-       tft.setTextColor(BLACK);
-       tft.setCursor(255, 208);
-       tft.print("OK!");
-       delay(200);
-       
-       // Create location
-       WeatherLocation customLocation;
-       customLocation.cityName = "Wlasne wsp";
-       customLocation.countryCode = "XX";
-       
-       // Dynamiczna nazwa z numerami (formatowanie)
-       static char tempDisplayName[64];
-       snprintf(tempDisplayName, sizeof(tempDisplayName), "GPS %.4f,%.4f", lat, lon);
-       customLocation.displayName = tempDisplayName;
-       
-       customLocation.latitude = lat;
-       customLocation.longitude = lon;
-       static char tempTimezone[32] = "UTC0";
-       customLocation.timezone = tempTimezone;
-       
-       locationManager.setLocation(customLocation);
-       isLocationSavePending = true;
-
-       // === FIX: RESET DANYCH POGODOWYCH (DODANE) ===
-       // Usuwamy stare dane, aby nie mieszały się z nowymi
-       weather.isValid = false;
-       weeklyForecast.isValid = false;
-       forecast.isValid = false;
-       // ============================================
-       
-       // Force refresh flags
-       extern bool weatherErrorModeGlobal;
-       extern bool forecastErrorModeGlobal;
-       extern bool weeklyErrorModeGlobal;
-       weatherErrorModeGlobal = true;
-       forecastErrorModeGlobal = true;
-       weeklyErrorModeGlobal = true;
-       
-       extern unsigned long lastWeatherCheckGlobal;
-       extern unsigned long lastForecastCheckGlobal;
-       lastWeatherCheckGlobal = millis() - 20000;
-       lastForecastCheckGlobal = millis() - 20000;
-       
-       extern unsigned long lastWeeklyUpdate;
-       lastWeeklyUpdate = millis() - 15000000;
-       
-       Serial.println("✅ Custom GPS Set & Refresh Triggered");
-       
-       currentState = STATE_SELECT_LOCATION;
-       currentMenuState = MENU_MAIN;
-       currentLocationIndex = 0;
-       tft.fillScreen(BLACK);
-       drawLocationScreen(tft);
-    }
-  }
-}
-
-#endif
