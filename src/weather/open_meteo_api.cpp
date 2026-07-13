@@ -5,6 +5,9 @@
 #include <ArduinoJson.h>
 #include <WiFi.h>
 
+// --- DODANY PRZEŁĄCZNIK DEBUGOWANIA ---
+#define DEBUG_OPEN_METEO_API 1
+
 static float pressureHistoryData[12] = {0};
 // Flaga na starcie jest false. Gdy raz pobierze dane, staje się na stałe true!
 static bool dataValid = false; 
@@ -41,9 +44,10 @@ void fetchOpenMeteoPressure() {
     client.setInsecure(); // Akceptujemy każdy certyfikat (bezpieczne dla zapytań o pogodę)
 
     HTTPClient http;
+    // ZMIANA: Zmieniono 'surface_pressure' na 'pressure_msl' (ciśnienie na poziomie morza - standard metereologiczny)
     String url = "https://api.open-meteo.com/v1/forecast?latitude=" + String(currentLoc.latitude, 4) + 
                  "&longitude=" + String(currentLoc.longitude, 4) + 
-                 "&hourly=surface_pressure&past_hours=11&forecast_hours=1";
+                 "&hourly=pressure_msl&past_hours=11&forecast_hours=1";
     
     Serial.printf("🌐 [Open-Meteo] Pobieranie historii ciśnienia dla: %s\n", currentLoc.displayName.c_str());
 
@@ -62,6 +66,14 @@ void fetchOpenMeteoPressure() {
         String payload = http.getString(); 
         yield(); // Kolejny oddech dla procesora
         
+        #ifdef DEBUG_OPEN_METEO_API
+            Serial.println("=== RAW JSON OPEN-METEO API ===");
+            Serial.printf("Lokalizacja: %s (Lat: %.4f, Lon: %.4f)\n", currentLoc.displayName.c_str(), currentLoc.latitude, currentLoc.longitude);
+            Serial.println("Zapytanie URL: " + url);
+            Serial.println(payload);
+            Serial.println("=== KONIEC RAW JSON OPEN-METEO ===");
+        #endif
+        
         JsonDocument doc; 
         DeserializationError error = deserializeJson(doc, payload);
 
@@ -71,7 +83,8 @@ void fetchOpenMeteoPressure() {
             Serial.print("❌ [Open-Meteo] Błąd parsowania JSON. Zachowuję stary wykres. Błąd: ");
             Serial.println(error.c_str());
         } else {
-            JsonArray pressureArray = doc["hourly"]["surface_pressure"];
+            // ZMIANA: Pobieramy tablicę pressure_msl zamiast surface_pressure
+            JsonArray pressureArray = doc["hourly"]["pressure_msl"];
             
             // Bezpieczny bufor. Wpisujemy najpierw tu, żeby nie zepsuć głównych danych
             // w przypadku, gdyby tablica w JSON była niekompletna.
