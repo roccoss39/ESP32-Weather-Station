@@ -223,6 +223,7 @@ void setup() {
   switch(wakeup_reason) {
     case ESP_SLEEP_WAKEUP_EXT0:
       Serial.println("🔥 WAKE UP: PIR Motion Detected!");
+     
       break;
 
     case ESP_SLEEP_WAKEUP_TIMER: { 
@@ -261,7 +262,6 @@ void setup() {
           Serial.println(ssid);
           
           WiFi.begin(ssid.c_str(), pass.c_str());
-          WiFi.setSleep(false); 
           
           int retries = 0;
           while (WiFi.status() != WL_CONNECTED && retries < 40) {
@@ -347,7 +347,6 @@ void setup() {
       else Serial.println("Using default WiFi from secrets.h: " + connectSSID);
 
       WiFi.begin(connectSSID.c_str(), connectPassword.c_str());
-      WiFi.setSleep(false); 
       
       int attempts = 0;
       

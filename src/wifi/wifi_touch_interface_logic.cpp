@@ -158,6 +158,7 @@ void initWiFiTouchInterface() {
     int timeout = 0;
     while (WiFi.status() != WL_CONNECTED && timeout < 20) {
       delay(500);
+      yield(); // <--- KLUCZOWE: Karmienie Watchdoga
       Serial.print(".");
       timeout++;
       wifiTouchUI_drawStatusMessage(tft, "Laczenie... " + String(timeout) + "/20");
@@ -181,6 +182,8 @@ void initWiFiTouchInterface() {
       Serial.println("Background reconnect activated after sleep mode failure");
       
       currentState = STATE_SCAN_NETWORKS;
+      
+      yield(); // <--- KLUCZOWE: Karmienie przed blokującym skanowaniem
       scanNetworks();
       drawNetworkList(tft);
 
@@ -280,10 +283,16 @@ void exitWiFiConfigMode() {
  
 void scanNetworks() {
   drawStatusMessage(tft, "Szukam sieci...");
-  WiFi.mode(WIFI_STA);
-  WiFi.disconnect();
-  delay(100);
   
+  // === POPRAWKA OCHRONNA (Anty-Watchdog/Anty-Crash) ===
+  WiFi.disconnect(true, true); 
+  delay(200);
+  yield(); // <--- KARMIMY PSA PRZED TRYBEM STA
+  WiFi.mode(WIFI_STA);
+  delay(200);
+  yield(); // <--- KARMIMY PSA PRZED SKANOWANIEM
+  // ====================================================
+
   networkCount = WiFi.scanNetworks();
   Serial.printf("Found %d networks\n", networkCount);
   
@@ -531,6 +540,7 @@ void connectToWiFi() {
   int timeout = 0;
   while (WiFi.status() != WL_CONNECTED && timeout < 30) {
     delay(500);
+    yield(); // <--- KLUCZOWE: Karmienie Watchdoga
     Serial.print(".");
     timeout++;
     drawStatusMessage(tft, "Laczenie... " + String(timeout) + "/30");
@@ -562,6 +572,7 @@ void connectToWiFi() {
     // Show CONNECTED screen briefly, then return to normal station screens
     delay(1000);
     tft.fillScreen(COLOR_BACKGROUND);
+    extern void forceScreenRefresh(TFT_eSPI& tft);
     forceScreenRefresh(tft);
 
   } else {
@@ -913,7 +924,7 @@ void handleBackgroundReconnect() {
       int nextAttempt = (WIFI_RECONNECT_INTERVAL - elapsed) / 1000;
       
       if (nextAttempt > 0 && nextAttempt <= 19) {
-     
+      
         tft.fillRect(240, 155, 75, 30, BLUE); 
         tft.setTextColor(WHITE);
         tft.setTextSize(1);
@@ -944,7 +955,7 @@ void checkWiFiConnection() {
           lastReconnectAttempt = millis();
           Serial.printf("WiFi LOST! Starting %d-second countdown...\n", WIFI_LOSS_TIMEOUT/1000);
           if (!touchActive) {
-             drawConnectedScreen(tft); 
+              drawConnectedScreen(tft); 
           }
         }
       } else if (isConnected && wifiLostDetected) {
@@ -952,7 +963,7 @@ void checkWiFiConnection() {
         wifiLostDetected = false;
         Serial.println("WiFi RECONNECTED! Canceling auto-reconnect.");
         if (!touchActive) {
-           drawConnectedScreen(tft);
+            drawConnectedScreen(tft);
         }
       }
     }
@@ -962,14 +973,14 @@ void checkWiFiConnection() {
     // Debug WiFi status
     // if (currentState == STATE_CONNECTED) {
     //   Serial.printf("WiFi status: %s, RSSI: %d dBm\n", 
-    //                isConnected ? "CONNECTED" : "DISCONNECTED", 
-    //                isConnected ? WiFi.RSSI() : 0);
+    //                 isConnected ? "CONNECTED" : "DISCONNECTED", 
+    //                 isConnected ? WiFi.RSSI() : 0);
     // }
   }
 }
 
 void handleWiFiLoss() {
- 
+  
   if (!wifiLostDetected || currentState != STATE_CONNECTED) {
     return;
   }
@@ -1831,7 +1842,7 @@ void handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
           tft.setTextColor(WHITE);
           tft.setCursor(140, 218);
           tft.print("SAFE");
-      
+       
           // Wymuszenie odświeżenia
           extern bool weatherErrorModeGlobal;
           extern bool forecastErrorModeGlobal;
@@ -2258,5 +2269,3 @@ void handleCoordinatesTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
 }
 
 #endif
-
-

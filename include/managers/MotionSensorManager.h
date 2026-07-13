@@ -4,19 +4,21 @@
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 #include <WiFi.h>
+#include <time.h>
 #include "config/timing_config.h"
 #include "config/hardware_config.h" 
 #include "managers/SystemManager.h" 
 
-// Deklarujemy istnienie zewnętrznych zmiennych/funkcji z main.cpp / ui
+// Import zewnętrznych funkcji i flag
 extern SystemManager sysManager;
 extern void checkAndShowGreeting(TFT_eSPI& tft);
-extern bool isWiFiConfigActive(); // <-- Deklaracja funkcji z wifi_touch_interface
+extern bool isWiFiConfigActive();
+extern bool isImageDownloadInProgress; // Flaga chroniąca przed zakłóceniami podczas pobierania NASA
 
 enum DisplayState {
-  DISPLAY_SLEEPING = 0,   // Wyświetlacz wyłączony, czeka na ruch
-  DISPLAY_ACTIVE = 1,     // Wyświetlacz aktywny, pokazuje dane
-  DISPLAY_TIMEOUT = 2     // Przejście do sleep mode
+  DISPLAY_SLEEPING = 0,
+  DISPLAY_ACTIVE = 1,
+  DISPLAY_TIMEOUT = 2
 };
 
 class MotionSensorManager {
@@ -28,11 +30,11 @@ private:
     unsigned long lastDebounce = 0;
     unsigned long ledFlashStartTime = 0;
     bool ledFlashActive = false;
-    unsigned long lastSleepTime = 0; // Dla Ghost Touch Protection
-    uint8_t statusLedPin = 255;  // Cache pinu LED
+    unsigned long lastSleepTime = 0; 
+    uint8_t statusLedPin = 255;  
+    unsigned long hardwareInitTime = 0; // Czas inicjalizacji sprzętu
 
     void enterDeepSleep() {
-        // --- ABSOLUTNA BLOKADA BEZPIECZEŃSTWA ---
         if (isWiFiConfigActive()) {
             Serial.println("⛔ [MotionManager] Zablokowano wejście w Deep Sleep, bo użytkownik jest w menu konfiguracyjnym!");
             return;
@@ -41,23 +43,16 @@ private:
         Serial.println("💤 DEEP SLEEP START...");
         Serial.flush();
         
-        // =========================================================================
-        // TARCZA OCHRONNA: ŁAGODNE WYGASZANIE SYSTEMU
-        // Zapobiega skokom napięcia (Brownout/Spike), które fałszywie wyzwalają PIR
-        // =========================================================================
+        // Łagodne odcięcie WiFi
         if (WiFi.status() == WL_CONNECTED || WiFi.getMode() != WIFI_OFF) {
             WiFi.disconnect(true);
             WiFi.mode(WIFI_OFF);
-            delay(500); // Dajemy 0.5s na rozładowanie kondensatorów i stabilizację
+            delay(500); 
         }
 
-        // =========================================================================
-        // BLOKADA FAŁSZYWYCH WYBUDZEŃ (PIR STUCK HIGH PROTECTION)
-        // Jeśli zaśniemy, gdy PIR jest wciąż wysoki, stacja obudzi się natychmiast!
-        // =========================================================================
+        // Oczekiwanie na opadnięcie pinu PIR
         pinMode(PIR_PIN, INPUT);
         int patience = 0;
-        // Czekamy, aż czujnik całkowicie opadnie do zera (MAX 10 sekund)
         while(digitalRead(PIR_PIN) == HIGH && patience < 100) { 
             delay(100);
             yield();
@@ -68,7 +63,6 @@ private:
             Serial.printf("🛡️ PIR ustabilizowany po %d ms. Gotowy do snu.\n", patience * 100);
         }
 
-        // Dopiero teraz można bezpiecznie uzbroić wybudzanie na pinie!
         esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
 
         struct tm timeinfo;
@@ -107,7 +101,7 @@ public:
 
     void clearMotionFlag() {
         motionDetected = false;
-        Serial.println("🧹 DEBUG: Flaga PIR wyczyszczona (Ignoruję zakłócenia)");
+        Serial.println("🧹 DEBUG: Flaga PIR wyczyszczona programowo.");
     }
 
     bool isMotionActive() const { return (millis() - lastMotionTime) <= SCREEN_AUTO_OFF_MS; }
@@ -125,26 +119,31 @@ public:
         if (statusLedPin != 255) {
             pinMode(statusLedPin, OUTPUT);
         }
+        hardwareInitTime = millis();
+        motionDetected = false; // Czyszczenie śmieci ze startu
     }
     
     void handleMotionInterrupt() {
         unsigned long currentTime = millis();
-        if (currentTime - lastDebounce < PIR_DEBOUNCE_TIME) return;
+        
+        // --- POZIOM 0: BLOKADA "OGONA" PO WYBUDZENIU ---
+        if (currentTime - hardwareInitTime < 8000) return;
+
+        // --- POZIOM 1: BLOKADA PODCZAS TRANSFERU ---
+        if (isImageDownloadInProgress) {
+            return; // Gdy trwa pobieranie obrazka, absolutnie ignorujemy wszystko!
+        }
+
+        // Debounce sprzętowy
+        if (currentTime - lastDebounce < 2000) return; 
         lastDebounce = currentTime;
 
         motionDetected = true;
-        lastMotionTime = currentTime;
-
-        if (statusLedPin != 255) {
-            digitalWrite(statusLedPin, HIGH);
-        }
-        ledFlashActive = true;
-        ledFlashStartTime = currentTime;
     }
 
     void updateDisplayPowerState(TFT_eSPI& tft, bool isConfigModeActiveFlag = false) {
         
-        if (ledFlashActive && (millis() - ledFlashStartTime) > LED_FLASH_DURATION) {
+        if (ledFlashActive && (millis() - ledFlashStartTime) > 200) {
             if (statusLedPin != 255) {
                 digitalWrite(statusLedPin, LOW);
             }
@@ -152,12 +151,39 @@ public:
         }
 
         if (motionDetected) {
-            motionDetected = false;
-            Serial.println("🚨 DEBUG: Czujnik PIR wykrył ruch!");
-            if (currentDisplayState == DISPLAY_SLEEPING) {
-                wakeUpDisplay(tft);
+            motionDetected = false; 
+            
+            // --- POZIOM 2: WERYFIKACJA PRAWDZIWOŚCI RUCHU W TRAKCIE PRACY ---
+            bool isRealMotion = true;
+            
+            for(int i = 0; i < 50; i++) {
+                if (digitalRead(PIR_PIN) == LOW) {
+                    isRealMotion = false; 
+                    break;
+                }
+                delay(10);
             }
-            lastMotionTime = millis();
+
+            if (!isRealMotion) {
+                Serial.println("👻 [PIR] Zignorowano szpilke napiecia w locie (TFT/WiFi spike)");
+            } 
+            else if (isImageDownloadInProgress) {
+                Serial.println("📡 [PIR] Zignorowano ruch (Trwa wciaz transfer WiFi)");
+            }
+            else {
+                Serial.println("🚨 DEBUG: Czujnik PIR wykryl PRAWDZIWY ruch!");
+                
+                if (statusLedPin != 255) {
+                    digitalWrite(statusLedPin, HIGH);
+                }
+                ledFlashActive = true;
+                ledFlashStartTime = millis();
+
+                if (currentDisplayState == DISPLAY_SLEEPING) {
+                    wakeUpDisplay(tft);
+                }
+                lastMotionTime = millis();
+            }
         }
 
         unsigned long timeout;
@@ -170,7 +196,6 @@ public:
         #if USE_HYBRID_SLEEP == 1
             if (currentDisplayState == DISPLAY_SLEEPING) {
                 if (sysManager.isNightDeepSleepTime() && !isWiFiConfigActive()) {
-                    Serial.println("🌑 Noc nadeszła w trakcie czuwania -> Deep Sleep");
                     sleepDisplay(tft); 
                 }
                 return;
@@ -198,7 +223,6 @@ public:
 
     void sleepDisplay(TFT_eSPI& tft) {
         if (isWiFiConfigActive()) {
-            Serial.println("⚙️ [MotionManager] Wygaszenie ekranu w trakcie trybu Config - powrót do normalnego stanu.");
             extern void exitWiFiConfigMode();
             exitWiFiConfigMode(); 
         }
@@ -213,16 +237,11 @@ public:
         #if USE_HYBRID_SLEEP == 1
             if (sysManager.isNightDeepSleepTime() && !isWiFiConfigActive()) {
                 enterDeepSleep();
-            } else {
-                Serial.println("☁️ DZIEŃ: Light Sleep (CPU on, Screen off)");
-            }
+            } 
         #else
             if (!isWiFiConfigActive()) {
-                Serial.println("💤 FULL SLEEP MODE: Going to Deep Sleep.");
                 enterDeepSleep();
-            } else {
-                Serial.println("☁️ Light Sleep (Zablokowano DeepSleep ze względu na Config Mode)");
-            }
+            } 
         #endif
     }
 };
