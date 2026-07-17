@@ -51,7 +51,7 @@ bool isImageDownloadInProgress = false;
 // === FLAGA TRYBU OFFLINE (BEZ WIFI) ===
 bool isOfflineMode = false;
 
-// === RTC CACHE DLA POGODY ===
+// === RTC CACHE DLA SZYBKIEGO WYBUDZANIA ===
 struct RTC_Weather {
     float temperature;
     float feelsLike;
@@ -60,8 +60,9 @@ struct RTC_Weather {
     float windSpeed;
     int windDeg;
     int cloudiness; 
-    long sunrise;   
-    long sunset;    
+    long timezone; 
+    long sunrise; // <-- PRZYWRÓCONO: Wschód słońca w pamięci RTC!
+    long sunset;  // <-- PRZYWRÓCONO: Zachód słońca w pamięci RTC!
     char description[32];
     char icon[8];
 };
@@ -90,7 +91,6 @@ RTC_DATA_ATTR RTC_ForecastItem rtcForecastItems[5];
 RTC_DATA_ATTR int rtcForecastCount = 0;
 RTC_DATA_ATTR RTC_DailyForecast rtcWeeklyDays[5];
 RTC_DATA_ATTR int rtcWeeklyCount = 0;
-
 // ZMIANA: Przechowujemy obie linie historyczne ciśnienia w pamięci RTC
 RTC_DATA_ATTR float rtcMeteoPressureMsl[12];
 RTC_DATA_ATTR float rtcMeteoPressureSurface[12];
@@ -98,7 +98,7 @@ RTC_DATA_ATTR bool rtcMeteoValid = false;
 RTC_DATA_ATTR bool rtcHasValidWeather = false;
 RTC_DATA_ATTR time_t rtcLastWeatherFetchTime = 0;
 
-bool useCachedWeather = false; 
+bool useCachedWeather = false; // ZMIANA: Powrót do bezpiecznej flagi cache
 
 void saveWeatherToRTC();
 void restoreWeatherFromRTC();
@@ -140,7 +140,7 @@ void setup() {
   delay(DELAY_STABILIZATION); 
   
   // ============================================================
-  // 1. LOGIKA KALIBRACJI
+  // 1. LOGIKA KALIBRACJI (OTA SAFE) - Z DEBUGOWANIEM
   // ============================================================
   {
       Serial.println("\n--- DEBUG START: KALIBRACJA ---");
@@ -206,7 +206,7 @@ void setup() {
   
   Serial.println("=== ESP32 Weather Station ===");
   
-  // === SPRAWDZENIE CZY MAMY ŚWIEŻĄ POGODĘ W RTC ===
+  // === QUICK RTC WAKE CHECK ===
   if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT0 && !isOfflineMode) {
       time_t now;
       time(&now);
@@ -215,9 +215,9 @@ void setup() {
       bool hasValidTime = (timeinfo.tm_year > (2023 - 1900));
 
       if (hasValidTime && rtcHasValidWeather && (now - rtcLastWeatherFetchTime) < 1800) {
-          useCachedWeather = true;
-          Serial.println("⚡ [RTC CACHE] Znalazłem świeżą pogodę (<30 min) i poprawny czas.");
-          Serial.println("⚡ [RTC CACHE] Pomijam API pogodowe, ale włączam WiFi dla obrazków NASA.");
+          useCachedWeather = true; // ZMIANA: Bezpieczna flaga, która pozwala uruchomić WiFi, ale omija API!
+          Serial.println("⚡ [RTC CACHE] Znalazłem świeżą pogodę w RTC RAM (<30 min) i poprawny czas.");
+          Serial.println("⚡ [RTC CACHE] Pomijam API pogodowe, ale włączam WiFi dla obrazków NASA i ciągłości połączenia.");
       }
   }
 
@@ -226,15 +226,11 @@ void setup() {
       Serial.println("🔥 WAKE UP: PIR Motion Detected!");
       break;
 
-    case ESP_SLEEP_WAKEUP_TIMER: { 
+    case ESP_SLEEP_WAKEUP_TIMER:
       Serial.println("⏰ WAKE UP: NOCNA AKTUALIZACJA (03:00)");
 
       if (isOfflineMode) {
         Serial.println("[OFFLINE] Skipping nightly GitHub update (offline mode)");
-        
-        pinMode(PIR_PIN, INPUT);
-        while(digitalRead(PIR_PIN) == HIGH) { delay(50); yield(); }
-        
         esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1);
         esp_deep_sleep_start();
       }
@@ -264,7 +260,7 @@ void setup() {
           int retries = 0;
           while (WiFi.status() != WL_CONNECTED && retries < 40) {
               delay(500);
-              yield(); 
+              yield();
               Serial.print(".");
               retries++;
               sysManager.loop(); 
@@ -281,18 +277,9 @@ void setup() {
       
       Serial.println("💤 Wracam spać do rana...");
       Serial.flush();
-      
-      WiFi.disconnect(true);
-      WiFi.mode(WIFI_OFF);
-      delay(500); 
-      pinMode(PIR_PIN, INPUT);
-      int patience = 0;
-      while(digitalRead(PIR_PIN) == HIGH && patience < 100) { delay(100); yield(); patience++; }
-      
       esp_sleep_enable_ext0_wakeup((gpio_num_t)PIR_PIN, 1); 
       esp_deep_sleep_start(); 
       break;
-    } 
 
     case ESP_SLEEP_WAKEUP_UNDEFINED:
     default:
@@ -303,6 +290,7 @@ void setup() {
   tft.init();
   tft.setRotation(1);
   
+  // Aplikacja kalibracji (z globalnej zmiennej)
   const uint16_t* cal = getTouchCalibration();
   if (cal) {
       tft.setTouch(const_cast<uint16_t*>(cal));
@@ -322,9 +310,10 @@ void setup() {
 
   tft.drawString("WEATHER STATION", tft.width() / 2, tft.height() / 2 - 20);
   
-  if (!isOfflineMode) {
+  if (!isOfflineMode) { // ZMIANA: Zawsze łączymy się z siecią (jeśli nie jesteśmy w trybie offline)
       tft.drawString("Laczenie WiFi...", tft.width() / 2, tft.height() / 2 + 20);
       
+      // --- AUTO-CONNECT ---
       Preferences prefs;
       prefs.begin("wifi", true); 
       String savedSSID = prefs.getString("ssid", "");
@@ -338,12 +327,11 @@ void setup() {
       else Serial.println("Using default WiFi from secrets.h: " + connectSSID);
 
       WiFi.begin(connectSSID.c_str(), connectPassword.c_str());
-      
       int attempts = 0;
       
       while (WiFi.status() != WL_CONNECTED && attempts < 30) { 
         delay(500);
-        yield(); 
+        yield();
         Serial.print(".");
         attempts++;
       }
@@ -359,12 +347,11 @@ void setup() {
         Serial.print("Waiting for time synchronization...");
         struct tm timeinfo;
         int retry = 0;
-        const int retry_count = 10; 
+        const int retry_count = 5; 
 
-        while (!getLocalTime(&timeinfo, 500) || timeinfo.tm_year < (2023 - 1900)) {
+        while (!getLocalTime(&timeinfo, 5000) || timeinfo.tm_year < (2023 - 1900)) {
             Serial.print(".");
-            delay(500);
-            yield(); 
+            delay(1000);
             retry++;
             if (retry > retry_count) {
                 Serial.println("\nFailed to synchronize time!");
@@ -398,6 +385,7 @@ void setup() {
   
   initMotionSensor();
 
+  // TYLKO SHT31 / DHT (Bez BME280)
   #ifdef USE_SHT31
     initSHT31(); 
   #else
@@ -406,7 +394,7 @@ void setup() {
 
   locationManager.loadLocationFromPreferences();
 
-  if (!isOfflineMode) {
+  if (!isOfflineMode) { // ZMIANA: Zawsze uruchamiamy interfejs dotykowy (chyba że to tryb offline)
     initWiFiTouchInterface();
   } else {
     Serial.println("[OFFLINE] Boot: skipping WiFi touch interface init");
@@ -417,31 +405,8 @@ void setup() {
 
   initNASAImageSystem();
   
-  if (WiFi.status() == WL_CONNECTED && !isOfflineMode) {
-      struct tm timeinfo;
-      if (!getLocalTime(&timeinfo, 10) || timeinfo.tm_year < (2023 - 1900)) {
-          Serial.println("\nAwaryjna synchronizacja czasu NTP...");
-          configTzTime(TIMEZONE_INFO, NTP_SERVER);
-          int retry = 0;
-          while (!getLocalTime(&timeinfo, 500) || timeinfo.tm_year < (2023 - 1900)) {
-              Serial.print(".");
-              delay(500);
-              yield(); 
-              retry++;
-              if (retry > 10) break; 
-          }
-          if (retry <= 10) {
-              Serial.println("\nTime synchronized successfully (Emergency)!");
-          } else {
-              Serial.println("\nEmergency time sync failed!");
-          }
-      }
-  }
-
   if (WiFi.status() == WL_CONNECTED && !useCachedWeather) {
-    Serial.println("Pobieranie danych pogodowych z API...");
-    
-    tft.fillScreen(COLOR_BACKGROUND); 
+    Serial.println("Pobieranie danych pogodowych...");
     
     tft.setTextColor(TFT_YELLOW, COLOR_BACKGROUND);
     tft.setTextSize(2);
@@ -478,10 +443,10 @@ void setup() {
     
     if (weather.isValid && forecast.isValid) {
       Serial.println("Dane załadowane - uruchamiam ekrany");
-      saveWeatherToRTC(); 
+      saveWeatherToRTC(); // Zapisanie świeżej paczki do RTC
     }
   } else if (useCachedWeather || rtcHasValidWeather) {
-      Serial.println("⚡ Odtwarzam pogode z pamięci RTC...");
+      Serial.println("⚡ Odtwarzam dane z pamięci RTC...");
       restoreWeatherFromRTC();
   }
   
@@ -490,7 +455,7 @@ void setup() {
   
   checkAndShowGreeting(tft);
 
-  sysManager.restoreCorrectBrightness(); 
+  sysManager.restoreCorrectBrightness(); // Aktualizacja jasności z poprawnym czasem
 
   Serial.println("=== STACJA POGODOWA GOTOWA ===");
 }
@@ -540,6 +505,7 @@ void loop() {
     }
   }
 
+  // ZMIANA: Zawsze sprawdzamy zrywanie WiFi (zapewnia to, że auto-reconnect zadziała zawsze!)
   if (!isOfflineMode) {
       static unsigned long lastWiFiSystemCheck = 0;
       if (millis() - lastWiFiSystemCheck > WIFI_STATUS_CHECK_INTERVAL) { 
@@ -561,15 +527,7 @@ void loop() {
     
     if (WiFi.status() == WL_CONNECTED) {
         if (command == 'f' || command == 'F') getForecast();
-        
-        else if (command == 'w' || command == 'W') {
-            getWeather();              
-            fetchOpenMeteoPressure();  
-            
-            extern void forceScreenRefresh(TFT_eSPI& tft);
-            forceScreenRefresh(tft);   
-        }
-        
+        else if (command == 'w' || command == 'W') getWeather();
         else if (command == 'x' || command == 'X') generateWeeklyForecast();
         else if (command == 'r' || command == 'R') {
         Serial.println("🔄 Zdalny restart stacji...");
@@ -593,7 +551,7 @@ void loop() {
     }
   }
 
-  if (!isWiFiLost() || isOfflineMode) {
+  if (!isWiFiLost() || isOfflineMode) { // ZMIANA: Poprawka sprawdzania na ekranach
     updateScreenManager();
   }
 
@@ -646,11 +604,13 @@ void loop() {
     }
     else if (millis() - lastDisplayUpdate > DISPLAY_UPDATE_INTERVAL) {
     
+      // 1. Ekran Pogody (Tylko czas)
       if (currentScreen == SCREEN_CURRENT_WEATHER && !isWiFiConfigActive()) {
          displayTime(tft);
       }
+      // 2. Ekran Sensorów (SHT31/DHT22)
       else if (currentScreen == SCREEN_LOCAL_SENSORS) {
-          displayLocalSensors(tft, true); 
+          displayLocalSensors(tft, true); // true = tylko odśwież liczby (bez migania)
       }
 
       lastDisplayUpdate = millis();
@@ -681,15 +641,18 @@ void onWiFiConnectedTasks() {
 
 void checkAndShowGreeting(TFT_eSPI& tft) {
     extern bool isOfflineMode;
-    if (isOfflineMode) return; 
+    if (isOfflineMode) return; // W trybie offline nie znamy czasu, ignorujemy
 
     struct tm timeinfo;
+    // Sprawdzamy, czy czas jest zsynchronizowany (rok > 2023)
     if (getLocalTime(&timeinfo, 0) && timeinfo.tm_year > (2023 - 1900)) {
         
+        // Jeśli jest między 5:00 a 11:00 rano
         if (timeinfo.tm_hour >= 5 && timeinfo.tm_hour < 24) {
             
+            // Jeśli dzisiaj się jeszcze nie witaliśmy (tm_yday to dzień roku 0-365)
             if (lastGreetingDay != timeinfo.tm_yday) {
-                lastGreetingDay = timeinfo.tm_yday; 
+                lastGreetingDay = timeinfo.tm_yday; // Zapisz, że powitanie zaliczone
                 
                 Serial.println("☀️ Wyświetlam powitanie: Dzien dobry!");
                 tft.fillScreen(TFT_BLACK);
@@ -698,8 +661,9 @@ void checkAndShowGreeting(TFT_eSPI& tft) {
                 tft.setTextSize(3);
                 tft.drawString("Dzien dobry!", tft.width() / 2, tft.height() / 2);
                 
-                delay(3000); 
+                delay(3000); // Wyświetlaj przez 3 sekundy
                 
+                // Wymuś odświeżenie całego ekranu, żeby powrócić do normalnego interfejsu
                 extern void forceScreenRefresh(TFT_eSPI& tft);
                 forceScreenRefresh(tft);
             }
@@ -719,7 +683,8 @@ void saveWeatherToRTC() {
     rtcWeather.humidity = weather.humidity;
     rtcWeather.windSpeed = weather.windSpeed;
     rtcWeather.windDeg = weather.windDeg;
-    rtcWeather.cloudiness = weather.cloudiness;
+    rtcWeather.cloudiness = weather.cloudiness; 
+    rtcWeather.timezone = weather.timezone; 
     rtcWeather.sunrise = weather.sunrise; 
     rtcWeather.sunset = weather.sunset;   
     strncpy(rtcWeather.description, weather.description.c_str(), 31);
@@ -755,7 +720,6 @@ void saveWeatherToRTC() {
 
     rtcMeteoValid = isOpenMeteoDataValid();
     if (rtcMeteoValid) {
-        // ZMIANA: Zapisujemy do RTC obie serie (MSL i Surface) niezależnie
         const float* mslHistory = getOpenMeteoPressureMslHistory();
         const float* surfHistory = getOpenMeteoPressureSurfaceHistory();
         for (int i = 0; i < 12; i++) {
@@ -777,7 +741,8 @@ void restoreWeatherFromRTC() {
     weather.humidity = rtcWeather.humidity;
     weather.windSpeed = rtcWeather.windSpeed;
     weather.windDeg = rtcWeather.windDeg;
-    weather.cloudiness = rtcWeather.cloudiness;
+    weather.cloudiness = rtcWeather.cloudiness; 
+    weather.timezone = rtcWeather.timezone; 
     weather.sunrise = rtcWeather.sunrise; 
     weather.sunset = rtcWeather.sunset;   
     weather.description = String(rtcWeather.description);
@@ -808,7 +773,6 @@ void restoreWeatherFromRTC() {
     weeklyForecast.isValid = true;
 
     if (rtcMeteoValid) {
-        // ZMIANA: Przywracamy obie linie historii z pamięci RTC
         extern void setOpenMeteoPressureHistory(const float* mslData, const float* surfData);
         setOpenMeteoPressureHistory(rtcMeteoPressureMsl, rtcMeteoPressureSurface);
     }
