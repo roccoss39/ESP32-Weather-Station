@@ -1,12 +1,18 @@
 #include "display/display_pressure.h"
 #include "display_utils.h"
+#include "weather/weather_data.h"
 #include "weather/open_meteo_api.h"
 
+// Definicja globalnej flagi wyboru wysokości ciśnienia
+bool showPressureAtSeaLevel = true;
 
+// Funkcja zachowana dla wstecznej kompatybilności.
+void savePressureToHistory(float currentPressure) {
+    // Pusta - cała historia pobierana jest bezpośrednio z Open-Meteo API
+}
 
 void displayPressureScreen(TFT_eSPI& tft) {
     // Kolory interfejsu (Format RGB565)
-    Serial.print("Rysowanie Pressure Screen\n");
     uint16_t COLOR_BG = TFT_BLACK;
     uint16_t COLOR_GRID = tft.color565(50, 50, 50);
     uint16_t COLOR_TEXT_MUTED = tft.color565(150, 150, 150);
@@ -29,12 +35,10 @@ void displayPressureScreen(TFT_eSPI& tft) {
     float drawHistory[12];
 
     if (!isOpenMeteoDataValid()) {
-        // Brak danych z Open-Meteo (np. brak połączenia z siecią)
         clearAndShowMessage(tft, "Oczekiwanie na\ndane z internetu...", TFT_WHITE, 2);
         return;
     }
 
-    // Pobieramy historię bezpośrednio ze wskaźnika API
     const float* onlineData = getOpenMeteoPressureHistory();
     for (int i = 0; i < 12; i++) {
         drawHistory[i] = onlineData[i];
@@ -69,14 +73,18 @@ void displayPressureScreen(TFT_eSPI& tft) {
     int chartH = tft.height() - yOffset - 55; 
     int chartBottom = yOffset + chartH;
     int maxSlots = 12; 
+    
+    int barSpacing = 4; 
+    int barW = (chartW / maxSlots) - barSpacing;
 
     // ==========================================
-    // 5. RYSOWANIE SIATKI (GRID)
+    // 5. RYSOWANIE SIATKI (GRID) - BŁYSKAWICZNE
     // ==========================================
     tft.setTextSize(1);
     tft.setTextDatum(MR_DATUM); 
     tft.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
 
+    // Linie poziome
     for (int i = 0; i <= 3; i++) {
         float val = maxP - i * ((maxP - minP) / 3.0);
         int y = yOffset + i * (chartH / 3);
@@ -87,12 +95,21 @@ void displayPressureScreen(TFT_eSPI& tft) {
         tft.drawString(String(val, 1), xOffset - 5, y);
     }
 
+    // Linie pionowe - RYSOWANE ZANIM NARYSUJEMY SŁUPKI!
+    for (int i = 0; i < 12; i++) {
+        if (i % 2 == 0 || i == 11) {
+            int barX = xOffset + (i * (chartW / maxSlots)) + (barSpacing / 2);
+            int barCenter = barX + (barW / 2);
+            
+            for (int dy = yOffset; dy < chartBottom; dy += 5) {
+                 tft.drawPixel(barCenter, dy, COLOR_GRID);
+            }
+        }
+    }
+
     // ==========================================
     // 6. RYSOWANIE SŁUPKÓW I OSI X
     // ==========================================
-    int barSpacing = 4; 
-    int barW = (chartW / maxSlots) - barSpacing;
-
     tft.setTextDatum(TC_DATUM); 
 
     for (int i = 0; i < 12; i++) {
@@ -105,23 +122,18 @@ void displayPressureScreen(TFT_eSPI& tft) {
 
         uint16_t barColor = (i == 11) ? COLOR_BAR_NOW : COLOR_BAR;
         
+        // Rysujemy słupek (naturalnie przykryje pionowe kropki siatki pod spodem!)
         tft.fillRoundRect(barX, barY, barW, barH, 2, barColor);
         if (barH > 4) {
              tft.fillRect(barX, chartBottom - 2, barW, 2, barColor);
         }
 
+        // Napisy na osi X
         if (i % 2 == 0 || i == 11) {
             int barCenter = barX + (barW / 2);
-            
-            for (int dy = yOffset; dy < chartBottom; dy += 5) {
-                 if (tft.readPixel(barCenter, dy) == COLOR_BG) {
-                     tft.drawPixel(barCenter, dy, COLOR_GRID);
-                 }
-            }
-
             int hoursAgo = 11 - i;
-            tft.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
             
+            tft.setTextColor(COLOR_TEXT_MUTED, COLOR_BG);
             if (hoursAgo == 0) {
                 tft.setTextColor(COLOR_BAR_NOW, COLOR_BG);
                 tft.drawString("Teraz", barCenter, chartBottom + 5);
@@ -132,27 +144,51 @@ void displayPressureScreen(TFT_eSPI& tft) {
     }
 
     // ==========================================
-    // 7. DOLNY PANEL
+    // 7. DOLNY PANEL: INTERAKTYWNY PRZYCISK OPCOW
     // ==========================================
     int widgetH = 30;
     int widgetY = tft.height() - widgetH - 8;
     int widgetX = 15; 
     int widgetW = tft.width() - 30;
 
-    tft.fillRoundRect(widgetX, widgetY, widgetW, widgetH, 4, COLOR_WIDGET_BG);
-    tft.drawRoundRect(widgetX, widgetY, widgetW, widgetH, 4, COLOR_WIDGET_BORDER);
+    // Przycisk przełącznika wysokości (szerokość 170px)
+    int btnW = 170;
+    int btnH = widgetH;
+    int btnX = widgetX;
+    int btnY = widgetY;
+
+    // Kolory przycisku dopasowują się do stanu aktywności
+    uint16_t btnBg = showPressureAtSeaLevel ? tft.color565(20, 40, 70) : tft.color565(35, 35, 40);
+    uint16_t btnBorder = showPressureAtSeaLevel ? COLOR_BAR_NOW : COLOR_WIDGET_BORDER;
+
+    tft.fillRoundRect(btnX, btnY, btnW, btnH, 4, btnBg);
+    tft.drawRoundRect(btnX, btnY, btnW, btnH, 4, btnBorder);
     
-    tft.setTextDatum(ML_DATUM); 
-    tft.setTextColor(COLOR_TEXT_MUTED, COLOR_WIDGET_BG);
+    tft.setTextDatum(MC_DATUM); 
+    tft.setTextColor(showPressureAtSeaLevel ? COLOR_BAR_NOW : TFT_WHITE, btnBg);
     tft.setTextSize(1);
     
-    // Prosta, czysta etykieta źródła danych
-    tft.drawString(" OPEN-METEO API", widgetX + 10, widgetY + (widgetH / 2));
+    if (showPressureAtSeaLevel) {
+        tft.drawString("Poz. morza (MSL) [X]", btnX + (btnW / 2), btnY + (btnH / 2));
+    } else {
+        tft.drawString("Poz. gruntu (Stacja)", btnX + (btnW / 2), btnY + (btnH / 2));
+    }
 
-    // Wyświetlamy aktualną wartość ciśnienia
+    // Panel odczytu wartości (szerokość 110px z 10px przerwy)
+    int valX = btnX + btnW + 10;
+    int valW = widgetW - btnW - 10;
+    int valY = widgetY;
+
+    tft.fillRoundRect(valX, valY, valW, widgetH, 4, COLOR_WIDGET_BG);
+    tft.drawRoundRect(valX, valY, valW, widgetH, 4, COLOR_WIDGET_BORDER);
+
     tft.setTextDatum(MR_DATUM); 
     tft.setTextColor(COLOR_BAR_NOW, COLOR_WIDGET_BG);
     tft.setTextSize(2); 
-    String currentPressureText = String(drawHistory[11], 1) + " hPa ";
-    tft.drawString(currentPressureText, widgetX + widgetW - 5, widgetY + (widgetH / 2));
+    String currentPressureText = String(drawHistory[11], 1) + " ";
+    tft.drawString(currentPressureText, valX + valW - 32, valY + (widgetH / 2));
+
+    tft.setTextSize(1);
+    tft.setTextColor(TFT_WHITE, COLOR_WIDGET_BG);
+    tft.drawString("hPa", valX + valW - 5, valY + (widgetH / 2));
 }

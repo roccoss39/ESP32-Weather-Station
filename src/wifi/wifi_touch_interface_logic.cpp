@@ -10,7 +10,9 @@
 #include "weather/forecast_data.h"  
 #include "display/display_utils.h"
 #include "wifi/offline_mode_pref.h"
-#include "config/hardware_config.h"  // For TFT_BL pin definition
+#include "display/display_pressure.h" // Niezbędne do odczytu i przełączania showPressureAtSeaLevel
+#include "weather/open_meteo_api.h"   // Do pobrania poprawnej wartości weather.pressure po kliknięciu
+#include "config/hardware_config.h"  
 
 #ifndef DEBUG_LONG_PRESS
 #define DEBUG_LONG_PRESS 1
@@ -23,7 +25,6 @@ extern bool forecastErrorModeGlobal;
 extern bool weeklyErrorModeGlobal;
 extern bool isOfflineMode;
 
-// DODANO: Wykorzystujemy tę flagę, by "oślepić" czujnik PIR podczas gdy modem Wi-Fi obciąża zasilanie!
 extern bool isImageDownloadInProgress; 
 
 // Colors
@@ -42,7 +43,6 @@ extern bool isImageDownloadInProgress;
 #define DARKGRAY 0x4208
 #define COLOR_BACKGROUND 0x0000  
 
-// TFT instance - extern, defined in main.cpp
 extern TFT_eSPI tft; 
 
 Preferences preferences;
@@ -82,7 +82,6 @@ bool wifiLostDetected = false;
 unsigned long lastReconnectAttempt = 0;
 bool backgroundReconnectActive = false;
 
-// NOWE ZMIENNE DO NIEBLOKUJĄCEGO AUTO-RECONNECT:
 bool reconnectAttemptInProgress = false;
 unsigned long reconnectStartTime = 0;
 
@@ -107,7 +106,6 @@ String customLongitude = "14.5530";
 bool editingLatitude = true; 
 int coordinatesCursorPos = 0;
 
-// Touch functions
 void handleTouchInput(int16_t x, int16_t y);
 void handleKeyboardTouch(int16_t x, int16_t y);
 
@@ -135,7 +133,6 @@ void initWiFiTouchInterface() {
     Serial.println("No WiFi connection, trying saved credentials...");
     wifiTouchUI_drawStatusMessage(tft, "Laczenie z WiFi...");
     
-    // BLOKADA CZUJNIKA PIR NA CZAS INTENSYWNEJ PRACY MODEMU WIFI
     isImageDownloadInProgress = true; 
     
     WiFi.begin(defaultSSID.c_str(), defaultPassword.c_str());
@@ -143,13 +140,12 @@ void initWiFiTouchInterface() {
     int timeout = 0;
     while (WiFi.status() != WL_CONNECTED && timeout < 20) {
       delay(500);
-      yield(); // <--- KLUCZOWE: Karmienie Watchdoga w trakcie Twojego odliczania!
-      Serial.print(".");
+      yield(); 
       timeout++;
       wifiTouchUI_drawStatusMessage(tft, "Laczenie... " + String(timeout) + "/20");
     }
     
-    isImageDownloadInProgress = false; // Zdejmujemy blokadę z czujnika
+    isImageDownloadInProgress = false; 
     
     if (WiFi.status() == WL_CONNECTED) {
       currentState = STATE_CONNECTED;
@@ -166,7 +162,7 @@ void initWiFiTouchInterface() {
       
       currentState = STATE_SCAN_NETWORKS;
       
-      yield(); // Karmienie przed blokującym skanowaniem
+      yield(); 
       scanNetworks();
       drawNetworkList(tft);
 
@@ -196,7 +192,6 @@ void handleWiFiTouchLoop(TFT_eSPI& tft) {
   
   if (tft.getTouch(&x, &y)) {
 
-    // === GHOST TOUCH PROTECTION ===
     extern MotionSensorManager& getMotionSensorManager();
     if (getMotionSensorManager().isGhostTouchProtectionActive()) {
         Serial.println("👻 Ghost Touch Detected & Ignored (Voltage spike)");
@@ -243,20 +238,18 @@ void exitWiFiConfigMode() {
 void scanNetworks() {
   drawStatusMessage(tft, "Szukam sieci...");
   
-  // === BLOKADA PIR I POPRAWKA OCHRONNA (Anty-Watchdog) ===
-  isImageDownloadInProgress = true; // Zabezpieczamy PIR przed skokiem napięcia
+  isImageDownloadInProgress = true; 
   WiFi.disconnect(true, true); 
   delay(200);
   yield(); 
   WiFi.mode(WIFI_STA);
   delay(200);
   yield(); 
-  // ====================================================
 
   networkCount = WiFi.scanNetworks();
   Serial.printf("Found %d networks\n", networkCount);
   
-  isImageDownloadInProgress = false; // Zdejmujemy tarczę z PIR po skanowaniu
+  isImageDownloadInProgress = false; 
   
   if (networkCount == 0) {
     drawStatusMessage(tft, "No networks found");
@@ -276,20 +269,20 @@ void connectToWiFi() {
   drawStatusMessage(tft, "Laczenie z " + currentSSID + "...");
   Serial.println("Connecting to: " + currentSSID);
   
-  isImageDownloadInProgress = true; // Blokada PIR
+  isImageDownloadInProgress = true; 
   currentPassword = enteredPassword;
   WiFi.begin(currentSSID.c_str(), currentPassword.c_str());
   
   int timeout = 0;
   while (WiFi.status() != WL_CONNECTED && timeout < 30) {
     delay(500);
-    yield(); // Ochrona Watchdoga
+    yield(); 
     Serial.print(".");
     timeout++;
     drawStatusMessage(tft, "Laczenie... " + String(timeout) + "/30");
   }
   
-  isImageDownloadInProgress = false; // Odblokowanie PIR
+  isImageDownloadInProgress = false; 
   
   if (WiFi.status() == WL_CONNECTED) {
     ensureWiFiPrefs();
@@ -352,6 +345,10 @@ void handleLongPress(TFT_eSPI& tft) {
   const unsigned long TOUCH_GLITCH_TOLERANCE_MS = 120;
   const unsigned long TAP_REFRESH_MAX_MS = 700;
   
+  // ZMIANA: Dodano statyczne zmienne startowe touch do precyzyjnego pozycjonowania kliknięcia
+  static uint16_t touchStartX = 0;
+  static uint16_t touchStartY = 0;
+
   if (currentTouch) {
     lastTouchSeenMs = millis();
     extern ScreenManager& getScreenManager();
@@ -359,6 +356,10 @@ void handleLongPress(TFT_eSPI& tft) {
   }
   
   if (currentTouch && !touchActive) {
+    // Zapamiętaj współrzędne początku kliknięcia
+    touchStartX = x;
+    touchStartY = y;
+
     touchStartTime = millis();
     touchActive = true;
     longPressDetected = false;
@@ -384,6 +385,31 @@ void handleLongPress(TFT_eSPI& tft) {
     
     if (elapsed >= 200 && elapsed < WIFI_LONG_PRESS_TIME) {
       if (elapsed <= TAP_REFRESH_MAX_MS) {
+        
+        // ==============================================================
+        // ZMIANA: PRZYCHWYCENIE KLIKNIĘCIA W PRZYCISK CIŚNIENIA NA EKRANIE CIŚNIENIA
+        // ==============================================================
+        extern ScreenManager& getScreenManager();
+        if (getScreenManager().getCurrentScreen() == SCREEN_PRESSURE) {
+            // Przycisk znajduje się na X: 15 do 185, Y: 202 do 232 (dodano tolerancję 5px)
+            if (touchStartX >= 10 && touchStartX <= 190 && touchStartY >= 195 && touchStartY <= 235) {
+                Serial.println("🎯 [PIR] Kliknięto przycisk zmiany wysokości ciśnienia!");
+                showPressureAtSeaLevel = !showPressureAtSeaLevel;
+                
+                // Od razu zaktualizuj odczyt bieżący stacji
+                if (isOpenMeteoDataValid()) {
+                    const float* onlineData = getOpenMeteoPressureHistory();
+                    weather.pressure = onlineData[11];
+                }
+                
+                forceScreenRefresh(tft); // Przerysuj ekran w nowym trybie
+                touchActive = false;
+                longPressDetected = false;
+                return; // PRZERYWAMY pętlę, aby zapobiec przełączeniu ekranu TFT na kolejny!
+            }
+        }
+        // ==============================================================
+
         Serial.println("Touch released on Main Screen - Refreshing...");
         forceScreenRefresh(tft);
       }
@@ -478,7 +504,7 @@ void handleBackgroundReconnect() {
     if (WiFi.status() == WL_CONNECTED) {
       Serial.println("Background reconnect SUCCESS! Exiting scan mode.");
       
-      isImageDownloadInProgress = false; // Zdejmujemy tarczę PIR
+      isImageDownloadInProgress = false; 
       
       backgroundReconnectActive = false;
       reconnectAttemptInProgress = false;
@@ -498,7 +524,7 @@ void handleBackgroundReconnect() {
     if (millis() - reconnectStartTime > WIFI_CONNECTION_TIMEOUT) { 
       Serial.println("Background reconnect attempt timed out, will retry in 19s...");
       
-      isImageDownloadInProgress = false; // Zdejmujemy tarczę PIR po nieudanej próbie
+      isImageDownloadInProgress = false; 
       
       reconnectAttemptInProgress = false; 
       lastReconnectAttempt = millis(); 
@@ -520,7 +546,7 @@ void handleBackgroundReconnect() {
     if (savedSSID.length() > 0) {
       Serial.printf("Background auto-reconnect to: %s (scan mode)\n", savedSSID.c_str());
       
-      isImageDownloadInProgress = true; // ZABEZPIECZAMY PIR NA CZAS PRACY MODEMU WIFI!
+      isImageDownloadInProgress = true; 
       reconnectAttemptInProgress = true; 
       reconnectStartTime = millis();     
       
@@ -601,7 +627,7 @@ void handleWiFiLoss() {
     if (WiFi.status() == WL_CONNECTED) {
       Serial.println("Auto-reconnect SUCCESS!");
       
-      isImageDownloadInProgress = false; // Zdejmujemy tarczę PIR
+      isImageDownloadInProgress = false; 
       
       wifiLostDetected = false;
       reconnectAttemptInProgress = false;
@@ -615,7 +641,7 @@ void handleWiFiLoss() {
     if (millis() - reconnectStartTime > WIFI_CONNECTION_TIMEOUT) { 
       Serial.println("Auto-reconnect attempt timed out, will retry in 19s...");
       
-      isImageDownloadInProgress = false; // Zdejmujemy tarczę PIR
+      isImageDownloadInProgress = false; 
       
       reconnectAttemptInProgress = false; 
       lastReconnectAttempt = millis();    
@@ -636,7 +662,7 @@ void handleWiFiLoss() {
     if (savedSSID.length() > 0) {
       Serial.printf("Auto-reconnect attempt to: %s (grace period)\n", savedSSID.c_str());
       
-      isImageDownloadInProgress = true;  // ZABEZPIECZAMY PIR
+      isImageDownloadInProgress = true;  
       reconnectAttemptInProgress = true; 
       reconnectStartTime = millis();     
       
@@ -659,7 +685,7 @@ void handleWiFiLoss() {
        if (WiFi.status() == WL_CONNECTED) {
           Serial.println("FINAL auto-reconnect SUCCESS!");
           
-          isImageDownloadInProgress = false; // Sukces, zdejmujemy tarczę
+          isImageDownloadInProgress = false; 
           
           wifiLostDetected = false;
           reconnectAttemptInProgress = false;
@@ -668,7 +694,7 @@ void handleWiFiLoss() {
        }
     }
     
-    isImageDownloadInProgress = false; // Upewniamy się, że zdejmujemy przed skanowaniem (skanowanie założy własną)
+    isImageDownloadInProgress = false; 
     
     Serial.println("All reconnect attempts failed. Starting network scan...");
     wifiLostDetected = false;
