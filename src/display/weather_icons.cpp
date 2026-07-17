@@ -4,11 +4,8 @@
 void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconCode) {
   tft.fillRect(x, y, ICON_SIZE, ICON_SIZE, COLOR_BACKGROUND); // Wyczyść obszar ikony
   
-  //Serial.println("[DEBUG] Rysowanie ikony dla: main='" + condition + "', icon='" + iconCode + "'");
-  
-  // Ikony na podstawie oficjalnej listy OpenWeatherMap
   // Group 800: Clear
-  if (iconCode.indexOf("01") >= 0 || condition == "clear sky") { // 01d, 01n = clear sky
+  if (iconCode.indexOf("01") >= 0 || condition == "clear sky") { 
     // Słońce - czyste niebo
     tft.fillCircle(x + 25, y + 25, 15, TFT_YELLOW);
     for (int i = 0; i < 8; i++) {
@@ -21,9 +18,29 @@ void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconC
     }
   }
   // Group 80x: Clouds  
-  else if (iconCode.indexOf("02") >= 0 || iconCode.indexOf("03") >= 0 || iconCode.indexOf("04") >= 0 ||
-           condition.indexOf("clouds") >= 0) {
-    // 02d/02n = few clouds, 03d/03n = scattered clouds, 04d/04n = broken/overcast clouds
+  // 02d: Małe zachmurzenie w dzień (Słońce + chmurka)
+  else if (iconCode == "02d") {
+    // Słońce w tle
+    tft.fillCircle(x + 15, y + 15, 10, TFT_YELLOW);
+    // Chmurka na pierwszym planie
+    tft.fillCircle(x + 20, y + 30, 10, TFT_LIGHTGREY);
+    tft.fillCircle(x + 30, y + 25, 13, TFT_WHITE);
+    tft.fillCircle(x + 40, y + 30, 10, TFT_LIGHTGREY);
+    tft.fillRect(x + 15, y + 35, 30, 6, TFT_WHITE);
+  }
+  // 02n: Małe zachmurzenie w nocy (Księżyc + chmurka)
+  else if (iconCode == "02n") {
+    // Księżyc w tle (żółte koło, wycięte czarnym)
+    tft.fillCircle(x + 15, y + 15, 10, TFT_YELLOW);
+    tft.fillCircle(x + 19, y + 12, 8, COLOR_BACKGROUND); // "Gumka" tworząca rogalik
+    // Chmurka na pierwszym planie (nieco ciemniejsza, bo to noc)
+    tft.fillCircle(x + 20, y + 30, 10, TFT_DARKGREY);
+    tft.fillCircle(x + 30, y + 25, 13, TFT_LIGHTGREY);
+    tft.fillCircle(x + 40, y + 30, 10, TFT_DARKGREY);
+    tft.fillRect(x + 15, y + 35, 30, 6, TFT_LIGHTGREY);
+  }
+  // 03 i 04: Duże zachmurzenie (Sama duża chmura, dawny kod)
+  else if (iconCode.indexOf("03") >= 0 || iconCode.indexOf("04") >= 0 || condition.indexOf("clouds") >= 0) {
     tft.fillCircle(x + 15, y + 30, 12, TFT_LIGHTGREY);
     tft.fillCircle(x + 25, y + 25, 15, TFT_WHITE);
     tft.fillCircle(x + 35, y + 30, 12, TFT_LIGHTGREY);
@@ -31,7 +48,6 @@ void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconC
   }
   // Group 2xx: Thunderstorm
   else if (iconCode.indexOf("11") >= 0 || condition.indexOf("thunderstorm") >= 0) {
-    
     // Ciemne chmury burzy
     tft.fillCircle(x + 15, y + 20, 10, TFT_DARKGREY);
     tft.fillCircle(x + 25, y + 15, 12, TFT_LIGHTGREY);

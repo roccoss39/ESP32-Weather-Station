@@ -44,8 +44,8 @@ void displayWeeklyForecast(TFT_eSPI& tft) {
   }
   
   // === STAŁE POZYCJE (KOTWICE) KOLUMN ===
-  const int colTempX = 145;  // Środek kolumny Temperatury (przesunięte w prawo od ikon)
-  const int colWindX = 225;  // Środek kolumny Wiatru
+  const int colTempX = 155;  // Mocno w prawo, aby promień słońca nie dotykał cyfr!
+  const int colWindX = 235;  // Środek kolumny Wiatru
   const int colRainX = 315;  // Prawa krawędź kolumny Opadów
   // =====================================
 
@@ -100,8 +100,8 @@ void displayWeeklyForecast(TFT_eSPI& tft) {
     String shortDay = day.dayName.substring(0, 3); 
     tft.drawString(shortDay, 5, y);
     
-    // 2. Ikona (Przesunięta lekko w prawo na X=60, aby tekst w nią nie wchodził)
-    uint8_t iconX = 60;
+    // 2. Ikona (Przesunięta lekko w lewo na X=45, aby odseparować od temperatury)
+    uint8_t iconX = 45;
     int iconY = rawY - (rowHeight / 4) + textOffset;
     
     String condition = "unknown";
@@ -120,6 +120,10 @@ void displayWeeklyForecast(TFT_eSPI& tft) {
     // 3. Temperatury Min/Max - DYNAMICZNE ŚRODKOWANIE POD NAGŁÓWKIEM
     tft.setFreeFont(&FreeSans12pt7b);
     
+    // Zabezpieczenie przed ujemnym zerem
+    if (round(day.tempMin) == 0) day.tempMin = 0;
+    if (round(day.tempMax) == 0) day.tempMax = 0;
+
     String minStr = String((int)round(day.tempMin));
     String maxStr = String((int)round(day.tempMax));
     
@@ -147,8 +151,8 @@ void displayWeeklyForecast(TFT_eSPI& tft) {
     int windStartX = colWindX - (windTotalWidth / 2);
     
     // Własne, delikatne kolory dla wiatru
-    uint16_t colorWindMin = tft.color565(150, 190, 220); // Delikatny niebieskawo-szary
-    uint16_t colorWindMax = tft.color565(210, 235, 255); // Bardzo jasny błękit
+    uint16_t colorWindMin = tft.color565(150, 190, 220); 
+    uint16_t colorWindMax = tft.color565(210, 235, 255); 
 
     tft.setTextColor(colorWindMin); 
     tft.drawString(minWindStr, windStartX, y);

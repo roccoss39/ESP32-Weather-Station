@@ -11,7 +11,6 @@ void displayForecast(TFT_eSPI& tft) {
   extern unsigned long weatherRefreshTimeoutMs;
 
   if (!forecast.isValid || forecast.count == 0) {
-    // After location change we expect a short window where forecast is not ready yet.
     if (isWeatherRefreshInProgress && (millis() - weatherRefreshStartMs) < weatherRefreshTimeoutMs) {
       drawLoadingSpinner(tft, "Ladowanie prognozy...");
       return;
