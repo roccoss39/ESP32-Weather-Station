@@ -2,7 +2,7 @@
 #include "config/location_config.h" 
 #include "weather/weather_data.h"
 #include <HTTPClient.h>
-#include <WiFiClient.h> // Zwykły, super-lekki klient WiFi
+#include <WiFiClient.h> 
 #include <ArduinoJson.h>
 #include <WiFi.h>
 
@@ -10,7 +10,6 @@
 #define DEBUG_OPEN_METEO_API 1
 
 static float pressureHistoryData[12] = {0};
-// Flaga na starcie jest false. Gdy raz pobierze dane, staje się na stałe true!
 static bool dataValid = false; 
 
 // --- IMPLEMENTACJA GETTERÓW ---
@@ -22,7 +21,6 @@ bool isOpenMeteoDataValid() {
     return dataValid;
 }
 
-// --- FUNKCJA ODTWARZAJĄCA Z PAMIĘCI RTC ---
 void setOpenMeteoPressureHistory(const float* data) {
     for(int i = 0; i < 12; i++) {
         pressureHistoryData[i] = data[i];
@@ -38,17 +36,15 @@ void fetchOpenMeteoPressure() {
     }
 
     WeatherLocation currentLoc = locationManager.getCurrentLocation();
-
-    // Używamy nieszyfrowanego klienta - odzyskujemy ~30KB pamięci RAM!
     WiFiClient client; 
-
     HTTPClient http;
-    // URL tylko dla ciśnienia, bez pobierania chmur (zabezpieczenie przed brakiem pamięci)
+    
+    // Pobieramy ciśnienie i zachmurzenie (cloud_cover)
     String url = "http://api.open-meteo.com/v1/forecast?latitude=" + String(currentLoc.latitude, 4) + 
                  "&longitude=" + String(currentLoc.longitude, 4) + 
-                 "&hourly=pressure_msl&past_hours=11&forecast_hours=1";
+                 "&hourly=pressure_msl&past_hours=11&forecast_hours=1&current=cloud_cover";
     
-    Serial.printf("🌐 [Open-Meteo] Pobieranie historii ciśnienia dla: %s\n", currentLoc.displayName.c_str());
+    Serial.printf("🌐 [Open-Meteo] Pobieranie historii ciśnienia i chmur dla: %s\n", currentLoc.displayName.c_str());
 
     http.begin(client, url); 
     http.setTimeout(4000); 
@@ -64,12 +60,19 @@ void fetchOpenMeteoPressure() {
         #ifdef DEBUG_OPEN_METEO_API
             Serial.println("=== RAW JSON OPEN-METEO API ===");
             Serial.printf("Lokalizacja: %s (Lat: %.4f, Lon: %.4f)\n", currentLoc.displayName.c_str(), currentLoc.latitude, currentLoc.longitude);
-            // Serial.println(payload); // Zakomentowane, by nie śmiecić logów
             Serial.println("=== KONIEC RAW JSON OPEN-METEO ===");
         #endif
         
+        // ==============================================================
+        // TARCZA OCHRONNA RAM: Filtr JSON
+        // ==============================================================
+        JsonDocument filter;
+        filter["hourly"]["pressure_msl"] = true;
+        filter["current"]["cloud_cover"] = true;
+        
         JsonDocument doc; 
-        DeserializationError error = deserializeJson(doc, payload);
+        // Deserializujemy TYLKO to, co zdefiniowaliśmy w filtrze wyżej!
+        DeserializationError error = deserializeJson(doc, payload, DeserializationOption::Filter(filter));
         yield(); 
 
         if (error) {
@@ -77,7 +80,47 @@ void fetchOpenMeteoPressure() {
             Serial.println(error.c_str());
         } else {
             // ---------------------------------------------------------
-            // ODCZYT WYKRESU CIŚNIENIA
+            // 1. ODCZYT ZACHMURZENIA I BEZPIECZNA ZMIANA IKON
+            // ---------------------------------------------------------
+            JsonObject current = doc["current"];
+            if (!current.isNull() && current["cloud_cover"].is<int>()) {
+                int currentClouds = current["cloud_cover"].as<int>();
+                Serial.printf("☁️ [Open-Meteo] Pobrano aktualne zachmurzenie: %d%%\n", currentClouds);
+                
+                weather.cloudiness = currentClouds; 
+
+                // Bezpieczna manipulacja znakami char (chroni przed fragmentacją RAM)
+                if (weather.icon.length() >= 2) {
+                    char prefix0 = weather.icon[0];
+                    char prefix1 = weather.icon[1];
+                    char suffix = (weather.icon.length() >= 3) ? weather.icon[2] : 'd';
+                    
+                    if (prefix0 == '0' && (prefix1 >= '1' && prefix1 <= '4')) {
+                        if (currentClouds <= 10) {
+                            weather.description = "clear sky";
+                            weather.icon = String("01") + suffix;
+                        } else if (currentClouds <= 25) {
+                            weather.description = "few clouds";
+                            weather.icon = String("02") + suffix;
+                        } else if (currentClouds <= 50) {
+                            weather.description = "scattered clouds";
+                            weather.icon = String("03") + suffix;
+                        } else if (currentClouds <= 84) {
+                            weather.description = "broken clouds";
+                            weather.icon = String("04") + suffix;
+                        } else {
+                            weather.description = "overcast clouds";
+                            weather.icon = String("04") + suffix;
+                        }
+                        Serial.println("🔄 [Open-Meteo] Podmieniono opis na: " + weather.description + " (" + weather.icon + ")");
+                    } else {
+                        Serial.println("☔ [Open-Meteo] Zachmurzenie zaktualizowane, ale zachowuję ikonę opadów: " + weather.icon);
+                    }
+                }
+            }
+
+            // ---------------------------------------------------------
+            // 2. ODCZYT WYKRESU CIŚNIENIA
             // ---------------------------------------------------------
             JsonArray pressureArray = doc["hourly"]["pressure_msl"];
             
