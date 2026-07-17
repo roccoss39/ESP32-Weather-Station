@@ -44,8 +44,8 @@ void displayWeeklyForecast(TFT_eSPI& tft) {
   }
   
   // === STAŁE POZYCJE (KOTWICE) KOLUMN ===
-  const int colTempX = 155;  // Mocno w prawo, aby promień słońca nie dotykał cyfr!
-  const int colWindX = 235;  // Środek kolumny Wiatru
+  const int colTempX = 145;  // Mocno w prawo, ale przesunięte o 10px w lewo (było 155)
+  const int colWindX = 220;  // Środek kolumny Wiatru przesunięty o kolejne 5px w lewo (było 225)
   const int colRainX = 315;  // Prawa krawędź kolumny Opadów
   // =====================================
 
@@ -100,8 +100,8 @@ void displayWeeklyForecast(TFT_eSPI& tft) {
     String shortDay = day.dayName.substring(0, 3); 
     tft.drawString(shortDay, 5, y);
     
-    // 2. Ikona (Przesunięta lekko w lewo na X=45, aby odseparować od temperatury)
-    uint8_t iconX = 45;
+    // 2. Ikona (Przesunięta o 10px w lewo, na X=55)
+    uint8_t iconX = 55;
     int iconY = rawY - (rowHeight / 4) + textOffset;
     
     String condition = "unknown";

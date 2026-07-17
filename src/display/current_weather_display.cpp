@@ -68,7 +68,6 @@ uint16_t getHumidityColor(float humidity) {
     else return TFT_WHITE;
 }
 
-// --- NOWA FUNKCJA KONWERTUJĄCA STOPNIE NA KIERUNEK ---
 String getWindDirectionName(int deg) {
     if (deg >= 337 || deg < 23)  return "Polnoc";
     if (deg >= 23  && deg < 68)  return "Pn-Wsch";
@@ -81,102 +80,71 @@ String getWindDirectionName(int deg) {
     return "";
 }
 
-// ================================================================
-// FUNKCJA RYSOWANIA STRZAŁKI (Wersja MINI - 5x5 px)
-// ================================================================
 void drawTrendArrow(TFT_eSPI& tft, int x, int y, int direction, uint16_t color) {
-    // ZMNIEJSZONE WYMIARY
     int w = 5; 
     int h = 5; 
     
-    // Tło czyszczące ("Gumka")
     tft.fillRect(x - 4, y - 2, 9, 10, 0x1082); 
     
-    // Kod 99 oznacza "Brak ikony" (dla dolnej linii w trybie stabilnym)
     if (direction == 99) return;
 
     if (direction >= 1) { 
-        // GÓRA 
         int off = 5; 
         tft.fillTriangle(x, y - h + off, x - w/2, y + off, x + w/2, y + off, color);
     } 
     else if (direction <= -1) { 
-        // DÓŁ 
         int off = 0; 
         tft.fillTriangle(x, y + h + off, x - w/2, y + off, x + w/2, y + off, color);
     }
     else { 
-        // KRESKA (Stabilnie)
         tft.fillRect(x - 2, y + 6, 5, 2, color); 
     }
 }
 
-
-// ================================================================
-// LOGIKA TRENDU CIŚNIENIA - BAZUJĄCA NA OPEN-METEO API
-// ================================================================
-
 void getPressureTrendInfo(float currentPressure, String &trendText, String &forecastText, uint16_t &trendColor, int &dir1, int &dir2) {
+    float pressure3hAgo = currentPressure; 
     
-    float pressure3hAgo = currentPressure; // Domyślnie brak zmiany, jeśli API nie działa
-    
-    // Pobieramy natychmiastową historię sprzed 3 godzin z API!
     if (isOpenMeteoDataValid()) {
         const float* apiHistory = getOpenMeteoPressureHistory();
-        // Indeks 11 to teraz. Indeks 8 to dokładnie 3 godziny temu.
         pressure3hAgo = apiHistory[8]; 
     }
 
-    // OBLICZANIE RÓŻNICY
     float diff = currentPressure - pressure3hAgo;
+    float thresholdStable = 0.5; 
+    float thresholdStorm = 4.0;  
 
-    // USTALANIE STATUSU (PROGI)
-    float thresholdStable = 0.5; // +/- 0.5 hPa 
-    float thresholdStorm = 4.0;  // +/- 4.0 hPa
-
-    // Logika mapowania trendu 
     if (diff > thresholdStorm) {
-        // Szybko rośnie
         trendText = "Szybko rosnie";
         forecastText = "Wiatr Bezchm.";
         trendColor = TFT_MAGENTA;
-        dir1 = -1; // Strzałka dół
-        dir2 = -1; // Strzałka dół
-        
+        dir1 = -1; 
+        dir2 = -1; 
     } else if (diff > thresholdStable) {
-        // Rośnie
         trendText = "Rosnie";
         forecastText = "Wiatr Chmury"; 
         trendColor = TFT_GREEN;
-        dir1 = -1; // Strzałka dół
-        dir2 = -1; // Strzałka dół
-        
+        dir1 = -1; 
+        dir2 = -1; 
     } else if (diff < -thresholdStorm) {
-        // Gwałtownie spada
         trendText = "Spada gwaltownie"; 
         forecastText = "Wiatr BURZA!";
         trendColor = TFT_RED;
-        dir1 = 2; // Strzałka góra
-        dir2 = 2; // Strzałka góra
-        
+        dir1 = 2; 
+        dir2 = 2; 
     } else if (diff < -thresholdStable) {
-        // Spada
         trendText = "Spada";
         forecastText = "Wiatr Pochm.";
         trendColor = TFT_ORANGE;
-        dir1 = 1; // Strzałka góra
-        dir2 = 1; // Strzałka góra
-        
+        dir1 = 1; 
+        dir2 = 1; 
     } else {
-        // Stabilnie
         trendText = "Stabilne";
         forecastText = "Pogoda Bez zm."; 
         trendColor = TFT_CYAN;
-        dir1 = 0;  // Kreska
-        dir2 = 99; // Brak ikony
+        dir1 = 0;  
+        dir2 = 99; 
     }
 }
-
 
 // ================================================================
 // GŁÓWNA FUNKCJA WYŚWIETLANIA POGODY
@@ -259,6 +227,8 @@ void displayCurrentWeather(TFT_eSPI& tft) {
     tft.setTextSize(2);
     tft.drawString(String((int)round(weather.feelsLike)), 80, startY + 135 + WEATHER_CARD_TEMP_Y_OFFSET);
 
+    // USUNIĘTO: Sekcję wyświetlania wschodu i zachodu słońca na lewej karcie, aby zachować estetyczny układ.
+
     // =========================================================
     // PRAWA KOLUMNA
     // =========================================================
@@ -292,7 +262,6 @@ void displayCurrentWeather(TFT_eSPI& tft) {
     tft.setTextSize(1);
     tft.drawString("WIATR", rightX + 5, y2 + 5);
 
-    // --- DODANO: Wyświetlenie kierunku wiatru pod napisem "WIATR" ---
     tft.setTextColor(TFT_SILVER, TEXT_BG);
     String windDir = getWindDirectionName(weather.windDeg);
     tft.drawString(windDir, rightX + 5, y2 + 18);
@@ -316,35 +285,28 @@ void displayCurrentWeather(TFT_eSPI& tft) {
     uint16_t trendCol;
     int dir1, dir2; 
     
-    // Pobieramy dane z nowej, ulepszonej logiki trendu
     getPressureTrendInfo(weather.pressure, trendTxt, forecastTxt, trendCol, dir1, dir2);
 
-    // Etykieta CIS.
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(LABEL_COLOR, TEXT_BG);
     tft.setTextSize(1);
     tft.drawString("CIS.", rightX + 5, y3 + 5);
 
-    // Trend
     tft.setTextColor(trendCol, TEXT_BG);
     tft.drawString(trendTxt, rightX + 35, y3 + 5);
 
-    // --- DOLNA SEKCJA ---
     tft.setTextColor(TFT_WHITE, TEXT_BG);
     tft.setTextSize(1);
     
     int textXOffset = 22; 
     int arrowX = rightX + 12;
     
-    // Pozycje linii
     int row1_Y = y3 + 17; 
     int row2_Y = y3 + 30; 
     
-    // Rysujemy strzałki
     drawTrendArrow(tft, arrowX, row1_Y, dir1, trendCol);
     drawTrendArrow(tft, arrowX, row2_Y, dir2, trendCol);
     
-    // Rysujemy teksty
     int spaceIndex = forecastTxt.indexOf(' ');
     
     if (spaceIndex > 0) {
@@ -357,13 +319,11 @@ void displayCurrentWeather(TFT_eSPI& tft) {
         tft.drawString(forecastTxt, rightX + textXOffset, row1_Y + 5);
     }
     
-    // Wartość ciśnienia
     tft.setTextDatum(TR_DATUM);
     tft.setTextColor(getPressureColor(weather.pressure), TEXT_BG);
     tft.setTextSize(2);
     tft.drawString(String((int)weather.pressure), rightX + rightW - 30, y3 + 20); 
 
-    // Jednostka
     tft.setTextSize(1);
     tft.setTextColor(TFT_WHITE, TEXT_BG);
     tft.drawString("hPa", rightX + rightW - 5, y3 + 27);

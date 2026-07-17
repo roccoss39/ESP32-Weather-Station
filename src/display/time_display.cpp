@@ -26,8 +26,8 @@ String getPolishDayName(int dayNum) {
 void displayTime(TFT_eSPI& tft) {
   struct tm timeinfo;
 
-  if (!getLocalTime(&timeinfo, 200)) {
-    Serial.println("Error reading time");
+  // ZMIANA: Skrócono czas oczekiwania do 10ms (żeby nie blokować pętli) i usunięto spam w logach
+  if (!getLocalTime(&timeinfo, 10)) {
     tft.fillRect(TIME_AREA_X + 25, TIME_AREA_Y, 140, 20, COLOR_BACKGROUND);
     
     tft.setTextDatum(MC_DATUM);

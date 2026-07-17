@@ -8,7 +8,7 @@
 
 // --- DODANY PRZEŁĄCZNIK DEBUGOWANIA ---
 #define DEBUG_OPEN_METEO_API 1
-#define ENABLE_CLOUD_MOCK 1 // 1 = Włączony test ikon. Zmień na 0 po zakończeniu testów!
+#define ENABLE_CLOUD_MOCK 0 // 1 = Włączony test ikon. Zmień na 0 po zakończeniu testów
 
 static float pressureHistoryData[12] = {0};
 static bool dataValid = false; 
