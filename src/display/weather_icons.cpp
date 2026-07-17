@@ -39,12 +39,27 @@ void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconC
     tft.fillCircle(x + 40, y + 30, 10, TFT_DARKGREY);
     tft.fillRect(x + 15, y + 35, 30, 6, TFT_LIGHTGREY);
   }
-  // 03 i 04: Duże zachmurzenie (Sama duża chmura, dawny kod)
-  else if (iconCode.indexOf("03") >= 0 || iconCode.indexOf("04") >= 0 || condition.indexOf("clouds") >= 0) {
-    tft.fillCircle(x + 15, y + 30, 12, TFT_LIGHTGREY);
-    tft.fillCircle(x + 25, y + 25, 15, TFT_WHITE);
-    tft.fillCircle(x + 35, y + 30, 12, TFT_LIGHTGREY);
-    tft.fillRect(x + 10, y + 35, 30, 8, TFT_WHITE);
+  // 03: Średnie zachmurzenie (Dwie zachodzące na siebie chmurki)
+  else if (iconCode.indexOf("03") >= 0 || condition.indexOf("scattered") >= 0) {
+    // Chmura w tle (wyżej i bardziej w lewo, ciemniejsza)
+    tft.fillCircle(x + 15, y + 20, 8, TFT_DARKGREY);
+    tft.fillCircle(x + 25, y + 15, 10, TFT_LIGHTGREY);
+    tft.fillCircle(x + 35, y + 20, 8, TFT_DARKGREY);
+    tft.fillRect(x + 12, y + 25, 26, 4, TFT_LIGHTGREY);
+    // Chmura na pierwszym planie (niżej i w prawo, jaśniejsza)
+    tft.fillCircle(x + 20, y + 32, 10, TFT_LIGHTGREY);
+    tft.fillCircle(x + 30, y + 28, 12, TFT_WHITE);
+    tft.fillCircle(x + 40, y + 32, 10, TFT_LIGHTGREY);
+    tft.fillRect(x + 15, y + 38, 30, 5, TFT_WHITE);
+  }
+  // 04: Duże zachmurzenie / Pochmurno (Jedna duża, gęsta i mroczniejsza chmura)
+  else if (iconCode.indexOf("04") >= 0 || condition.indexOf("overcast") >= 0 || condition.indexOf("broken") >= 0 || condition.indexOf("clouds") >= 0) {
+    tft.fillCircle(x + 15, y + 28, 12, TFT_DARKGREY);
+    tft.fillCircle(x + 25, y + 22, 16, TFT_LIGHTGREY);
+    tft.fillCircle(x + 35, y + 28, 12, TFT_DARKGREY);
+    tft.fillCircle(x + 10, y + 35, 8, TFT_DARKGREY);
+    tft.fillCircle(x + 40, y + 35, 8, TFT_DARKGREY);
+    tft.fillRect(x + 8, y + 34, 34, 10, TFT_LIGHTGREY);
   }
   // Group 2xx: Thunderstorm
   else if (iconCode.indexOf("11") >= 0 || condition.indexOf("thunderstorm") >= 0) {

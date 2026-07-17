@@ -223,7 +223,6 @@ void setup() {
   switch(wakeup_reason) {
     case ESP_SLEEP_WAKEUP_EXT0:
       Serial.println("🔥 WAKE UP: PIR Motion Detected!");
-     
       break;
 
     case ESP_SLEEP_WAKEUP_TIMER: { 
@@ -577,7 +576,16 @@ void loop() {
     
     if (WiFi.status() == WL_CONNECTED) {
         if (command == 'f' || command == 'F') getForecast();
-        else if (command == 'w' || command == 'W') getWeather();
+        
+        // ZMIANA: Zaktualizowana obsługa przycisku 'w'
+        else if (command == 'w' || command == 'W') {
+            getWeather();              // Pobiera bazę z OWM
+            fetchOpenMeteoPressure();  // Aplikuje chmury i mocka z Open-Meteo
+            
+            extern void forceScreenRefresh(TFT_eSPI& tft);
+            forceScreenRefresh(tft);   // Natychmiastowo przerysowuje ekran!
+        }
+        
         else if (command == 'x' || command == 'X') generateWeeklyForecast();
         else if (command == 'r' || command == 'R') {
         Serial.println("🔄 Zdalny restart stacji...");

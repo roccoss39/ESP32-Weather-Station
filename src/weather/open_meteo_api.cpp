@@ -8,6 +8,7 @@
 
 // --- DODANY PRZEŁĄCZNIK DEBUGOWANIA ---
 #define DEBUG_OPEN_METEO_API 1
+#define ENABLE_CLOUD_MOCK 1 // 1 = Włączony test ikon. Zmień na 0 po zakończeniu testów!
 
 static float pressureHistoryData[12] = {0};
 static bool dataValid = false; 
@@ -85,6 +86,21 @@ void fetchOpenMeteoPressure() {
             JsonObject current = doc["current"];
             if (!current.isNull() && current["cloud_cover"].is<int>()) {
                 int currentClouds = current["cloud_cover"].as<int>();
+                
+                // ==========================================
+                // TRYB MOCK - TESTOWANIE IKON
+                // ==========================================
+                #if ENABLE_CLOUD_MOCK == 1
+                static int mockState = 0;
+                int mockValues[] = {5, 20, 40, 95}; // Odpowiada progom: <10, <25, <50, >84
+                currentClouds = mockValues[mockState];
+                weather.icon = "01d"; // Wymuszamy bazę słońca, żeby mock działał nawet gdy pada deszcz
+                Serial.printf("\n🧪 [MOCK] Wymuszone zachmurzenie: %d%%\n", currentClouds);
+                mockState++;
+                if (mockState > 3) mockState = 0; // Zapętl na 4 ikonie
+                #endif
+                // ==========================================
+
                 Serial.printf("☁️ [Open-Meteo] Pobrano aktualne zachmurzenie: %d%%\n", currentClouds);
                 
                 weather.cloudiness = currentClouds; 
