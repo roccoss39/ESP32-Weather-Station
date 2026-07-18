@@ -5,6 +5,7 @@
 #include <TFT_eSPI.h>
 #include <esp_sleep.h>
 #include <Preferences.h>
+#include <sys/time.h> // <-- DODANE dla funkcji settimeofday
 #include "wifi/offline_mode_pref.h"
 #include "managers/SystemManager.h"
 #include "managers/GithubUpdateManager.h"
@@ -139,6 +140,15 @@ void setup() {
   Serial.begin(115200);
   delay(DELAY_STABILIZATION); 
   
+  // === FIX NA CIEMNY EKRAN BEZ NTP ===
+  // Ustawiamy domyślny czas startowy procesora na 12:00 w południe.
+  // Dzięki temu, zanim stacja pobierze prawdziwy czas z internetu,
+  // SystemManager będzie "myślał", że jest środek dnia i włączy 100% jasności ekranu!
+  struct timeval tv;
+  tv.tv_sec = 43200; // 12 godzin * 3600 sekund
+  settimeofday(&tv, NULL);
+  // ===================================
+
   // ============================================================
   // 1. LOGIKA KALIBRACJI (OTA SAFE) - Z DEBUGOWANIEM
   // ============================================================
@@ -342,7 +352,8 @@ void setup() {
         Serial.println(WiFi.localIP());
 
         Serial.println("Configuring time from NTP server...");
-        configTzTime(TIMEZONE_INFO, NTP_SERVER);
+        // ZMIANA: Dodano potężne serwery zapasowe minimalizujące ryzyko błędu synchronizacji
+        configTzTime(TIMEZONE_INFO, NTP_SERVER, "pool.ntp.org", "time.google.com");
 
         Serial.print("Waiting for time synchronization...");
         struct tm timeinfo;
@@ -405,8 +416,32 @@ void setup() {
 
   initNASAImageSystem();
   
+  if (WiFi.status() == WL_CONNECTED && !isOfflineMode) {
+      struct tm timeinfo;
+      if (!getLocalTime(&timeinfo, 10) || timeinfo.tm_year < (2023 - 1900)) {
+          Serial.println("\nAwaryjna synchronizacja czasu NTP...");
+          // ZMIANA: Dodano potężne serwery zapasowe
+          configTzTime(TIMEZONE_INFO, NTP_SERVER, "pool.ntp.org", "time.google.com");
+          int retry = 0;
+          while (!getLocalTime(&timeinfo, 500) || timeinfo.tm_year < (2023 - 1900)) {
+              Serial.print(".");
+              delay(500);
+              yield(); 
+              retry++;
+              if (retry > 10) break; 
+          }
+          if (retry <= 10) {
+              Serial.println("\nTime synchronized successfully (Emergency)!");
+          } else {
+              Serial.println("\nEmergency time sync failed!");
+          }
+      }
+  }
+
   if (WiFi.status() == WL_CONNECTED && !useCachedWeather) {
     Serial.println("Pobieranie danych pogodowych...");
+    
+    tft.fillScreen(COLOR_BACKGROUND); // <--- TUTAJ PRZYWRÓCONA POPRAWKA! CZYŚCI EKRAN PO "LACZENIE WIFI..."
     
     tft.setTextColor(TFT_YELLOW, COLOR_BACKGROUND);
     tft.setTextSize(2);
@@ -626,7 +661,8 @@ void onWiFiConnectedTasks() {
     weatherRefreshTimeoutMs = 10000UL;
 
     Serial.println("onWiFiConnectedTasks: WiFi connected. Triggering NON-BLOCKING NTP sync...");
-    configTzTime(TIMEZONE_INFO, NTP_SERVER);
+    // ZMIANA: Dodano serwery zapasowe również dla wybudzeń ze snu i reconnectów
+    configTzTime(TIMEZONE_INFO, NTP_SERVER, "pool.ntp.org", "time.google.com");
     isNtpSyncPending = true; 
     
     Serial.println("Forcing immediate API fetch...");
