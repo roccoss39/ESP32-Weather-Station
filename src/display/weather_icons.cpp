@@ -4,8 +4,14 @@
 void drawWeatherIcon(TFT_eSPI& tft, int x, int y, String condition, String iconCode) {
   tft.fillRect(x, y, ICON_SIZE, ICON_SIZE, COLOR_BACKGROUND); // Wyczyść obszar ikony
   
-  // Group 800: Clear
-  if (iconCode.indexOf("01") >= 0 || condition == "clear sky") { 
+  // Group 800: Clear Night (Księżyc w pełni/rogalik)
+  if (iconCode == "01n") {
+    // Księżyc - czyste niebo w nocy (duży rogalik na środku)
+    tft.fillCircle(x + 25, y + 25, 14, TFT_YELLOW);
+    tft.fillCircle(x + 30, y + 21, 11, COLOR_BACKGROUND); // "Gumka" tworząca rogalik
+  }
+  // Group 800: Clear Day (Słońce)
+  else if (iconCode.indexOf("01") >= 0 || condition == "clear sky") { 
     // Słońce - czyste niebo
     tft.fillCircle(x + 25, y + 25, 15, TFT_YELLOW);
     for (int i = 0; i < 8; i++) {

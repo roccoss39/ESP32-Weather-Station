@@ -186,7 +186,7 @@ void displayPressureScreen(TFT_eSPI& tft) {
     tft.setTextColor(COLOR_BAR_NOW, COLOR_WIDGET_BG);
     tft.setTextSize(2); 
     String currentPressureText = String(drawHistory[11], 1) + " ";
-    tft.drawString(currentPressureText, valX + valW - 27, valY + (widgetH / 2));
+    tft.drawString(currentPressureText, valX + valW - 22, valY + (widgetH / 2));
 
     tft.setTextSize(1);
     tft.setTextColor(TFT_WHITE, COLOR_WIDGET_BG);
