@@ -7,20 +7,48 @@
 #include <HTTPClient.h>
 #include <HTTPUpdate.h>
 #include <esp_task_wdt.h> 
+#include <TFT_eSPI.h> // Dodano
 #include "config/hardware_config.h"
 #include "config/secrets.h"
 
+extern TFT_eSPI tft; // Obiekt TFT na pewno istnieje w main.cpp
+
 class GithubUpdateManager {
 public:
-    // Główna funkcja wywoływana z main.cpp
-    void checkForUpdate() {
+    // Singleton-like metoda dla bezpiecznego przechowywania flagi UI (unikamy błędów linkera)
+    static bool& isInteractiveUI() {
+        static bool interactive = false;
+        return interactive;
+    }
+
+    // Główna funkcja wywoływana z main.cpp lub ui.cpp
+    void checkForUpdate(bool interactive = false) {
+        isInteractiveUI() = interactive;
+
         if (WiFi.status() != WL_CONNECTED) {
             Serial.println("❌ Brak WiFi - nie mogę sprawdzić aktualizacji");
+            if (isInteractiveUI()) {
+                tft.fillScreen(TFT_BLACK);
+                tft.setTextColor(TFT_RED);
+                tft.setTextDatum(MC_DATUM);
+                tft.drawString("Brak polaczenia", 160, 100);
+                tft.drawString("z WiFi!", 160, 140);
+                delay(2000);
+            }
             return;
         }
 
         // === KROK 1: Sprawdzenie wersji (Lekki plik tekstowy) ===
         Serial.println("🔍 Sprawdzanie dostępności nowej wersji (version.txt)...");
+
+        if (isInteractiveUI()) {
+            tft.fillScreen(TFT_BLACK);
+            tft.setTextColor(TFT_YELLOW);
+            tft.setTextDatum(MC_DATUM);
+            tft.setTextSize(2);
+            tft.drawString("Sprawdzam wersje", 160, 100);
+            tft.drawString("na GitHub...", 160, 140);
+        }
 
         // Definicja URL do pliku wersji (musi być RAW)
         // ZMIANA: Dodajemy ?t=millis() aby ominąć narzucony przez GitHuba 5-minutowy cache CDN!
@@ -52,19 +80,49 @@ public:
                 // aby 1.20000004 nie było uznawane za większe od 1.19999999
                 if (remoteVersion > (FIRMWARE_VERSION + 0.001)) {
                     Serial.println("🚀 ZNALEZIONO NOWĄ WERSJĘ! Uruchamiam aktualizację...");
+                    
+                    if (isInteractiveUI()) {
+                        tft.fillScreen(TFT_BLACK);
+                        tft.setTextColor(TFT_GREEN);
+                        tft.drawString("Znaleziono nowa", 160, 100);
+                        tft.drawString(String("wersje: ") + String(remoteVersion, 2), 160, 140);
+                        delay(2000);
+                    }
+
                     http.end(); 
                     
                     // === KROK 2: Właściwa aktualizacja (Ciężki plik .bin) ===
                     performUpdate(); 
                 } else {
                     Serial.println("✅ Oprogramowanie jest aktualne. Pomijam pobieranie.");
+                    if (isInteractiveUI()) {
+                        tft.fillScreen(TFT_BLACK);
+                        tft.setTextColor(TFT_GREEN);
+                        tft.drawString("Stacja jest", 160, 100);
+                        tft.drawString("w pelni aktualna!", 160, 140);
+                        delay(2500);
+                    }
                 }
             } else {
                 Serial.printf("❌ Błąd pobierania wersji: %s\n", http.errorToString(httpCode).c_str());
+                if (isInteractiveUI()) {
+                    tft.fillScreen(TFT_BLACK);
+                    tft.setTextColor(TFT_RED);
+                    tft.drawString("Blad polaczenia", 160, 100);
+                    tft.drawString("HTTP: " + String(httpCode), 160, 140);
+                    delay(2500);
+                }
             }
             http.end();
         } else {
             Serial.println("❌ Nie udało się połączyć z serwerem wersji.");
+            if (isInteractiveUI()) {
+                tft.fillScreen(TFT_BLACK);
+                tft.setTextColor(TFT_RED);
+                tft.drawString("Brak odpowiedzi", 160, 100);
+                tft.drawString("od serwera GitHub", 160, 140);
+                delay(2500);
+            }
         }
         
         // Reset Watchdoga po wszystkim
@@ -76,6 +134,14 @@ private:
     void performUpdate() {
         Serial.println("🔄 Rozpoczynam pobieranie firmware.bin z GitHub...");
         
+        if (isInteractiveUI()) {
+            tft.fillScreen(TFT_BLACK);
+            tft.setTextColor(TFT_YELLOW);
+            tft.setTextDatum(MC_DATUM);
+            tft.drawString("POBIERANIE", 160, 60);
+            tft.drawString("AKTUALIZACJI...", 160, 100);
+        }
+
         // Klient bezpieczny (HTTPS) dla httpUpdate
         WiFiClientSecure client;
         client.setInsecure(); 
@@ -99,6 +165,14 @@ private:
         switch (ret) {
             case HTTP_UPDATE_FAILED:
                 Serial.printf("❌ Aktualizacja nieudana: (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
+                if (isInteractiveUI()) {
+                    tft.fillScreen(TFT_BLACK);
+                    tft.setTextColor(TFT_RED);
+                    tft.drawString("Blad aktualizacji!", 160, 100);
+                    tft.setTextSize(1);
+                    tft.drawString(httpUpdate.getLastErrorString(), 160, 140);
+                    delay(4000);
+                }
                 break;
             case HTTP_UPDATE_NO_UPDATES:
                 Serial.println("✅ Brak nowych aktualizacji (według nagłówków serwera).");
@@ -124,6 +198,18 @@ private:
         if (percent != lastPercent) {
             Serial.printf("⏳ Postęp: %d%%\r", percent);
             lastPercent = percent;
+
+            if (isInteractiveUI()) {
+                tft.fillRect(10, 160, 300, 24, 0x0000); // Wyczyść stare dane paska
+                tft.drawRect(10, 160, 300, 24, 0xFFFF); // Biała ramka
+                if (percent > 0) {
+                    tft.fillRect(12, 162, (percent * 296) / 100, 20, 0x07E0); // Pasek (TFT_GREEN)
+                }
+                tft.setTextDatum(MC_DATUM);
+                tft.setTextColor(0xFFFF);
+                tft.setTextSize(2);
+                tft.drawString(String(percent) + "%", 160, 200);
+            }
         }
         
         // Karmimy psa w trakcie długiego pobierania

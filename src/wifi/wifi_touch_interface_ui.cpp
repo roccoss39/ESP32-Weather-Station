@@ -10,6 +10,7 @@
 #include "wifi/offline_mode_pref.h"
 #include "weather/weather_data.h"
 #include "weather/forecast_data.h"
+#include "managers/GithubUpdateManager.h" // <-- DODANE
 
 // Temporary debug for location/custom GPS rendering
 #ifndef DEBUG_LOCATION_UI
@@ -346,15 +347,24 @@ void wifiTouchUI_drawConfigModeScreen(TFT_eSPI& tft) {
   tft.setTextColor(CYAN);
   tft.setTextSize(2);
   tft.setCursor(10, 5);
-  tft.println("TRYB KONFIGURACJI");
+  tft.println("MENU"); // Zmiana z "TRYB KONFIGURACJI"
 
-  tft.fillRect(220, 4, 95, 30, DARK_GREEN);
-  tft.drawRect(220, 4, 95, 30, WHITE);
+  // 1. Przycisk Kalibracji
+  tft.fillRect(110, 4, 100, 30, DARK_GREEN);
+  tft.drawRect(110, 4, 100, 30, WHITE);
   tft.setTextColor(WHITE);
   tft.setTextSize(1);
   tft.setTextDatum(MC_DATUM);
-  tft.drawString("KALIBRACJA", 220 + 95 / 2, 13);
-  tft.drawString("EKRANU", 220 + 95 / 2, 24);
+  tft.drawString("KALIBRACJA", 110 + 100 / 2, 13);
+  tft.drawString("EKRANU", 110 + 100 / 2, 24);
+
+  // 2. Przycisk Aktualizacji (Zmieniono kolor na BLUE)
+  tft.fillRect(215, 4, 100, 30, BLUE);
+  tft.drawRect(215, 4, 100, 30, WHITE);
+  tft.setTextColor(WHITE);
+  tft.drawString("AKTUALIZUJ", 215 + 100 / 2, 13);
+  tft.drawString("SYSTEM", 215 + 100 / 2, 24);
+
   tft.setTextDatum(TL_DATUM);
 
   // Strzałki nawigacji
@@ -1236,6 +1246,91 @@ void wifiTouchUI_handleTouchInput(int16_t x, int16_t y, TFT_eSPI& tft) {
   }
 
   if (currentState == STATE_CONFIG_MODE) {
+
+    // KLIKANIE W GÓRNY PASEK MENU (Y: 4 do 34)
+    if (y >= 4 && y <= 34) {
+      
+      // 1. Kalibracja
+      if (x >= 110 && x < 215) {
+        tft.fillRect(110, 4, 100, 30, YELLOW);
+        tft.setTextColor(BLACK);
+        tft.setTextDatum(MC_DATUM);
+        tft.drawString("START...", 110 + 100 / 2, 19);
+        tft.setTextDatum(TL_DATUM);
+        delay(250);
+
+        runTouchCalibrationFromMenu(tft);
+        drawConfigModeScreen();
+        return;
+      }
+
+      // 2. Aktualizacja OTA z GitHuba
+      if (x >= 215 && x <= 315) {
+        tft.fillRect(215, 4, 100, 30, YELLOW);
+        tft.setTextColor(BLACK);
+        tft.setTextDatum(MC_DATUM);
+        tft.drawString("START...", 215 + 100 / 2, 19);
+        tft.setTextDatum(TL_DATUM);
+        delay(250);
+
+        tft.fillScreen(BLACK);
+        tft.setTextColor(WHITE);
+        tft.setTextSize(2);
+        tft.setTextDatum(MC_DATUM);
+
+        if (isOfflineMode) {
+            tft.drawString("Wylacz tryb OFFLINE!", 160, 120);
+            delay(2500);
+            drawConfigModeScreen();
+            return;
+        }
+
+        tft.drawString("Laczenie z WiFi...", 160, 100);
+        tft.setTextSize(1);
+
+        Preferences p;
+        p.begin("wifi", true);
+        String savedSSID = p.getString("ssid", "");
+        String savedPass = p.getString("password", "");
+        p.end();
+
+        if (savedSSID.length() == 0) {
+            tft.drawString("Najpierw polacz sie", 160, 140);
+            tft.drawString("z domowa siecia!", 160, 160);
+            delay(2500);
+            drawConfigModeScreen();
+            return;
+        }
+
+        tft.drawString(savedSSID, 160, 130);
+        WiFi.begin(savedSSID.c_str(), savedPass.c_str());
+
+        int wait = 0;
+        while (WiFi.status() != WL_CONNECTED && wait < 30) {
+            delay(500);
+            yield();
+            wait++;
+        }
+
+        if (WiFi.status() == WL_CONNECTED) {
+            GithubUpdateManager updateMgr;
+            updateMgr.checkForUpdate(true); // Argument "true" włącza graficzny interfejs aktualizacji!
+        } else {
+            tft.fillScreen(BLACK);
+            tft.setTextColor(RED);
+            tft.setTextSize(2);
+            tft.drawString("Blad polaczenia", 160, 100);
+            tft.drawString("z WiFi!", 160, 140);
+            delay(2500);
+        }
+
+        // Powrót do menu skanowania po odrzuceniu lub zakończeniu
+        WiFi.disconnect();
+        scanNetworks();
+        drawConfigModeScreen();
+        return;
+      }
+    }
 
     if (x >= 220 && x <= 315 && y >= 4 && y <= 34) {
       tft.fillRect(220, 4, 95, 30, YELLOW);
