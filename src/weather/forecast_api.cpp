@@ -9,7 +9,7 @@
 #include "config/debug_config.h"
 
 // --- PRZEŁĄCZNIK TRYBU TESTOWEGO ---
-#define ENABLE_FORECAST_MOCK 0 // Zmień na 0, aby wrócić do prawdziwych danych z internetu
+#define ENABLE_FORECAST_MOCK 0 // Zmień na 1, aby włączyć dane testowe (bez użycia internetu)
 
 // Definicje globalnych zmiennych
 ForecastData forecast;
@@ -58,15 +58,10 @@ bool getForecast() {
     forecast.count = 5;
     
     // Progresja chmur na wykresie! Od pełnego słońca do burzy
-    // Test 1: Słońce (01d)
     forecast.items[0].time = "12:00"; forecast.items[0].temperature = 25.0; forecast.items[0].windSpeed = 5.0; forecast.items[0].icon = "01d"; forecast.items[0].description = "clear sky"; forecast.items[0].precipitationChance = 0;
-    // Test 2: Małe chmurki (02d)
     forecast.items[1].time = "15:00"; forecast.items[1].temperature = 23.5; forecast.items[1].windSpeed = 12.0; forecast.items[1].icon = "02d"; forecast.items[1].description = "few clouds"; forecast.items[1].precipitationChance = 5;
-    // Test 3: Średnie zachmurzenie (03d)
     forecast.items[2].time = "18:00"; forecast.items[2].temperature = 20.0; forecast.items[2].windSpeed = 22.0; forecast.items[2].icon = "03d"; forecast.items[2].description = "scattered clouds"; forecast.items[2].precipitationChance = 15;
-    // Test 4: Pochmurno (04n - noc)
     forecast.items[3].time = "21:00"; forecast.items[3].temperature = 16.5; forecast.items[3].windSpeed = 35.0; forecast.items[3].icon = "04n"; forecast.items[3].description = "overcast clouds"; forecast.items[3].precipitationChance = 45;
-    // Test 5: Burza (11n - noc)
     forecast.items[4].time = "00:00"; forecast.items[4].temperature = 12.0; forecast.items[4].windSpeed = 65.0; forecast.items[4].icon = "11n"; forecast.items[4].description = "thunderstorm"; forecast.items[4].precipitationChance = 95;
 
     forecast.isValid = true;
@@ -110,10 +105,6 @@ bool getForecast() {
     DeserializationError error = deserializeJson(doc, payload, DeserializationOption::Filter(filter));
     yield();
     
-    #ifdef DEBUG_WEATHER_API
-    Serial.println(payload);
-    #endif
-
     if (!error) {
       forecast.count = 0;
       forecast.isValid = false;
@@ -162,15 +153,13 @@ bool getForecast() {
 }
 
 // =========================================================================
-// 2. PROGNOZA NA NAJBLIŻSZE DNI (DLA EKRANU TYGODNIOWEGO)
+// 2. PROGNOZA NA NAJBLIŻSZE DNI (Z FILTREM DZIENNYM 08:00 - 20:00)
 // =========================================================================
 bool generateWeeklyForecast() {
   #if ENABLE_FORECAST_MOCK == 1
     Serial.println("🧪 [MOCK] Generowanie testowej prognozy 5-dniowej...");
     
     weeklyForecast.count = 5;
-    
-    // Pogodowy rollercoaster: Słońce -> Chmury -> Deszcz -> Burza -> Śnieg
     weeklyForecast.days[0].dayName = "Pon"; weeklyForecast.days[0].tempMin = 15.0; weeklyForecast.days[0].tempMax = 28.0; weeklyForecast.days[0].windMin = 5.0; weeklyForecast.days[0].windMax = 15.0; weeklyForecast.days[0].icon = "01d"; weeklyForecast.days[0].precipitationChance = 0;
     weeklyForecast.days[1].dayName = "Wto"; weeklyForecast.days[1].tempMin = 12.0; weeklyForecast.days[1].tempMax = 22.0; weeklyForecast.days[1].windMin = 15.0; weeklyForecast.days[1].windMax = 35.0; weeklyForecast.days[1].icon = "03d"; weeklyForecast.days[1].precipitationChance = 20;
     weeklyForecast.days[2].dayName = "Sro"; weeklyForecast.days[2].tempMin = 8.0; weeklyForecast.days[2].tempMax = 14.0; weeklyForecast.days[2].windMin = 25.0; weeklyForecast.days[2].windMax = 55.0; weeklyForecast.days[2].icon = "10d"; weeklyForecast.days[2].precipitationChance = 85;
@@ -182,16 +171,19 @@ bool generateWeeklyForecast() {
     return true;
   #endif
 
-  Serial.println("🗓️ WYWOŁANIE generateWeeklyForecast() - START (Open-Meteo)");
+  Serial.println("🗓️ WYWOŁANIE generateWeeklyForecast() - START (Filtr: 08:00 - 20:00)");
   if (WiFi.status() != WL_CONNECTED) return false;
 
   HTTPClient http;
   WeatherLocation currentLoc = locationManager.getCurrentLocation();
   
-  // Pobieramy dane OD RAZU w km/h, bo tego oczekuje ekran tygodniowy
+  // ZMIANA KRYTYCZNA: Pobieramy dane `daily` dla temperatur i wiatru, 
+  // ORAZ dane `hourly` (120 godzin) do precyzyjnej oceny opadów w ciągu dnia!
   String url = "http://api.open-meteo.com/v1/forecast?latitude=" + String(currentLoc.latitude, 4) +
                "&longitude=" + String(currentLoc.longitude, 4) +
-               "&daily=weather_code,temperature_2m_max,temperature_2m_min,wind_speed_10m_max,precipitation_probability_max&timezone=auto&forecast_days=5&wind_speed_unit=kmh";
+               "&daily=temperature_2m_max,temperature_2m_min,wind_speed_10m_max" +
+               "&hourly=weather_code,precipitation_probability" +
+               "&timezone=auto&forecast_days=5&wind_speed_unit=kmh";
   
   Serial.println("📡 Weekly API URL: " + url);
   http.begin(url);
@@ -203,39 +195,38 @@ bool generateWeeklyForecast() {
     String payload = http.getString();
     yield();
     
+    // Używamy opcji Filter aby zminimalizować zużycie pamięci RAM przy parsowaniu
     JsonDocument filter;
     filter["daily"]["time"] = true;
-    filter["daily"]["weather_code"] = true;
     filter["daily"]["temperature_2m_max"] = true;
     filter["daily"]["temperature_2m_min"] = true;
     filter["daily"]["wind_speed_10m_max"] = true;
-    filter["daily"]["precipitation_probability_max"] = true;
+    filter["hourly"]["weather_code"] = true;
+    filter["hourly"]["precipitation_probability"] = true;
 
     JsonDocument doc;
     DeserializationError error = deserializeJson(doc, payload, DeserializationOption::Filter(filter));
     yield();
     
-    #ifdef DEBUG_WEATHER_API
-    Serial.println(payload);
-    #endif
-
     if (!error) {
       weeklyForecast.count = 0;
       weeklyForecast.isValid = false;
       
       JsonArray timeArr = doc["daily"]["time"];
-      JsonArray codeArr = doc["daily"]["weather_code"];
       JsonArray maxTArr = doc["daily"]["temperature_2m_max"];
       JsonArray minTArr = doc["daily"]["temperature_2m_min"];
       JsonArray maxWArr = doc["daily"]["wind_speed_10m_max"];
-      JsonArray popArr = doc["daily"]["precipitation_probability_max"];
+      
+      // Tablice godzinowe z całego tygodnia (indeksy 0 - 119)
+      JsonArray hourlyCodeArr = doc["hourly"]["weather_code"];
+      JsonArray hourlyPopArr = doc["hourly"]["precipitation_probability"];
       
       const char* dayNames[] = {"Nie", "Pon", "Wto", "Sro", "Czw", "Pia", "Sob"};
       
-      for (int i = 0; i < 5; i++) {
-        if (i >= timeArr.size()) break;
+      for (int d = 0; d < 5; d++) {
+        if (d >= timeArr.size()) break;
         
-        String dateStr = timeArr[i].as<String>();
+        String dateStr = timeArr[d].as<String>();
         
         struct tm tm_date = {0};
         tm_date.tm_year = dateStr.substring(0, 4).toInt() - 1900;
@@ -244,23 +235,44 @@ bool generateWeeklyForecast() {
         mktime(&tm_date);
         int wday = tm_date.tm_wday; 
         
-        weeklyForecast.days[i].dayName = String(dayNames[wday]);
-        weeklyForecast.days[i].tempMax = maxTArr[i].as<float>();
-        weeklyForecast.days[i].tempMin = minTArr[i].as<float>();
+        weeklyForecast.days[d].dayName = String(dayNames[wday]);
+        weeklyForecast.days[d].tempMax = maxTArr[d].as<float>();
+        weeklyForecast.days[d].tempMin = minTArr[d].as<float>();
         
-        float windMax = maxWArr[i].as<float>();
-        weeklyForecast.days[i].windMax = windMax;
-        weeklyForecast.days[i].windMin = windMax * 0.4; 
+        float windMax = maxWArr[d].as<float>();
+        weeklyForecast.days[d].windMax = windMax;
+        weeklyForecast.days[d].windMin = windMax * 0.4; 
         
-        int code = codeArr[i].as<int>();
-        weeklyForecast.days[i].icon = getWmoIconLocal(code, 1); 
-        weeklyForecast.days[i].precipitationChance = popArr[i].as<int>();
+        // ========================================================
+        // NOWY ALGORYTM 08:00 - 20:00
+        // Ignorujemy ulewy i burze występujące głęboko w nocy.
+        // ========================================================
+        int maxPopDaytime = 0;
+        int worstCodeDaytime = 0; // Wartość kodu WMO (im wyższa, tym gorsza pogoda, np. 95 to burza, 0 to słońce)
+        
+        for(int h = 8; h <= 20; h++) {
+            int idx = (d * 24) + h;
+            if(idx < hourlyCodeArr.size()) {
+                int code = hourlyCodeArr[idx].as<int>();
+                int pop = hourlyPopArr[idx].as<int>();
+                
+                if(pop > maxPopDaytime) {
+                    maxPopDaytime = pop;
+                }
+                if(code > worstCodeDaytime) {
+                    worstCodeDaytime = code;
+                }
+            }
+        }
+        
+        weeklyForecast.days[d].icon = getWmoIconLocal(worstCodeDaytime, 1); // "1" gwarantuje dzienną ikonkę w podsumowaniu
+        weeklyForecast.days[d].precipitationChance = maxPopDaytime;
         
         // === LOGIKA DLA "DZIŚ" (Index 0) - DOMIESZANIE AKTUALNEJ POGODY ===
-        if (i == 0 && weather.isValid) {
+        if (d == 0 && weather.isValid) {
            float currentTemp = weather.temperature;
-           if (currentTemp < weeklyForecast.days[i].tempMin) weeklyForecast.days[i].tempMin = currentTemp;
-           if (currentTemp > weeklyForecast.days[i].tempMax) weeklyForecast.days[i].tempMax = currentTemp;
+           if (currentTemp < weeklyForecast.days[d].tempMin) weeklyForecast.days[d].tempMin = currentTemp;
+           if (currentTemp > weeklyForecast.days[d].tempMax) weeklyForecast.days[d].tempMax = currentTemp;
         }
         
         weeklyForecast.count++;
@@ -268,7 +280,7 @@ bool generateWeeklyForecast() {
       
       weeklyForecast.isValid = true;
       weeklyForecast.lastUpdate = millis();
-      Serial.println("✅ Weekly Forecast OK: Załadowano 5 dni z Open-Meteo!");
+      Serial.println("✅ Weekly Forecast OK: Załadowano z sukcesem z filtrem dziennym!");
       http.end();
       return true;
     } else {
