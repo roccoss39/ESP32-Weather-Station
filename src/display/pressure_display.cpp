@@ -2,9 +2,10 @@
 #include "display_utils.h"
 #include "weather/weather_data.h"
 #include "weather/open_meteo_api.h"
+#include <Preferences.h> // <-- DODANO BILIOTEKĘ PAMIĘCI
 
 // Definicja globalnej flagi wyboru wysokości ciśnienia
-bool showPressureAtSeaLevel = true;
+bool showPressureAtSeaLevel = true; 
 
 // Funkcja zachowana dla wstecznej kompatybilności.
 void savePressureToHistory(float currentPressure) {
@@ -20,6 +21,16 @@ void displayPressureScreen(TFT_eSPI& tft) {
     uint16_t COLOR_BAR_NOW = tft.color565(0, 200, 255);
     uint16_t COLOR_WIDGET_BG = tft.color565(20, 25, 30);
     uint16_t COLOR_WIDGET_BORDER = tft.color565(80, 80, 80);
+
+    // ==========================================
+    // NOWOŚĆ: ODCZYT STANU Z PAMIĘCI FLASH
+    // (Zapewnia pamięć wyboru po resecie i wybudzeniu)
+    // ==========================================
+    Preferences prefs;
+    prefs.begin("settings", true); // true = tryb tylko do odczytu
+    // Jeśli to pierwsze uruchomienie, domyślnie zwróci true (MSL)
+    showPressureAtSeaLevel = prefs.getBool("msl_mode", true); 
+    prefs.end();
 
     // 1. TŁO I TYTUŁ
     tft.fillScreen(COLOR_BG);

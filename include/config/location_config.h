@@ -15,17 +15,17 @@ struct WeatherLocation {
 
 // Dzielnice i obszary Szczecina (4 miejsca po przecinku)
 const WeatherLocation SZCZECIN_DISTRICTS[] = {
-    {"Szczecin", "PL", "Centrum", 53.4289, 14.5530, "CET-1CEST,M3.5.0/2,M10.5.0/3"},          // Centrum miasta (Plac Grunwaldzki)
+    {"Szczecin", "PL", "Centrum", 53.4289, 14.5530, "CET-1CEST,M3.5.0/2,M10.5.0/3"},         // Centrum miasta (Plac Grunwaldzki)
     {"Szczecin", "PL", "Zawadzkiego", 53.4590, 14.5430, "CET-1CEST,M3.5.0/2,M10.5.0/3"},    // Os. Zawadzkiego
     {"Szczecin", "PL", "Pogodno", 53.4000, 14.6100, "CET-1CEST,M3.5.0/2,M10.5.0/3"},          // Pogodno
-    {"Mierzyn", "PL", "Mierzyn", 53.4920, 14.6130, "CET-1CEST,M3.5.0/2,M10.5.0/3"},         // Mierzyn (gmina)
-    {"Plonia", "PL", "Plonia", 53.5060, 14.5890, "CET-1CEST,M3.5.0/2,M10.5.0/3"},           // Plonia (gmina)
+    {"Mierzyn", "PL", "Mierzyn", 53.4920, 14.6130, "CET-1CEST,M3.5.0/2,M10.5.0/3"},          // Mierzyn (gmina)
+    {"Plonia", "PL", "Plonia", 53.5060, 14.5890, "CET-1CEST,M3.5.0/2,M10.5.0/3"},            // Plonia (gmina)
     {"Szczecin", "PL", "Gumience", 53.4700, 14.6000, "CET-1CEST,M3.5.0/2,M10.5.0/3"},         // Gumience
     {"Szczecin", "PL", "Dabie", 53.3800, 14.6900, "CET-1CEST,M3.5.0/2,M10.5.0/3"},            // Dabie
     {"Szczecin", "PL", "Niebuszewo", 53.4800, 14.5200, "CET-1CEST,M3.5.0/2,M10.5.0/3"},       // Niebuszewo
     {"Szczecin", "PL", "Prawobreze", 53.4600, 14.6400, "CET-1CEST,M3.5.0/2,M10.5.0/3"},       // Prawobrzeże
     {"Szczecin", "PL", "Zelechowa", 53.3600, 14.6000, "CET-1CEST,M3.5.0/2,M10.5.0/3"},        // Żelechowa
-    {"Szczecin", "PL", "Turzyn", 53.4150, 14.5150, "CET-1CEST,M3.5.0/2,M10.5.0/3"},         // Turzyn
+    {"Szczecin", "PL", "Turzyn", 53.4150, 14.5150, "CET-1CEST,M3.5.0/2,M10.5.0/3"},          // Turzyn
     {"Szczecin", "PL", "Klonowica", 53.3700, 14.6200, "CET-1CEST,M3.5.0/2,M10.5.0/3"},        // Klonowica
     {"Szczecin", "PL", "Slowianin", 53.4550, 14.5950, "CET-1CEST,M3.5.0/2,M10.5.0/3"},      // Słowianin
     {"Szczecin", "PL", "Warszewo", 53.4750, 14.5350, "CET-1CEST,M3.5.0/2,M10.5.0/3"},       // Warszewo
@@ -58,6 +58,22 @@ const WeatherLocation ZLOCIENIEC_AREAS[] = {
 };
 
 const int ZLOCIENIEC_AREAS_COUNT = sizeof(ZLOCIENIEC_AREAS) / sizeof(ZLOCIENIEC_AREAS[0]);
+
+// ========================================================
+// NOWOŚĆ: Dzielnice Katowic (Dane ze zdjęcia dla Centrum)
+// ========================================================
+const WeatherLocation KATOWICE_DISTRICTS[] = {
+    {"Katowice", "PL", "Centrum", 50.2567, 19.0238, "CET-1CEST,M3.5.0/2,M10.5.0/3"},      // Centrum (GPS ze zdjęcia)
+    {"Katowice", "PL", "Bogucice", 50.2640, 19.0380, "CET-1CEST,M3.5.0/2,M10.5.0/3"},     // Bogucice
+    {"Katowice", "PL", "Zaleze", 50.2650, 18.9950, "CET-1CEST,M3.5.0/2,M10.5.0/3"},       // Załęże
+    {"Katowice", "PL", "Ligota", 50.2250, 18.9750, "CET-1CEST,M3.5.0/2,M10.5.0/3"},       // Ligota
+    {"Katowice", "PL", "Koszutka", 50.2680, 19.0200, "CET-1CEST,M3.5.0/2,M10.5.0/3"}      // Koszutka
+};
+
+const int KATOWICE_DISTRICTS_COUNT = sizeof(KATOWICE_DISTRICTS) / sizeof(KATOWICE_DISTRICTS[0]);
+
+// Opcje w głównym menu (Teraz zawiera 5 opcji!)
+extern const char* mainMenuOptions[] = {"Szczecin", "Poznan", "Zlocieniec", "Katowice", "Wlasny GPS"};
 
 // Placeholder dla zachowania kompatybilności
 const WeatherLocation EUROPE_CITIES[] = {};

@@ -55,7 +55,7 @@ void LocationManager::loadLocationFromPreferences() {
             
             setLocation(customSaved);
             Serial.printf("✅ Custom coordinates loaded: %s (%.6f, %.6f)\n",
-                         customSaved.displayName.c_str(), customSaved.latitude, customSaved.longitude);
+                          customSaved.displayName.c_str(), customSaved.latitude, customSaved.longitude);
             prefs.end();
             return;
         }
@@ -65,7 +65,7 @@ void LocationManager::loadLocationFromPreferences() {
         // Find matching location in predefined cities
         bool found = false;
         
-        // Check Szczecin districts
+        // 1. Check Szczecin districts
         for (int i = 0; i < SZCZECIN_DISTRICTS_COUNT; i++) {
             if (savedCity.equals(SZCZECIN_DISTRICTS[i].cityName) && 
                 savedCountry.equals(SZCZECIN_DISTRICTS[i].countryCode)) {
@@ -75,7 +75,41 @@ void LocationManager::loadLocationFromPreferences() {
             }
         }
         
-        // Note: Only Szczecin districts are available now
+        // 2. Check Poznan districts
+        if (!found) {
+            for (int i = 0; i < POZNAN_DISTRICTS_COUNT; i++) {
+                if (savedCity.equals(POZNAN_DISTRICTS[i].cityName) && 
+                    savedCountry.equals(POZNAN_DISTRICTS[i].countryCode)) {
+                    setLocation(POZNAN_DISTRICTS[i]);
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        // 3. Check Zlocieniec areas
+        if (!found) {
+            for (int i = 0; i < ZLOCIENIEC_AREAS_COUNT; i++) {
+                if (savedCity.equals(ZLOCIENIEC_AREAS[i].cityName) && 
+                    savedCountry.equals(ZLOCIENIEC_AREAS[i].countryCode)) {
+                    setLocation(ZLOCIENIEC_AREAS[i]);
+                    found = true;
+                    break;
+                }
+            }
+        }
+
+        // 4. Check Katowice districts
+        if (!found) {
+            for (int i = 0; i < KATOWICE_DISTRICTS_COUNT; i++) {
+                if (savedCity.equals(KATOWICE_DISTRICTS[i].cityName) && 
+                    savedCountry.equals(KATOWICE_DISTRICTS[i].countryCode)) {
+                    setLocation(KATOWICE_DISTRICTS[i]);
+                    found = true;
+                    break;
+                }
+            }
+        }
         
         if (!found) {
             Serial.println("Saved location not found in predefined cities, checking secrets.h");
@@ -83,7 +117,7 @@ void LocationManager::loadLocationFromPreferences() {
             if (findLocationFromSecrets()) {
                 Serial.println("Using location from secrets.h: " + String(WEATHER_CITY));
             } else {
-                Serial.println("Location from secrets.h not found, using default Warsaw");
+                Serial.println("Location from secrets.h not found, using default");
                 setDefaultLocation();
             }
         }
@@ -94,7 +128,7 @@ void LocationManager::loadLocationFromPreferences() {
         if (findLocationFromSecrets()) {
             Serial.println("Using location from secrets.h: " + String(WEATHER_CITY));
         } else {
-            Serial.println("Location from secrets.h not found, using default Warsaw");
+            Serial.println("Location from secrets.h not found, using default");
             setDefaultLocation();
         }
     }
@@ -103,11 +137,10 @@ void LocationManager::loadLocationFromPreferences() {
 }
 
 bool LocationManager::findLocationFromSecrets() {
-    // Sprawdź czy WEATHER_CITY z secrets.h jest w dzielnicach Szczecina
     String secretsCity = String(WEATHER_CITY);
     String secretsCountry = String(WEATHER_COUNTRY);
     
-    // Check Szczecin districts
+    // Check Szczecin
     for (int i = 0; i < SZCZECIN_DISTRICTS_COUNT; i++) {
         if (secretsCity.equals(SZCZECIN_DISTRICTS[i].cityName) && 
             secretsCountry.equals(SZCZECIN_DISTRICTS[i].countryCode)) {
@@ -115,8 +148,35 @@ bool LocationManager::findLocationFromSecrets() {
             return true;
         }
     }
+
+    // Check Poznan
+    for (int i = 0; i < POZNAN_DISTRICTS_COUNT; i++) {
+        if (secretsCity.equals(POZNAN_DISTRICTS[i].cityName) && 
+            secretsCountry.equals(POZNAN_DISTRICTS[i].countryCode)) {
+            setLocation(POZNAN_DISTRICTS[i]);
+            return true;
+        }
+    }
+
+    // Check Zlocieniec
+    for (int i = 0; i < ZLOCIENIEC_AREAS_COUNT; i++) {
+        if (secretsCity.equals(ZLOCIENIEC_AREAS[i].cityName) && 
+            secretsCountry.equals(ZLOCIENIEC_AREAS[i].countryCode)) {
+            setLocation(ZLOCIENIEC_AREAS[i]);
+            return true;
+        }
+    }
+
+    // Check Katowice
+    for (int i = 0; i < KATOWICE_DISTRICTS_COUNT; i++) {
+        if (secretsCity.equals(KATOWICE_DISTRICTS[i].cityName) && 
+            secretsCountry.equals(KATOWICE_DISTRICTS[i].countryCode)) {
+            setLocation(KATOWICE_DISTRICTS[i]);
+            return true;
+        }
+    }
     
-    return false; // Nie znaleziono w dzielnicach Szczecina
+    return false; // Nie znaleziono w zdefiniowanych listach
 }
 
 void LocationManager::saveLocationToPreferences() {

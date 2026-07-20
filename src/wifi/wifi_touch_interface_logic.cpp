@@ -394,9 +394,19 @@ void handleLongPress(TFT_eSPI& tft) {
             // Przycisk znajduje się na X: 15 do 185, Y: 202 do 232 (dodano tolerancję 5px)
             if (touchStartX >= 10 && touchStartX <= 190 && touchStartY >= 195 && touchStartY <= 235) {
                 Serial.println("🎯 [PIR] Kliknięto przycisk zmiany wysokości ciśnienia!");
+                
+                // 1. Zmiana stanu
                 showPressureAtSeaLevel = !showPressureAtSeaLevel;
                 
-                // Od razu zaktualizuj odczyt bieżący stacji
+                // 2. === NOWOŚĆ: TRWAŁY ZAPIS DO PAMIĘCI FLASH ===
+                Preferences prefs;
+                prefs.begin("settings", false); // false = tryb zapisu
+                prefs.putBool("msl_mode", showPressureAtSeaLevel);
+                prefs.end();
+                Serial.println("💾 Zapisano trwale tryb ciśnienia: " + String(showPressureAtSeaLevel ? "MSL" : "GRUNT"));
+                // ================================================
+                
+                // 3. Od razu zaktualizuj odczyt bieżący stacji
                 if (isOpenMeteoDataValid()) {
                     const float* onlineData = getOpenMeteoPressureHistory();
                     weather.pressure = onlineData[11];
