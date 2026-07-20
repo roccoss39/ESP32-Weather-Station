@@ -149,6 +149,16 @@ void setup() {
   settimeofday(&tv, NULL);
   // ===================================
 
+  // === FIX: ODCZYT TRYBU CIŚNIENIA NA STARCIE ===
+  {
+      Preferences prefsSettings;
+      prefsSettings.begin("settings", true); // true = tylko odczyt
+      showPressureAtSeaLevel = prefsSettings.getBool("msl_mode", true);
+      prefsSettings.end();
+      Serial.printf("📊 [INIT] Tryb cisnienia: %s\n", showPressureAtSeaLevel ? "MSL" : "GRUNT");
+  }
+  // ==============================================
+
   // ============================================================
   // 1. LOGIKA KALIBRACJI (OTA SAFE) - Z DEBUGOWANIEM
   // ============================================================
@@ -352,8 +362,8 @@ void setup() {
         Serial.println(WiFi.localIP());
 
         Serial.println("Configuring time from NTP server...");
-        // ZMIANA: Dodano potężne serwery zapasowe minimalizujące ryzyko błędu synchronizacji
-        configTzTime(TIMEZONE_INFO, NTP_SERVER, "pool.ntp.org", "time.google.com");
+        // ZMIANA: Google jako główny serwer, następnie pool.ntp.org, na końcu własny
+        configTzTime(TIMEZONE_INFO, "time.google.com", "pool.ntp.org", NTP_SERVER);
 
         Serial.print("Waiting for time synchronization...");
         struct tm timeinfo;
@@ -420,8 +430,8 @@ void setup() {
       struct tm timeinfo;
       if (!getLocalTime(&timeinfo, 10) || timeinfo.tm_year < (2023 - 1900)) {
           Serial.println("\nAwaryjna synchronizacja czasu NTP...");
-          // ZMIANA: Dodano potężne serwery zapasowe
-          configTzTime(TIMEZONE_INFO, NTP_SERVER, "pool.ntp.org", "time.google.com");
+          // ZMIANA: Google jako główny serwer
+          configTzTime(TIMEZONE_INFO, "time.google.com", "pool.ntp.org", NTP_SERVER);
           int retry = 0;
           while (!getLocalTime(&timeinfo, 500) || timeinfo.tm_year < (2023 - 1900)) {
               Serial.print(".");
@@ -661,8 +671,8 @@ void onWiFiConnectedTasks() {
     weatherRefreshTimeoutMs = 10000UL;
 
     Serial.println("onWiFiConnectedTasks: WiFi connected. Triggering NON-BLOCKING NTP sync...");
-    // ZMIANA: Dodano serwery zapasowe również dla wybudzeń ze snu i reconnectów
-    configTzTime(TIMEZONE_INFO, NTP_SERVER, "pool.ntp.org", "time.google.com");
+    // ZMIANA: Google jako główny serwer dla reconnectów
+    configTzTime(TIMEZONE_INFO, "time.google.com", "pool.ntp.org", NTP_SERVER);
     isNtpSyncPending = true; 
     
     Serial.println("Forcing immediate API fetch...");
@@ -811,6 +821,9 @@ void restoreWeatherFromRTC() {
     if (rtcMeteoValid) {
         extern void setOpenMeteoPressureHistory(const float* mslData, const float* surfData);
         setOpenMeteoPressureHistory(rtcMeteoPressureMsl, rtcMeteoPressureSurface);
+        
+        // === FIX: AKTUALIZACJA CIŚNIENIA GŁÓWNEGO PO WYBUDZENIU ===
+        weather.pressure = showPressureAtSeaLevel ? rtcMeteoPressureMsl[11] : rtcMeteoPressureSurface[11];
     }
 
     Serial.println("♻️ [RTC Cache] Pomyślnie odtworzono pogodę na ekranie!");
