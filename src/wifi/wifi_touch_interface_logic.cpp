@@ -99,7 +99,7 @@ LocationMenuState currentMenuState = MENU_MAIN;
 int currentLocationIndex = 0;
 int selectedCityIndex = 0; 
 
-const char* mainMenuOptions[] = {"Szczecin", "Poznan", "Zlocieniec", "Wlasny GPS"};
+//const char* mainMenuOptions[] = {"Szczecin", "Poznan", "Zlocieniec", "Wlasny GPS"};
 
 String customLatitude = "53.4289";
 String customLongitude = "14.5530";

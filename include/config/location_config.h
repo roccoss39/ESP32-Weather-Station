@@ -60,7 +60,7 @@ const WeatherLocation ZLOCIENIEC_AREAS[] = {
 const int ZLOCIENIEC_AREAS_COUNT = sizeof(ZLOCIENIEC_AREAS) / sizeof(ZLOCIENIEC_AREAS[0]);
 
 // ========================================================
-// NOWOŚĆ: Dzielnice Katowic (Dane ze zdjęcia dla Centrum)
+// Dzielnice Katowic
 // ========================================================
 const WeatherLocation KATOWICE_DISTRICTS[] = {
     {"Katowice", "PL", "Centrum", 50.2567, 19.0238, "CET-1CEST,M3.5.0/2,M10.5.0/3"},      // Centrum (GPS ze zdjęcia)
@@ -72,8 +72,10 @@ const WeatherLocation KATOWICE_DISTRICTS[] = {
 
 const int KATOWICE_DISTRICTS_COUNT = sizeof(KATOWICE_DISTRICTS) / sizeof(KATOWICE_DISTRICTS[0]);
 
-// Opcje w głównym menu (Teraz zawiera 5 opcji!)
-extern const char* mainMenuOptions[] = {"Szczecin", "Poznan", "Zlocieniec", "Katowice", "Wlasny GPS"};
+// ========================================================
+// POPRAWKA: CZYSTA DEKLARACJA EXTERN (BEZ ZNAKU RÓWNOŚCI I BEZ ZAWARTOŚCI)
+// ========================================================
+extern const char* mainMenuOptions[5];
 
 // Placeholder dla zachowania kompatybilności
 const WeatherLocation EUROPE_CITIES[] = {};

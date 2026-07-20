@@ -4,6 +4,8 @@
 
 LocationManager locationManager;
 
+const char* mainMenuOptions[5] = {"Szczecin", "Poznan", "Zlocieniec", "Katowice", "Wlasny GPS"};
+
 void LocationManager::setLocation(const WeatherLocation& location) {
     Serial.println("🔄 LocationManager::setLocation() called");
     Serial.printf("📍 OLD Location: %s (%.6f, %.6f)\n", 

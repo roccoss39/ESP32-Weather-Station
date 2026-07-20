@@ -450,7 +450,7 @@ void wifiTouchUI_drawLocationScreen(TFT_eSPI& tft) {
   int cityCount = 0;
 
   if (currentMenuState == MENU_MAIN) {
-    cityCount = 4; // Szczecin, Poznan, Zlocieniec, Wlasny GPS
+    cityCount = 5; 
   } else if (currentMenuState == MENU_DISTRICTS) {
     if (selectedCityIndex == 0) {
       cityList = SZCZECIN_DISTRICTS;
@@ -461,6 +461,9 @@ void wifiTouchUI_drawLocationScreen(TFT_eSPI& tft) {
     } else if (selectedCityIndex == 2) {
       cityList = ZLOCIENIEC_AREAS;
       cityCount = ZLOCIENIEC_AREAS_COUNT;
+    } else if (selectedCityIndex == 3) {
+      cityList = KATOWICE_DISTRICTS;
+      cityCount = KATOWICE_DISTRICTS_COUNT;
     }
   }
 
@@ -543,8 +546,9 @@ void wifiTouchUI_drawLocationScreen(TFT_eSPI& tft) {
     tft.setTextColor(DARKGRAY);
     tft.setTextSize(1);
     tft.setCursor(10, 185);
-    if (currentMenuState == MENU_MAIN) tft.printf("(4 opcje - uzyj UP/DOWN)");
+    if (currentMenuState == MENU_MAIN) tft.printf("(5 opcji - uzyj UP/DOWN)");
     else tft.printf("(%d dzielnic - uzyj UP/DOWN)", cityCount);
+  
   }
 
   // Custom coordinates button
@@ -563,12 +567,11 @@ void wifiTouchUI_handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
     int realIndex = clickedIndex + scrollOffset;
 
     if (currentMenuState == MENU_MAIN) {
-      if (realIndex >= 0 && realIndex < 4) {
+      if (realIndex >= 0 && realIndex < 5) { 
         currentLocationIndex = realIndex;
         selectedCityIndex = realIndex;
 
-        if (realIndex == 3) {
-          enterCoordinatesMode(tft);
+        if (realIndex == 4) { 
           return;
         }
 
@@ -582,6 +585,7 @@ void wifiTouchUI_handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
       if (selectedCityIndex == 0) maxItems = SZCZECIN_DISTRICTS_COUNT;
       else if (selectedCityIndex == 1) maxItems = POZNAN_DISTRICTS_COUNT;
       else if (selectedCityIndex == 2) maxItems = ZLOCIENIEC_AREAS_COUNT;
+      else if (selectedCityIndex == 3) maxItems = KATOWICE_DISTRICTS_COUNT;
 
       if (realIndex >= 0 && realIndex < maxItems) {
         currentLocationIndex = realIndex;
@@ -602,11 +606,12 @@ void wifiTouchUI_handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
 
     if (x >= 70 && x <= 120) {
       int maxItems = 0;
-      if (currentMenuState == MENU_MAIN) maxItems = 4;
+      if (currentMenuState == MENU_MAIN) maxItems = 5;
       else if (currentMenuState == MENU_DISTRICTS) {
         if (selectedCityIndex == 0) maxItems = SZCZECIN_DISTRICTS_COUNT;
         else if (selectedCityIndex == 1) maxItems = POZNAN_DISTRICTS_COUNT;
         else if (selectedCityIndex == 2) maxItems = ZLOCIENIEC_AREAS_COUNT;
+        else if (selectedCityIndex == 3) maxItems = KATOWICE_DISTRICTS_COUNT;
       }
 
       if (currentLocationIndex < maxItems - 1) {
@@ -618,7 +623,7 @@ void wifiTouchUI_handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
 
     if (x >= 130 && x <= 190) {
       if (currentMenuState == MENU_MAIN) {
-        if (currentLocationIndex == 3) {
+        if (currentLocationIndex == 4) {
           enterCoordinatesMode(tft);
           return;
         }
@@ -635,6 +640,7 @@ void wifiTouchUI_handleLocationTouch(int16_t x, int16_t y, TFT_eSPI& tft) {
         if (selectedCityIndex == 0) cityList = SZCZECIN_DISTRICTS;
         else if (selectedCityIndex == 1) cityList = POZNAN_DISTRICTS;
         else if (selectedCityIndex == 2) cityList = ZLOCIENIEC_AREAS;
+        else if (selectedCityIndex == 3) cityList = KATOWICE_DISTRICTS;
 
         if (cityList) {
           WeatherLocation selectedLocation = cityList[currentLocationIndex];
