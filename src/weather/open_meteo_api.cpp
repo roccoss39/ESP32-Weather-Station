@@ -117,10 +117,10 @@ void fetchOpenMeteoPressure() {
                         if (currentClouds <= 10) {
                             weather.description = "clear sky";
                             weather.icon = String("01") + suffix;
-                        } else if (currentClouds <= 25) {
+                        } else if (currentClouds <= 30) {
                             weather.description = "few clouds";
                             weather.icon = String("02") + suffix;
-                        } else if (currentClouds <= 50) {
+                        } else if (currentClouds <= 70) {
                             weather.description = "scattered clouds";
                             weather.icon = String("03") + suffix;
                         } else if (currentClouds <= 84) {
