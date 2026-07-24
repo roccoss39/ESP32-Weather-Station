@@ -58,35 +58,6 @@
 - **Zero global variables** - Complete encapsulation with singleton patterns
 
 ### 🔧 **Hardware Configuration**
-```cpp
-// Display (ILI9341 TFT)
-#define TFT_WIDTH   320    // Landscape width
-#define TFT_HEIGHT  240    // Landscape height
-#define TFT_CS      5      // Chip Select
-#define TFT_DC      15     // Data/Command
-#define TFT_RST     -1     // Reset (disabled - connect to VCC/EN)
-#define TFT_BL      25     // Backlight control
-#define TFT_MOSI    23     // SPI Data (Master Out Slave In) ⚠️ Shared with Touch Din(T_DIN)
-#define TFT_SCLK    18     // SPI Clock ⚠️ Shared with Touch (T_CLK)
-
-// Touch Interface (shares SPI bus with TFT)
-#define TOUCH_CS    22     // Touch Chip Select (separate CS allows sharing)
-#define SPI_MISO    19     // SPI Data In (Master In Slave Out) ⚠️ Shared (T_DO)
-
-// Sensors
-#define DHT22_PIN   4      // DHT22 Temperature/Humidity sensor
-#define PIR_PIN     27     // PIR Motion sensor
-
-// Built-in LED
-#define LED_BUILTIN 2
-
-//SHT
-#define PIN_I2C_SDA 32
-#define PIN_I2C_SCL 33  
-
-// Note: TFT and Touch share SPI pins (MOSI=23, SCLK=18, MISO=19)
-// but use separate Chip Select pins (TFT_CS=5, TOUCH_CS=22)
-```
 
 ### 📡 **Network & APIs**
 - **OpenWeatherMap API** for weather data and forecasts
